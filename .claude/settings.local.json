@@ -4,7 +4,8 @@
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack)",
       "Bash(npx shadcn@latest init --defaults)",
       "Bash(npx shadcn@latest add sonner separator popover)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npx vercel:*)"
     ]
   }
 }
