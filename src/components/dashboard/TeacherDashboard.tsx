@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { formatInTimeZone } from 'date-fns-tz'
 import { format } from 'date-fns'
 
-export default async function TeacherDashboard() {
+export async function TeacherDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
