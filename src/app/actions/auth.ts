@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
@@ -45,23 +46,38 @@ export async function signup(formData: FormData): Promise<void> {
   })
 
   if (!result.success) {
-    redirect('/signup?error=invalid_data')
+    redirect(`/signup?error=${encodeURIComponent('Please fill in all fields correctly.')}`)
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
+  const admin = createAdminClient()
+
+  // Sign up without trigger — we create the profile manually
+  const { data, error } = await supabase.auth.signUp({
     email: result.data.email,
     password: result.data.password,
-    options: {
-      data: {
-        full_name: result.data.full_name,
-        role: result.data.role,
-      },
-    },
   })
 
   if (error) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`)
+  }
+
+  if (!data.user) {
+    redirect(`/signup?error=${encodeURIComponent('Signup failed. Please try again.')}`)
+  }
+
+  // Create profile using admin client (bypasses RLS)
+  const { error: profileError } = await admin.from('profiles').insert({
+    id: data.user.id,
+    role: result.data.role,
+    full_name: result.data.full_name,
+    email: result.data.email,
+  })
+
+  if (profileError) {
+    // Clean up the auth user if profile creation failed
+    await admin.auth.admin.deleteUser(data.user.id)
+    redirect(`/signup?error=${encodeURIComponent(profileError.message)}`)
   }
 
   redirect('/dashboard')
