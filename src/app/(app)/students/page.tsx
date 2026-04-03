@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
-import { AddStudentForm } from '@/components/students/AddStudentForm'
+import { AddStudentModal } from '@/components/students/AddStudentModal'
 import { RemoveStudentButton } from '@/components/students/RemoveStudentButton'
 
 export default async function StudentsPage() {
@@ -30,7 +30,7 @@ export default async function StudentsPage() {
           <h1 className="text-2xl font-semibold">Students</h1>
           <p className="text-sm text-gray-500 mt-0.5">{activeStudents.length} active</p>
         </div>
-        <AddStudentForm />
+        <AddStudentModal />
       </div>
 
       {activeStudents.length === 0 ? (
