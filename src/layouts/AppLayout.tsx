@@ -24,8 +24,12 @@ const studentNav = [
 ]
 
 export function AppLayout() {
-  const { profile } = useAuth()
-  if (!profile) return null
+  const { profile, loading } = useAuth()
+  if (!profile) return (
+    <div className="min-h-screen flex items-center justify-center text-gray-400">
+      {loading ? 'Loading…' : 'Something went wrong. Please refresh.'}
+    </div>
+  )
 
   const isTeacher = profile.role === 'teacher'
   const nav = isTeacher ? teacherNav : studentNav
