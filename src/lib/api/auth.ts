@@ -12,7 +12,6 @@ export async function signup(
   full_name: string,
   role: 'teacher' | 'student',
 ): Promise<{ error?: string }> {
-  // Pass role + full_name as user metadata — the DB trigger reads these to create the profile
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -22,6 +21,21 @@ export async function signup(
   })
   if (error) return { error: error.message }
   if (!data.user) return { error: 'Signup failed. Please try again.' }
+
+  // Upsert the profile directly as a fallback in case the DB trigger fails.
+  // The trigger is the primary path; this ensures the profile always exists.
+  const { error: profileError } = await supabase.from('profiles').upsert({
+    id: data.user.id,
+    role,
+    full_name: full_name.trim(),
+    email: email.trim().toLowerCase(),
+  }, { onConflict: 'id' })
+
+  if (profileError) {
+    // Non-fatal: trigger may have already created it
+    console.warn('Profile upsert warning:', profileError.message)
+  }
+
   return {}
 }
 
