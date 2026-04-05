@@ -8,6 +8,7 @@ import { format, differenceInDays } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { GoalForm } from '@/components/progress/GoalForm'
 import { ProgressSnapshotForm } from '@/components/progress/ProgressSnapshotForm'
+import { StudentVocabManager } from '@/components/students/StudentVocabManager'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
@@ -213,6 +214,8 @@ export function StudentDetailPage() {
           <ProgressSnapshotForm studentId={studentId!} teacherId={user!.id} onSaved={loadData} />
         </div>
       </div>
+
+      <StudentVocabManager studentId={studentId!} />
 
       <Card>
         <CardHeader className="pb-3">

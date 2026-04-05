@@ -1,5 +1,51 @@
 import { supabase } from '@/lib/supabase'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+
+export async function createPlaceholderStudent(
+  name: string,
+): Promise<{ error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Not authenticated.' }
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/create-placeholder`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ name }),
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    return { error: body.error ?? 'Failed to create student.' }
+  }
+
+  return {}
+}
+
+export async function linkPlaceholderToStudent(
+  placeholderId: string,
+  realStudentEmail: string,
+): Promise<{ error?: string; realStudentName?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Not authenticated.' }
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/link-placeholder`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ placeholder_id: placeholderId, real_student_email: realStudentEmail }),
+  })
+
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: body.error ?? 'Failed to link account.' }
+  return { realStudentName: body.real_student_name }
+}
+
 export type StudentDetailsInput = {
   age?: number | null
   grade?: string | null

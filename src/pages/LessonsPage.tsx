@@ -43,11 +43,22 @@ export function LessonsPage() {
       setSelectedStudent(found ?? null)
 
       if (found) {
+        // Get lessons where student is primary + lessons where student is a participant
+        const { data: participations } = await supabase
+          .from('lesson_participants')
+          .select('lesson_id')
+          .eq('student_id', selectedStudentId)
+        const participantLessonIds = (participations ?? []).map((p: any) => p.lesson_id)
+
+        const orFilter = participantLessonIds.length
+          ? `student_id.eq.${selectedStudentId},id.in.(${participantLessonIds.join(',')})`
+          : `student_id.eq.${selectedStudentId}`
+
         const { data } = await supabase
           .from('lessons')
-          .select('id, scheduled_start, scheduled_end, status, lesson_type, lesson_notes(summary, areas_to_focus, homework)')
+          .select('id, scheduled_start, scheduled_end, status, lesson_type, is_group, lesson_notes(summary, areas_to_focus, homework), lesson_participants(student_id, student:profiles!lesson_participants_student_id_fkey(full_name))')
           .eq('teacher_id', user!.id)
-          .eq('student_id', selectedStudentId)
+          .or(orFilter)
           .order('scheduled_start', { ascending: false })
         setLessons(data ?? [])
       }
@@ -60,10 +71,20 @@ export function LessonsPage() {
   }
 
   async function loadStudentLessons() {
+    const { data: participations } = await supabase
+      .from('lesson_participants')
+      .select('lesson_id')
+      .eq('student_id', user!.id)
+    const participantLessonIds = (participations ?? []).map((p: any) => p.lesson_id)
+
+    const orFilter = participantLessonIds.length
+      ? `student_id.eq.${user!.id},id.in.(${participantLessonIds.join(',')})`
+      : `student_id.eq.${user!.id}`
+
     const { data } = await supabase
       .from('lessons')
-      .select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name), lesson_notes(summary, areas_to_focus, homework)')
-      .eq('student_id', user!.id)
+      .select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name), lesson_notes(summary, areas_to_focus, homework), lesson_participants(student_id, student:profiles!lesson_participants_student_id_fkey(full_name))')
+      .or(orFilter)
       .order('scheduled_start', { ascending: false })
     setLessons(data ?? [])
     setLoading(false)

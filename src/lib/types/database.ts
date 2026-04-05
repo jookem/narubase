@@ -19,6 +19,7 @@ export interface Profile {
   timezone: string
   locale: Locale
   invite_code: string | null
+  is_placeholder: boolean
   created_at: string
   updated_at: string
 }
@@ -169,6 +170,18 @@ export interface ProgressSnapshot {
   writing_score: number | null
   notes: string | null
   created_at: string
+}
+
+export interface LessonAttachment {
+  id: string
+  lesson_id: string
+  uploader_id: string
+  file_name: string
+  file_size: number
+  mime_type: string
+  storage_path: string
+  created_at: string
+  url?: string | null
 }
 
 // Join types for common queries

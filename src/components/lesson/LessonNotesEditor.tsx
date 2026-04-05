@@ -10,6 +10,7 @@ import type { LessonNotes, VocabularyItem, GrammarPoint, StudentGoal } from '@/l
 interface LessonNotesEditorProps {
   lessonId: string
   studentId: string
+  studentIds?: string[]
   initialNotes?: Partial<LessonNotes>
   goals?: StudentGoal[]
   onSaved?: () => void
@@ -18,6 +19,7 @@ interface LessonNotesEditorProps {
 export function LessonNotesEditor({
   lessonId,
   studentId,
+  studentIds,
   initialNotes,
   goals = [],
   onSaved,
@@ -110,14 +112,17 @@ export function LessonNotesEditor({
 
   async function handleSaveToVocabBank() {
     if (vocabulary.length === 0) return
+    const allStudents = studentIds?.length ? studentIds : [studentId]
     await addVocabularyToBank(
-      vocabulary.map(v => ({
-        student_id: studentId,
-        word: v.word,
-        definition_en: v.definition,
-        example: v.example,
-        lesson_id: lessonId,
-      }))
+      allStudents.flatMap(sid =>
+        vocabulary.map(v => ({
+          student_id: sid,
+          word: v.word,
+          definition_en: v.definition,
+          example: v.example,
+          lesson_id: lessonId,
+        }))
+      )
     )
   }
 

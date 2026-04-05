@@ -6,49 +6,79 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatInTimeZone } from 'date-fns-tz'
 import { LessonNotesEditor } from '@/components/lesson/LessonNotesEditor'
+import { LessonAttachments } from '@/components/lesson/LessonAttachments'
 import { markLessonComplete } from '@/lib/api/lessons'
 import { toast } from 'sonner'
+import type { VocabularyItem, GrammarPoint } from '@/lib/types/database'
 
 export function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [lesson, setLesson] = useState<any>(null)
   const [notes, setNotes] = useState<any>(null)
   const [goals, setGoals] = useState<any[]>([])
+  const [participants, setParticipants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
+
+  const isTeacher = profile?.role === 'teacher'
 
   async function loadData() {
     if (!user || !lessonId) return
 
-    const [lessonResult, notesResult, goalsResult] = await Promise.all([
-      supabase
-        .from('lessons')
-        .select('*, student:profiles!lessons_student_id_fkey(*), teacher:profiles!lessons_teacher_id_fkey(id, full_name)')
-        .eq('id', lessonId)
-        .eq('teacher_id', user.id)
-        .single(),
+    if (isTeacher) {
+      const [lessonResult, notesResult, goalsResult, participantsResult] = await Promise.all([
+        supabase
+          .from('lessons')
+          .select('*, student:profiles!lessons_student_id_fkey(*), teacher:profiles!lessons_teacher_id_fkey(id, full_name)')
+          .eq('id', lessonId)
+          .eq('teacher_id', user.id)
+          .single(),
+        supabase.from('lesson_notes').select('*').eq('lesson_id', lessonId).single(),
+        supabase.from('student_goals').select('*').eq('teacher_id', user.id).eq('status', 'active'),
+        supabase
+          .from('lesson_participants')
+          .select('student_id, student:profiles!lesson_participants_student_id_fkey(id, full_name)')
+          .eq('lesson_id', lessonId),
+      ])
 
-      supabase.from('lesson_notes').select('*').eq('lesson_id', lessonId).single(),
+      if (!lessonResult.data) { navigate('/lessons'); return }
+      setLesson(lessonResult.data)
+      setNotes(notesResult.data ?? null)
+      const lessonData = lessonResult.data
+      setGoals((goalsResult.data ?? []).filter((g: any) =>
+        g.student_id === lessonData.student_id ||
+        (participantsResult.data ?? []).some((p: any) => p.student_id === g.student_id)
+      ))
+      setParticipants((participantsResult.data ?? []).map((p: any) => p.student))
+    } else {
+      const [lessonResult, notesResult] = await Promise.all([
+        supabase
+          .from('lessons')
+          .select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name)')
+          .eq('id', lessonId)
+          .eq('student_id', user.id)
+          .single(),
+        supabase
+          .from('lesson_notes')
+          .select('summary, vocabulary, grammar_points, homework, strengths, areas_to_focus')
+          .eq('lesson_id', lessonId)
+          .eq('is_visible_to_student', true)
+          .single(),
+      ])
 
-      supabase.from('student_goals').select('*').eq('teacher_id', user.id).eq('status', 'active'),
-    ])
-
-    if (!lessonResult.data) {
-      navigate('/lessons')
-      return
+      if (!lessonResult.data) { navigate('/lessons'); return }
+      setLesson(lessonResult.data)
+      setNotes(notesResult.data ?? null)
     }
 
-    setLesson(lessonResult.data)
-    setNotes(notesResult.data ?? null)
-    setGoals((goalsResult.data ?? []).filter((g: any) => g.student_id === lessonResult.data.student_id))
     setLoading(false)
   }
 
   useEffect(() => {
     loadData()
-  }, [user, lessonId])
+  }, [user, lessonId, isTeacher])
 
   async function handleMarkComplete() {
     if (!lessonId) return
@@ -75,16 +105,33 @@ export function LessonDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Link to="/lessons" className="hover:text-gray-700">Lessons</Link>
             <span>/</span>
-            <Link to={`/students/${lesson.student_id}`} className="hover:text-gray-700">
-              {lesson.student?.full_name}
-            </Link>
+            {isTeacher ? (
+              <Link to={`/students/${lesson.student_id}`} className="hover:text-gray-700">
+                {lesson.student?.full_name}
+              </Link>
+            ) : (
+              <span>{lesson.teacher?.full_name}</span>
+            )}
           </div>
-          <h1 className="text-2xl font-semibold">{lesson.student?.full_name}&apos;s Lesson</h1>
+          <h1 className="text-2xl font-semibold">
+            {isTeacher
+              ? participants.length > 1
+                ? `Group Lesson — ${participants.map((p: any) => p.full_name).join(' & ')}`
+                : `${lesson.student?.full_name}'s Lesson`
+              : 'Lesson'}
+          </h1>
+          {isTeacher && participants.length > 1 && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Group</span>
+              <span className="text-xs text-gray-500">{participants.length} students</span>
+            </div>
+          )}
           <p className="text-gray-500 mt-1">
             {formatInTimeZone(new Date(lesson.scheduled_start), 'Asia/Tokyo', 'EEEE, MMMM d, yyyy · h:mm a')}
             {' - '}
@@ -101,7 +148,7 @@ export function LessonDetailPage() {
           }`}>
             {lesson.status}
           </span>
-          {lesson.status === 'scheduled' && (
+          {isTeacher && lesson.status === 'scheduled' && (
             <button
               onClick={handleMarkComplete}
               disabled={completing}
@@ -113,6 +160,7 @@ export function LessonDetailPage() {
         </div>
       </div>
 
+      {/* Meeting link */}
       {lesson.meeting_url && (
         <Card className="bg-brand-light border-brand/30">
           <CardContent className="py-3 flex items-center justify-between">
@@ -124,15 +172,95 @@ export function LessonDetailPage() {
         </Card>
       )}
 
+      {/* Notes — teacher gets full editor, student gets read-only view */}
+      {isTeacher ? (
+        <Card>
+          <CardContent className="pt-6">
+            <LessonNotesEditor
+              lessonId={lessonId!}
+              studentId={lesson.student_id}
+              studentIds={participants.length > 1 ? participants.map((p: any) => p.id) : undefined}
+              initialNotes={notes ?? undefined}
+              goals={goals}
+              onSaved={loadData}
+            />
+          </CardContent>
+        </Card>
+      ) : notes ? (
+        <Card>
+          <CardContent className="pt-6 space-y-5">
+            <h2 className="text-lg font-semibold">Lesson Notes</h2>
+
+            {notes.summary && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Summary</p>
+                <p className="text-sm text-gray-700">{notes.summary}</p>
+              </div>
+            )}
+
+            {notes.vocabulary?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vocabulary</p>
+                <div className="space-y-1.5">
+                  {(notes.vocabulary as VocabularyItem[]).map((v, i) => (
+                    <div key={i} className="p-2.5 bg-brand-light rounded-lg">
+                      <span className="font-medium text-brand-dark">{v.word}</span>
+                      <span className="text-gray-500 mx-2">—</span>
+                      <span className="text-gray-700 text-sm">{v.definition}</span>
+                      {v.example && (
+                        <p className="text-xs text-gray-400 italic mt-0.5">&ldquo;{v.example}&rdquo;</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {notes.grammar_points?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Grammar Points</p>
+                <div className="space-y-1.5">
+                  {(notes.grammar_points as GrammarPoint[]).map((gp, i) => (
+                    <div key={i} className="p-2.5 bg-green-50 rounded-lg">
+                      <p className="font-medium text-green-900 text-sm">{gp.point}</p>
+                      <p className="text-xs text-gray-600">{gp.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {notes.homework && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Homework / 宿題</p>
+                <p className="text-sm text-gray-700">{notes.homework}</p>
+              </div>
+            )}
+
+            {(notes.strengths || notes.areas_to_focus) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {notes.strengths && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">Strengths</p>
+                    <p className="text-sm text-gray-700">{notes.strengths}</p>
+                  </div>
+                )}
+                {notes.areas_to_focus && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Areas to Focus</p>
+                    <p className="text-sm text-gray-700">{notes.areas_to_focus}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Attachments */}
       <Card>
         <CardContent className="pt-6">
-          <LessonNotesEditor
-            lessonId={lessonId!}
-            studentId={lesson.student_id}
-            initialNotes={notes ?? undefined}
-            goals={goals}
-            onSaved={loadData}
-          />
+          <LessonAttachments lessonId={lessonId!} canUpload={isTeacher} />
         </CardContent>
       </Card>
     </div>
