@@ -4,6 +4,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
 export async function createPlaceholderStudent(
   name: string,
+  initial_password: string,
 ): Promise<{ error?: string }> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: 'Not authenticated.' }
@@ -14,7 +15,7 @@ export async function createPlaceholderStudent(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, initial_password }),
   })
 
   if (!res.ok) {
@@ -22,6 +23,27 @@ export async function createPlaceholderStudent(
     return { error: body.error ?? 'Failed to create student.' }
   }
 
+  return {}
+}
+
+export async function setStudentPassword(
+  studentId: string,
+  password: string,
+): Promise<{ error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Not authenticated.' }
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/set-student-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ student_id: studentId, password }),
+  })
+
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: body.error ?? 'Failed to set password.' }
   return {}
 }
 

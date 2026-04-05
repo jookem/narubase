@@ -35,19 +35,25 @@ Deno.serve(async (req) => {
       return new Response('Forbidden — teachers only', { status: 403, headers: corsHeaders })
     }
 
-    const { name } = await req.json()
+    const { name, initial_password } = await req.json()
     if (!name?.trim()) return new Response('Name is required', { status: 400, headers: corsHeaders })
+    if (!initial_password || initial_password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: 'initial_password (min 6 chars) is required.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
-    // Use service role to create a locked auth user
+    // Use service role to create a student auth user
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    const placeholderEmail = `placeholder_${crypto.randomUUID()}@tlc-placeholder.internal`
+    const placeholderEmail = `student_${crypto.randomUUID()}@tlc-student.internal`
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email: placeholderEmail,
-      password: crypto.randomUUID(), // random, unknowable — can never log in
+      password: initial_password,
       email_confirm: true,
       user_metadata: {
         role: 'student',
