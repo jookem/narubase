@@ -111,10 +111,10 @@ export function ScheduleLessonModal({ studentId, studentName, onSaved }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
-      <DialogTrigger render={<Button size="sm" variant="outline">+ Log Lesson</Button>} />
+      <DialogTrigger render={<Button size="sm" variant="outline">+ Add Lesson</Button>} />
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Log Lesson — {studentName}</DialogTitle>
+          <DialogTitle>Add Lesson — {studentName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {error && <p className="text-sm text-red-600">{error}</p>}

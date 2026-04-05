@@ -199,7 +199,7 @@ export function LessonsPage() {
             {lessons.length === 0 ? (
               <div className="text-center py-12 text-gray-400 border border-dashed border-gray-200 rounded-lg">
                 <p className="text-sm">No lessons yet for this student.</p>
-                <p className="text-xs mt-1">Use &quot;Log Lesson&quot; to add a past lesson.</p>
+                <p className="text-xs mt-1">Use &quot;+ Add Lesson&quot; to schedule an upcoming lesson or record a past one.</p>
               </div>
             ) : (
               <div className="space-y-2">
