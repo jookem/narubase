@@ -1,5 +1,13 @@
 import { supabase } from '@/lib/supabase'
 
+async function extractFnError(error: unknown, fallback: string): Promise<string> {
+  try {
+    const body = await (error as any).context?.json?.()
+    if (body?.error) return body.error
+  } catch {}
+  return (error as any)?.message ?? fallback
+}
+
 export async function createPlaceholderStudent(
   name: string,
   initial_password: string,
@@ -7,7 +15,7 @@ export async function createPlaceholderStudent(
   const { data, error } = await supabase.functions.invoke('create-placeholder', {
     body: { name, initial_password },
   })
-  if (error) return { error: (error as any).context?.error ?? error.message ?? 'Failed to create student.' }
+  if (error) return { error: await extractFnError(error, 'Failed to create student.') }
   return {}
 }
 
@@ -18,7 +26,7 @@ export async function setStudentPassword(
   const { data, error } = await supabase.functions.invoke('set-student-password', {
     body: { student_id: studentId, password },
   })
-  if (error) return { error: (error as any).context?.error ?? error.message ?? 'Failed to set password.' }
+  if (error) return { error: await extractFnError(error, 'Failed to set password.') }
   return {}
 }
 
@@ -29,7 +37,7 @@ export async function linkPlaceholderToStudent(
   const { data, error } = await supabase.functions.invoke('link-placeholder', {
     body: { placeholder_id: placeholderId, real_student_email: realStudentEmail },
   })
-  if (error) return { error: (error as any).context?.error ?? error.message ?? 'Failed to link account.' }
+  if (error) return { error: await extractFnError(error, 'Failed to link account.') }
   return { realStudentName: data?.real_student_name }
 }
 

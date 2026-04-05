@@ -2,11 +2,17 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function jsonError(msg: string, status: number) {
+  return new Response(JSON.stringify({ error: msg }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
 }
 
 Deno.serve(async (req) => {
@@ -14,54 +20,45 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    if (!authHeader) return jsonError('Unauthorized', 401)
 
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
-    if (authError || !user) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
-
-    const { data: profile } = await userClient.from('profiles').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'teacher') {
-      return new Response('Forbidden', { status: 403, headers: corsHeaders })
-    }
-
-    const { student_id, password } = await req.json()
-    if (!student_id || !password || password.length < 6) {
-      return new Response(
-        JSON.stringify({ error: 'student_id and password (min 6 chars) are required.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
+    // Decode JWT (gateway already verified signature)
+    const jwt = authHeader.replace('Bearer ', '')
+    const payload = JSON.parse(atob(jwt.split('.')[1]))
+    const teacherId: string = payload.sub
+    if (!teacherId) return jsonError('Unauthorized', 401)
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
+    // Verify caller is a teacher
+    const { data: callerProfile } = await adminClient
+      .from('profiles')
+      .select('role')
+      .eq('id', teacherId)
+      .single()
+
+    if (callerProfile?.role !== 'teacher') return jsonError('Forbidden', 403)
+
+    const { student_id, password } = await req.json()
+    if (!student_id || !password || password.length < 6) {
+      return jsonError('student_id and password (min 6 chars) are required.', 400)
+    }
+
     // Verify teacher has an active relationship with this student
     const { data: rel } = await adminClient
       .from('teacher_student_relationships')
       .select('id')
-      .eq('teacher_id', user.id)
+      .eq('teacher_id', teacherId)
       .eq('student_id', student_id)
       .eq('status', 'active')
       .single()
 
-    if (!rel) {
-      return new Response(
-        JSON.stringify({ error: 'Student not found in your roster.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
+    if (!rel) return jsonError('Student not found in your roster.', 404)
 
     const { error } = await adminClient.auth.admin.updateUserById(student_id, { password })
-    if (error) {
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
+    if (error) return jsonError(error.message, 500)
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -69,6 +66,6 @@ Deno.serve(async (req) => {
     )
   } catch (err) {
     console.error(err)
-    return new Response('Internal error', { status: 500, headers: corsHeaders })
+    return jsonError(`Internal error: ${String(err)}`, 500)
   }
 })
