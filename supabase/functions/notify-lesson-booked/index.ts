@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     const [{ data: teacher }, { data: student }] = await Promise.all([
-      supabase.from('profiles').select('full_name, email').eq('id', lesson.teacher_id).single(),
-      supabase.from('profiles').select('full_name, email').eq('id', lesson.student_id).single(),
+      supabase.from('profiles').select('full_name, email, notifications_email').eq('id', lesson.teacher_id).single(),
+      supabase.from('profiles').select('full_name, email, notifications_email').eq('id', lesson.student_id).single(),
     ])
 
     if (!teacher || !student) {
@@ -70,37 +70,41 @@ Deno.serve(async (req) => {
       hour12: true,
     })
 
-    // Email to teacher
-    await sendEmail(
-      teacher.email,
-      `Lesson confirmed — ${student.full_name}`,
-      `
-        <p>Hi ${teacher.full_name},</p>
-        <p>A lesson has been scheduled with <strong>${student.full_name}</strong>.</p>
-        <p>
-          <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
-          <strong>Type:</strong> ${lesson.lesson_type}
-        </p>
-        <p>See you then!</p>
-        <p style="color:#888;font-size:12px;">TLC English</p>
-      `,
-    )
+    // Email to teacher (if enabled)
+    if (teacher.notifications_email !== false) {
+      await sendEmail(
+        teacher.email,
+        `Lesson confirmed — ${student.full_name}`,
+        `
+          <p>Hi ${teacher.full_name},</p>
+          <p>A lesson has been scheduled with <strong>${student.full_name}</strong>.</p>
+          <p>
+            <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
+            <strong>Type:</strong> ${lesson.lesson_type}
+          </p>
+          <p>See you then!</p>
+          <p style="color:#888;font-size:12px;">TLC English</p>
+        `,
+      )
+    }
 
-    // Email to student
-    await sendEmail(
-      student.email,
-      `Lesson confirmed — ${teacher.full_name}`,
-      `
-        <p>Hi ${student.full_name},</p>
-        <p>Your lesson with <strong>${teacher.full_name}</strong> has been confirmed.</p>
-        <p>
-          <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
-          <strong>Type:</strong> ${lesson.lesson_type}
-        </p>
-        <p>See you then!</p>
-        <p style="color:#888;font-size:12px;">TLC English</p>
-      `,
-    )
+    // Email to student (if enabled)
+    if (student.notifications_email !== false) {
+      await sendEmail(
+        student.email,
+        `Lesson confirmed — ${teacher.full_name}`,
+        `
+          <p>Hi ${student.full_name},</p>
+          <p>Your lesson with <strong>${teacher.full_name}</strong> has been confirmed.</p>
+          <p>
+            <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
+            <strong>Type:</strong> ${lesson.lesson_type}
+          </p>
+          <p>See you then!</p>
+          <p style="color:#888;font-size:12px;">TLC English</p>
+        `,
+      )
+    }
 
     return new Response('emails sent', { status: 200 })
   } catch (err) {

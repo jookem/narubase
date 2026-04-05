@@ -20,6 +20,8 @@ export interface Profile {
   locale: Locale
   invite_code: string | null
   is_placeholder: boolean
+  notifications_email: boolean
+  default_lesson_mins: number
   created_at: string
   updated_at: string
 }

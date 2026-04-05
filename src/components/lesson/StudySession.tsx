@@ -28,9 +28,11 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
   const [done, setDone] = useState(false)
   const total = cards.length
 
-  // Auto-play word when card changes
+  // Auto-play word when card changes (respects user setting)
   useEffect(() => {
-    if (current && !done) speak(current.word)
+    if (current && !done && localStorage.getItem('tts_autoplay') !== 'false') {
+      speak(current.word)
+    }
   }, [current, done])
 
   const remaining = queue.length + againQueue.length

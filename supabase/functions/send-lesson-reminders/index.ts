@@ -45,8 +45,8 @@ Deno.serve(async () => {
         scheduled_start,
         scheduled_end,
         lesson_type,
-        teacher:profiles!lessons_teacher_id_fkey(full_name, email),
-        student:profiles!lessons_student_id_fkey(full_name, email)
+        teacher:profiles!lessons_teacher_id_fkey(full_name, email, notifications_email),
+        student:profiles!lessons_student_id_fkey(full_name, email, notifications_email)
       `)
       .eq('status', 'scheduled')
       .gte('scheduled_start', windowStart.toISOString())
@@ -76,35 +76,39 @@ Deno.serve(async () => {
         hour12: true,
       })
 
-      await sendEmail(
-        teacher.email,
-        `Reminder: lesson with ${student.full_name} in 1 hour`,
-        `
-          <p>Hi ${teacher.full_name},</p>
-          <p>Your lesson with <strong>${student.full_name}</strong> starts in about 1 hour.</p>
-          <p>
-            <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
-            <strong>Type:</strong> ${lesson.lesson_type}
-          </p>
-          <p style="color:#888;font-size:12px;">TLC English</p>
-        `,
-      )
+      if (teacher.notifications_email !== false) {
+        await sendEmail(
+          teacher.email,
+          `Reminder: lesson with ${student.full_name} in 1 hour`,
+          `
+            <p>Hi ${teacher.full_name},</p>
+            <p>Your lesson with <strong>${student.full_name}</strong> starts in about 1 hour.</p>
+            <p>
+              <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
+              <strong>Type:</strong> ${lesson.lesson_type}
+            </p>
+            <p style="color:#888;font-size:12px;">TLC English</p>
+          `,
+        )
+        sent++
+      }
 
-      await sendEmail(
-        student.email,
-        `Reminder: lesson with ${teacher.full_name} in 1 hour`,
-        `
-          <p>Hi ${student.full_name},</p>
-          <p>Your lesson with <strong>${teacher.full_name}</strong> starts in about 1 hour.</p>
-          <p>
-            <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
-            <strong>Type:</strong> ${lesson.lesson_type}
-          </p>
-          <p style="color:#888;font-size:12px;">TLC English</p>
-        `,
-      )
-
-      sent += 2
+      if (student.notifications_email !== false) {
+        await sendEmail(
+          student.email,
+          `Reminder: lesson with ${teacher.full_name} in 1 hour`,
+          `
+            <p>Hi ${student.full_name},</p>
+            <p>Your lesson with <strong>${teacher.full_name}</strong> starts in about 1 hour.</p>
+            <p>
+              <strong>When:</strong> ${lessonTime} – ${lessonEnd} JST<br/>
+              <strong>Type:</strong> ${lesson.lesson_type}
+            </p>
+            <p style="color:#888;font-size:12px;">TLC English</p>
+          `,
+        )
+        sent++
+      }
     }
 
     return new Response(`sent ${sent} emails for ${lessons.length} lessons`, { status: 200 })

@@ -14,6 +14,8 @@ type Props = { studentId: string; studentName: string; onSaved?: () => void }
 export function ScheduleLessonModal({ studentId, studentName, onSaved }: Props) {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
+  const defaultMins = parseInt(localStorage.getItem('default_lesson_mins') ?? '60', 10) || 60
+
   const [date, setDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -134,7 +136,16 @@ export function ScheduleLessonModal({ studentId, studentName, onSaved }: Props) 
               <input
                 type="time"
                 value={startTime}
-                onChange={e => setStartTime(e.target.value)}
+                onChange={e => {
+                  setStartTime(e.target.value)
+                  if (e.target.value && defaultMins) {
+                    const [h, m] = e.target.value.split(':').map(Number)
+                    const total = h * 60 + m + defaultMins
+                    const endH = String(Math.floor(total / 60) % 24).padStart(2, '0')
+                    const endM = String(total % 60).padStart(2, '0')
+                    setEndTime(`${endH}:${endM}`)
+                  }
+                }}
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 required
               />
