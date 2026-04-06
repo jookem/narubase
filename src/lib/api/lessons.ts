@@ -5,7 +5,7 @@ export async function saveLessonNotes(data: {
   lesson_id: string
   student_id?: string | null   // null/undefined = group note; string = individual note
   summary?: string
-  vocabulary?: { word: string; definition: string; example?: string; mastered?: boolean }[]
+  vocabulary?: { word: string; definition_ja: string; definition_en?: string; definition?: string; example?: string; mastered?: boolean }[]
   grammar_points?: { point: string; explanation: string; examples?: string[] }[]
   homework?: string
   strengths?: string

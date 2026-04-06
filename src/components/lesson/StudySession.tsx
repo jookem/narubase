@@ -165,11 +165,11 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
                     className="w-full max-h-48 object-contain rounded-lg mb-1"
                   />
                 )}
-                {current.definition_en && (
-                  <p className="text-lg text-gray-800">{current.definition_en}</p>
-                )}
                 {current.definition_ja && (
-                  <p className="text-base text-gray-500">{current.definition_ja}</p>
+                  <p className="text-xl font-medium text-gray-900">{current.definition_ja}</p>
+                )}
+                {current.definition_en && (
+                  <p className="text-base text-gray-500">{current.definition_en}</p>
                 )}
                 {current.example && (
                   <p className="text-sm text-gray-400 italic border-t pt-3 mt-3">

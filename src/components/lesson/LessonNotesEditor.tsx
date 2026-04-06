@@ -43,7 +43,8 @@ export function LessonNotesEditor({
   const [grammarPoints, setGrammarPoints] = useState<GrammarPoint[]>(initialNotes?.grammar_points ?? [])
 
   const [newWord, setNewWord] = useState('')
-  const [newDefinition, setNewDefinition] = useState('')
+  const [newDefinitionJa, setNewDefinitionJa] = useState('')
+  const [newDefinitionEn, setNewDefinitionEn] = useState('')
   const [newExample, setNewExample] = useState('')
 
   const [newGrammarPoint, setNewGrammarPoint] = useState('')
@@ -72,15 +73,17 @@ export function LessonNotesEditor({
   }, [lessonId, summary, vocabulary, grammarPoints, homework, strengths, areasToFocus, teacherNotes, selectedGoalIds, isVisible])
 
   function addVocabItem() {
-    if (!newWord.trim() || !newDefinition.trim()) return
+    if (!newWord.trim() || !newDefinitionJa.trim()) return
     const item: VocabularyItem = {
       word: newWord.trim(),
-      definition: newDefinition.trim(),
+      definition_ja: newDefinitionJa.trim(),
+      definition_en: newDefinitionEn.trim() || undefined,
       example: newExample.trim() || undefined,
     }
     setVocabulary(prev => [...prev, item])
     setNewWord('')
-    setNewDefinition('')
+    setNewDefinitionJa('')
+    setNewDefinitionEn('')
     setNewExample('')
     triggerAutoSave()
   }
@@ -122,7 +125,8 @@ export function LessonNotesEditor({
         vocabulary.map(v => ({
           student_id: sid,
           word: v.word,
-          definition_en: v.definition,
+          definition_ja: v.definition_ja,
+          definition_en: v.definition_en ?? v.definition ?? undefined,
           example: v.example,
           lesson_id: lessonId,
         }))
@@ -206,7 +210,10 @@ export function LessonNotesEditor({
             <div className="flex-1">
               <span className="font-medium text-brand-dark">{item.word}</span>
               <span className="text-gray-600 mx-2">—</span>
-              <span className="text-gray-700">{item.definition}</span>
+              <span className="text-gray-700">{item.definition_ja ?? item.definition}</span>
+              {item.definition_en && (
+                <span className="text-gray-400 text-sm ml-2">({item.definition_en})</span>
+              )}
               {item.example && (
                 <p className="text-sm text-gray-500 italic mt-0.5">&ldquo;{item.example}&rdquo;</p>
               )}
@@ -217,12 +224,13 @@ export function LessonNotesEditor({
           </div>
         ))}
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Input value={newWord} onChange={e => setNewWord(e.target.value)} placeholder="Word" />
-          <Input value={newDefinition} onChange={e => setNewDefinition(e.target.value)} placeholder="Definition" />
-          <Input value={newExample} onChange={e => setNewExample(e.target.value)} placeholder="Example (optional)" />
+          <Input value={newDefinitionJa} onChange={e => setNewDefinitionJa(e.target.value)} placeholder="意味 (Japanese) *" />
+          <Input value={newDefinitionEn} onChange={e => setNewDefinitionEn(e.target.value)} placeholder="English meaning (optional)" />
+          <Input value={newExample} onChange={e => setNewExample(e.target.value)} placeholder="Example sentence (optional)" />
         </div>
-        <Button size="sm" variant="outline" onClick={addVocabItem} disabled={!newWord || !newDefinition}>
+        <Button size="sm" variant="outline" onClick={addVocabItem} disabled={!newWord || !newDefinitionJa}>
           + Add Word
         </Button>
       </div>

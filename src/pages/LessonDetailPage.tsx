@@ -31,7 +31,8 @@ function NotesReadView({ notes }: { notes: any }) {
               <div key={i} className="p-2.5 bg-brand-light rounded-lg">
                 <span className="font-medium text-brand-dark">{v.word}</span>
                 <span className="text-gray-500 mx-2">—</span>
-                <span className="text-gray-700 text-sm">{v.definition}</span>
+                <span className="text-gray-700 text-sm">{v.definition_ja ?? v.definition}</span>
+                {v.definition_en && <span className="text-gray-400 text-xs ml-1">({v.definition_en})</span>}
                 {v.example && <p className="text-xs text-gray-400 italic mt-0.5">&ldquo;{v.example}&rdquo;</p>}
               </div>
             ))}

@@ -92,7 +92,9 @@ export interface BookingRequest {
 
 export interface VocabularyItem {
   word: string
-  definition: string
+  definition_ja: string       // Japanese definition — required
+  definition_en?: string      // English definition — optional
+  definition?: string         // legacy field kept for backwards compatibility
   example?: string
   mastered?: boolean
 }
