@@ -30,6 +30,40 @@ function isSQLite(buf: ArrayBuffer): boolean {
   return true
 }
 
+// ── TSV parser (Anki "Notes in Plain Text" export) ───────────
+async function parseTsv(file: File): Promise<ParseResult> {
+  const text = await file.text()
+  const lines = text.split('\n')
+
+  // Collect metadata lines (start with #)
+  let separator = '\t'
+  let fieldNames: string[] = []
+  const dataLines: string[] = []
+
+  for (const raw of lines) {
+    const line = raw.trimEnd()
+    if (!line) continue
+    if (line.startsWith('#')) {
+      const m = line.match(/^#separator:(.*)/i)
+      if (m) separator = m[1].toLowerCase() === 'tab' ? '\t' : m[1]
+      const f = line.match(/^#columns:(.*)/i) ?? line.match(/^#fields:(.*)/i)
+      if (f) fieldNames = f[1].split(separator)
+      continue
+    }
+    dataLines.push(line)
+  }
+
+  if (!dataLines.length) throw new Error('No card data found in this file.')
+
+  const cards: ParsedCard[] = dataLines.map(l => ({ fields: l.split(separator) }))
+
+  const maxFields = Math.max(...cards.map(c => c.fields.length))
+  while (fieldNames.length < maxFields) fieldNames.push(`Field ${fieldNames.length + 1}`)
+
+  return { cards, fieldNames }
+}
+
+// ── APKG parser (Anki deck package) ──────────────────────────
 async function parseApkg(file: File): Promise<ParseResult> {
   const JSZip = (await import('jszip')).default
   // @ts-ignore - sql.js lacks perfect types for dynamic import
@@ -179,15 +213,17 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
   const [error, setError] = useState('')
 
   async function handleFile(file: File) {
-    if (!file.name.endsWith('.apkg')) {
-      setError('Please select an Anki .apkg file.')
+    const isTsv = file.name.endsWith('.txt') || file.name.endsWith('.tsv')
+    const isApkg = file.name.endsWith('.apkg')
+    if (!isTsv && !isApkg) {
+      setError('Please select an Anki .apkg or .txt (Notes in Plain Text) file.')
       return
     }
     setParsing(true)
     setError('')
     setResult(null)
     try {
-      const parsed = await parseApkg(file)
+      const parsed = isTsv ? await parseTsv(file) : await parseApkg(file)
       setResult(parsed)
       setFieldMap(guessFieldMap(parsed.fieldNames))
     } catch (e: any) {
@@ -200,7 +236,9 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragging(false)
-    const file = e.dataTransfer.files[0]
+    const file = Array.from(e.dataTransfer.files).find(f =>
+      f.name.endsWith('.apkg') || f.name.endsWith('.txt') || f.name.endsWith('.tsv')
+    )
     if (file) handleFile(file)
   }, [])
 
@@ -284,7 +322,7 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
             <input
               id="anki-file-input"
               type="file"
-              accept=".apkg"
+              accept=".apkg,.txt,.tsv"
               className="hidden"
               onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
             />
@@ -292,8 +330,12 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
               <p className="text-sm text-gray-500">Parsing deck…</p>
             ) : (
               <>
-                <p className="text-sm font-medium text-gray-700">Drop an Anki .apkg file here</p>
+                <p className="text-sm font-medium text-gray-700">Drop an Anki file here</p>
                 <p className="text-xs text-gray-400 mt-1">or click to browse</p>
+                <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+                  In Anki: <span className="font-medium text-gray-500">File → Export</span>, then choose<br />
+                  <span className="font-medium text-gray-500">Notes in Plain Text (.txt)</span> for best results
+                </p>
               </>
             )}
           </div>
