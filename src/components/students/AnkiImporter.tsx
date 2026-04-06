@@ -181,7 +181,11 @@ async function parseApkg(file: File): Promise<ParseResult> {
   return { cards, fieldNames }
 }
 
-function guessFieldMap(fieldNames: string[]): FieldMap {
+function looksJapanese(samples: ParsedCard[], fieldIdx: number): boolean {
+  return samples.some(c => /[\u3040-\u9fff\uff00-\uffef]/.test(c.fields[fieldIdx] ?? ''))
+}
+
+function guessFieldMap(fieldNames: string[], cards: ParsedCard[]): FieldMap {
   const lower = fieldNames.map(n => n.toLowerCase())
   const find = (...terms: string[]): number => {
     for (const term of terms) {
@@ -190,13 +194,32 @@ function guessFieldMap(fieldNames: string[]): FieldMap {
     }
     return -1
   }
+
   const wordIdx = find('word', 'front', 'expression', 'vocab', 'english', 'term')
-  const defIdx = find('definition', 'meaning', 'back', 'english def', 'gloss')
+  let defEnIdx = find('definition', 'meaning', 'back', 'english def', 'gloss')
+  let defJaIdx = find('japanese', 'ja', '日本語', 'translation', 'kana', 'reading')
+
+  // When field names are generic (e.g. "Field 1", "Field 2"), sample content
+  // to detect if the fallback definition field actually contains Japanese
+  const sample = cards.slice(0, 5)
+  const resolvedWord = wordIdx >= 0 ? wordIdx : 0
+  if (defEnIdx < 0 && defJaIdx < 0 && fieldNames.length > 1) {
+    const candidateIdx = resolvedWord === 0 ? 1 : 0
+    if (looksJapanese(sample, candidateIdx)) {
+      defJaIdx = candidateIdx
+    } else {
+      defEnIdx = candidateIdx
+    }
+  } else if (defEnIdx >= 0 && defJaIdx < 0 && looksJapanese(sample, defEnIdx)) {
+    // Named "definition" field but content is Japanese — reclassify
+    defJaIdx = defEnIdx
+    defEnIdx = -1
+  }
+
   return {
-    // Fall back to positional defaults (0=word, 1=definition) when not detected
-    word: wordIdx >= 0 ? wordIdx : 0,
-    definition_en: defIdx >= 0 ? defIdx : (fieldNames.length > 1 ? 1 : 0),
-    definition_ja: find('japanese', 'ja', '日本語', 'translation', 'kana', 'reading'),
+    word: resolvedWord,
+    definition_en: defEnIdx,
+    definition_ja: defJaIdx,
     example: find('example', 'sentence', 'usage', 'context'),
   }
 }
@@ -208,7 +231,7 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [result, setResult] = useState<ParseResult | null>(null)
-  const [fieldMap, setFieldMap] = useState<FieldMap>({ word: 0, definition_en: 1, definition_ja: -1, example: -1 })
+  const [fieldMap, setFieldMap] = useState<FieldMap>({ word: 0, definition_en: -1, definition_ja: -1, example: -1 })
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
 
@@ -225,7 +248,7 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
     try {
       const parsed = isTsv ? await parseTsv(file) : await parseApkg(file)
       setResult(parsed)
-      setFieldMap(guessFieldMap(parsed.fieldNames))
+      setFieldMap(guessFieldMap(parsed.fieldNames, parsed.cards))
     } catch (e: any) {
       setError(e.message ?? 'Failed to parse the deck.')
     } finally {
@@ -253,7 +276,7 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
         definition_ja: fieldMap.definition_ja >= 0 ? (c.fields[fieldMap.definition_ja]?.trim() || undefined) : undefined,
         example: fieldMap.example >= 0 ? (c.fields[fieldMap.example]?.trim() || undefined) : undefined,
       }))
-      .filter(e => e.word && e.definition_en)
+      .filter(e => e.word && (e.definition_en || e.definition_ja))
 
     if (!entries.length) {
       setError('No valid cards found with the current field mapping.')
