@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { convertToWebP } from '@/lib/utils/imageUtils'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
@@ -6,16 +7,16 @@ export async function uploadAvatar(file: File): Promise<{ url?: string; error?: 
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.user) return { error: 'Not authenticated' }
 
-  const ext = file.name.split('.').pop()
-  const path = `${session.user.id}/avatar.${ext}`
+  const webpFile = await convertToWebP(file)
+  const path = `${session.user.id}/avatar.webp`
 
   const { error: uploadError } = await supabase.storage
     .from('avatars')
-    .upload(path, file, { upsert: true, contentType: file.type })
+    .upload(path, webpFile, { upsert: true, contentType: webpFile.type })
 
   if (uploadError) return { error: uploadError.message }
 
-  const url = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`
+  const url = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`
 
   const { error: updateError } = await supabase
     .from('profiles')

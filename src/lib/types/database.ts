@@ -153,6 +153,7 @@ export interface VocabularyBankEntry {
   definition_en: string | null
   definition_ja: string | null
   example: string | null
+  image_url: string | null
   lesson_id: string | null
   mastery_level: MasteryLevel
   next_review: string | null

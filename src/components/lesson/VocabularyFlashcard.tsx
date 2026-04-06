@@ -51,6 +51,13 @@ export function VocabularyFlashcard({
             </div>
           ) : (
             <div>
+              {entry.image_url && (
+                <img
+                  src={entry.image_url}
+                  alt={entry.word}
+                  className="w-full max-h-32 object-contain rounded-md mb-2"
+                />
+              )}
               {entry.definition_en && <p className="text-sm text-gray-800">{entry.definition_en}</p>}
               {entry.definition_ja && <p className="text-sm text-gray-600">{entry.definition_ja}</p>}
               {entry.example && (

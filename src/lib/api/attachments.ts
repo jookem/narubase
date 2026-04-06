@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { convertToWebP } from '@/lib/utils/imageUtils'
 import type { LessonAttachment } from '@/lib/types/database'
 
 export async function uploadAttachment(
@@ -8,12 +9,13 @@ export async function uploadAttachment(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
-  const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const uploadFile = await convertToWebP(file)
+  const sanitized = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
   const path = `${lessonId}/${Date.now()}_${sanitized}`
 
   const { error: uploadError } = await supabase.storage
     .from('lesson-attachments')
-    .upload(path, file, { contentType: file.type })
+    .upload(path, uploadFile, { contentType: uploadFile.type })
 
   if (uploadError) return { error: uploadError.message }
 
@@ -22,9 +24,9 @@ export async function uploadAttachment(
     .insert({
       lesson_id: lessonId,
       uploader_id: user.id,
-      file_name: file.name,
-      file_size: file.size,
-      mime_type: file.type,
+      file_name: uploadFile.name,
+      file_size: uploadFile.size,
+      mime_type: uploadFile.type,
       storage_path: path,
     })
     .select('*')

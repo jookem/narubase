@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { convertToWebP } from '@/lib/utils/imageUtils'
 
 export async function saveLessonNotes(data: {
   lesson_id: string
@@ -247,4 +248,50 @@ export async function updateVocabMastery(
 
   if (error) return { error: error.message }
   return { success: true }
+}
+
+
+export async function uploadVocabImage(
+  entryId: string,
+  file: File,
+): Promise<{ url?: string; error?: string }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const webpFile = await convertToWebP(file)
+  const path = `${entryId}.webp`
+
+  const { error: uploadError } = await supabase.storage
+    .from('vocab-images')
+    .upload(path, webpFile, { upsert: true, contentType: 'image/webp' })
+
+  if (uploadError) return { error: uploadError.message }
+
+  const { data: urlData } = await supabase.storage
+    .from('vocab-images')
+    .getPublicUrl(path)
+
+  const url = `${urlData.publicUrl}?t=${Date.now()}`
+
+  const { error: dbError } = await supabase
+    .from('vocabulary_bank')
+    .update({ image_url: url })
+    .eq('id', entryId)
+
+  if (dbError) return { error: dbError.message }
+  return { url }
+}
+
+export async function removeVocabImage(
+  entryId: string,
+): Promise<{ error?: string }> {
+  await supabase.storage.from('vocab-images').remove([`${entryId}.webp`])
+
+  const { error } = await supabase
+    .from('vocabulary_bank')
+    .update({ image_url: null })
+    .eq('id', entryId)
+
+  if (error) return { error: error.message }
+  return {}
 }

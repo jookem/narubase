@@ -331,6 +331,20 @@ const doc = new Document({
         bullet('Number of active goals'),
         bullet('Average skill score from latest assessment'),
 
+        heading3('Profile'),
+        para([body('Extended background information about the student — managed by the teacher. Click the Edit button on the Profile card to fill in or update any fields.')]),
+        featureTable([
+          ['Age & Grade', 'Student\'s age and school grade (Elementary 1–6, Middle 1–3, High 1–3, University, Adult)'],
+          ['School / Occupation', 'School name for younger students; job title or field for adults'],
+          ['EIKEN Grade', 'Current EIKEN certification level (5級 through 1級)'],
+          ['TOEIC / IELTS / TOEFL', 'Standardised test scores'],
+          ['Self-assessed CEFR', 'The student\'s own estimate of their level (A1–C2)'],
+          ['Hobbies & Interests', 'Topics to use in conversation practice'],
+          ['Likes / Dislikes', 'What the student enjoys or wants to avoid in lessons'],
+          ['Learning Goals', 'Free-text description of what the student wants to achieve'],
+          ['Notes', 'Private teacher notes about the student'],
+        ]),
+
         heading3('Goals'),
         bullet('Full list of learning goals with title, target date, days remaining (or overdue), and status'),
         bullet('Status options: Active / Achieved / Paused / Dropped'),
@@ -351,16 +365,20 @@ const doc = new Document({
 
         heading3('Recent Lessons'),
         bullet('The 10 most recent lessons with date, time, status, and link to full lesson notes'),
+        bullet('Use the "+ Add Lesson" button here to schedule a new lesson or log a past one directly from the student\'s profile'),
 
         // Lessons
         heading2('Lessons'),
         para([body('A timeline of all lessons organised by student. Select a student from the sidebar to see their full lesson history. From here you can:')]),
         bullet('See total, completed, and upcoming lesson counts'),
         bullet('Open any lesson to view or edit notes'),
-        bullet('Use "+ Log Lesson" to schedule a new lesson or record a past one'),
+        bullet('Use "+ Add Lesson" to schedule a new lesson or record a past one'),
+        new Paragraph({ children: [], spacing: { after: 80 } }),
+        callout('Teacher Tip', 'You can also schedule a lesson directly from a student\'s profile page — the "+ Add Lesson" button appears in the Recent Lessons section, so you don\'t have to navigate to the Lessons page first.'),
+        new Paragraph({ children: [], spacing: { after: 120 } }),
 
-        heading3('Logging a Lesson'),
-        para([body('The "Log Lesson" modal lets you record a past lesson or schedule a future one. All times are entered in Japan Standard Time (JST).')]),
+        heading3('Adding a Lesson'),
+        para([body('The "+ Add Lesson" button opens a modal where you can schedule an upcoming lesson or record a past one. All times are entered in Japan Standard Time (JST).')]),
         featureTable([
           ['Date & Time', 'Pick the date, start time, and end time. Past dates are saved as "completed"; future dates as "scheduled".'],
           ['Lesson Type', 'Trial, Regular, or Intensive'],

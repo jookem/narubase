@@ -158,6 +158,13 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
               </div>
             ) : (
               <div className="space-y-3">
+                {current.image_url && (
+                  <img
+                    src={current.image_url}
+                    alt={current.word}
+                    className="w-full max-h-48 object-contain rounded-lg mb-1"
+                  />
+                )}
                 {current.definition_en && (
                   <p className="text-lg text-gray-800">{current.definition_en}</p>
                 )}
