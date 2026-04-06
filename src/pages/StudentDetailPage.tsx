@@ -11,6 +11,8 @@ import { ProgressSnapshotForm } from '@/components/progress/ProgressSnapshotForm
 import { StudentVocabManager } from '@/components/students/StudentVocabManager'
 import { StudentProfileCard } from '@/components/students/StudentProfileCard'
 import { ScheduleLessonModal } from '@/components/lesson/ScheduleLessonModal'
+import { updateStudentName } from '@/lib/api/students'
+import { toast } from 'sonner'
 import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
 import { StudentProfilePDF } from '@/components/pdf/StudentProfilePDF'
 import {
@@ -27,6 +29,8 @@ export function StudentDetailPage() {
   const [snapshots, setSnapshots] = useState<any[]>([])
   const [details, setDetails] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState('')
 
   async function loadData() {
     if (!user || !studentId) return
@@ -82,7 +86,45 @@ export function StudentDetailPage() {
             <span className="mx-2">/</span>
             <span>{student.full_name}</span>
           </div>
-          <h1 className="text-2xl font-semibold">{student.full_name}</h1>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={nameValue}
+                onChange={e => setNameValue(e.target.value)}
+                onKeyDown={async e => {
+                  if (e.key === 'Enter') {
+                    const trimmed = nameValue.trim()
+                    if (!trimmed) return
+                    const result = await updateStudentName(studentId!, trimmed)
+                    if (result.error) { toast.error(result.error) }
+                    else { setStudent((s: any) => ({ ...s, full_name: trimmed })); setEditingName(false) }
+                  }
+                  if (e.key === 'Escape') setEditingName(false)
+                }}
+                className="text-2xl font-semibold bg-transparent border-b-2 border-brand outline-none w-64"
+              />
+              <button
+                onClick={async () => {
+                  const trimmed = nameValue.trim()
+                  if (!trimmed) return
+                  const result = await updateStudentName(studentId!, trimmed)
+                  if (result.error) { toast.error(result.error) }
+                  else { setStudent((s: any) => ({ ...s, full_name: trimmed })); setEditingName(false) }
+                }}
+                className="text-sm text-brand hover:underline"
+              >Save</button>
+              <button onClick={() => setEditingName(false)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setNameValue(student.full_name); setEditingName(true) }}
+              className="group flex items-center gap-1.5 text-left"
+            >
+              <h1 className="text-2xl font-semibold">{student.full_name}</h1>
+              <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
+            </button>
+          )}
           <p className="text-gray-500 text-sm">{student.email}</p>
         </div>
         <div className="flex items-center gap-2">

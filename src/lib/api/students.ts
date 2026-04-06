@@ -190,3 +190,16 @@ export async function removeStudent(studentId: string): Promise<{ error?: string
   if (error) return { error: 'Failed to remove student.' }
   return {}
 }
+
+export async function updateStudentName(
+  studentId: string,
+  fullName: string,
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ full_name: fullName })
+    .eq('id', studentId)
+
+  if (error) return { error: error.message }
+  return {}
+}
