@@ -43,6 +43,7 @@ export async function linkPlaceholderToStudent(
 
 export type StudentDetailsInput = {
   age?: number | null
+  birthday?: string | null   // ISO date string YYYY-MM-DD
   grade?: string | null
   school_name?: string | null
   occupation?: string | null
@@ -61,6 +62,7 @@ export type StudentDetailsInput = {
 function cleanDetails(d: StudentDetailsInput) {
   return {
     age: d.age || null,
+    birthday: d.birthday || null,
     grade: d.grade || null,
     school_name: d.school_name?.trim() || null,
     occupation: d.occupation?.trim() || null,

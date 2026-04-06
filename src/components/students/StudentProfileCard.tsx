@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { format } from 'date-fns'
 import { updateStudentDetails, type StudentDetailsInput } from '@/lib/api/students'
 
 const GRADE_OPTIONS = [
@@ -50,6 +51,7 @@ type Details = StudentDetailsInput & { student_id?: string }
 function toField(d: Details | null): Record<string, string> {
   return {
     age: d?.age?.toString() ?? '',
+    birthday: d?.birthday ?? '',
     grade: d?.grade ?? '',
     school_name: d?.school_name ?? '',
     occupation: d?.occupation ?? '',
@@ -91,6 +93,7 @@ export function StudentProfileCard({
     setError('')
     const result = await updateStudentDetails(studentId, {
       age: f.age ? parseInt(f.age) : null,
+      birthday: f.birthday || null,
       grade: f.grade || null,
       school_name: f.school_name || null,
       occupation: f.occupation || null,
@@ -142,6 +145,15 @@ export function StudentProfileCard({
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Background</h3>
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Birthday</Label>
+                  <input
+                    type="date"
+                    value={f.birthday}
+                    onChange={e => set('birthday', e.target.value)}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
                 <div>
                   <Label className="text-xs">Age</Label>
                   <Input type="number" min={3} max={100} placeholder="e.g. 12" value={f.age} onChange={e => set('age', e.target.value)} className="mt-1" />
@@ -253,10 +265,11 @@ export function StudentProfileCard({
               <p className="text-sm text-gray-400">No profile information yet.</p>
             ) : (
               <div className="space-y-4">
-                {(d.age || d.grade || d.school_name || d.occupation) && (
+                {(d.birthday || d.age || d.grade || d.school_name || d.occupation) && (
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Background</p>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                      {d.birthday && <><dt className="text-gray-500">Birthday</dt><dd>{format(new Date(d.birthday), 'MMMM d, yyyy')}</dd></>}
                       {d.age && <><dt className="text-gray-500">Age</dt><dd>{d.age}</dd></>}
                       {d.grade && <><dt className="text-gray-500">Grade / Level</dt><dd>{GRADE_LABELS[d.grade] ?? d.grade}</dd></>}
                       {!isAdult && d.school_name && <><dt className="text-gray-500">School</dt><dd>{d.school_name}</dd></>}
