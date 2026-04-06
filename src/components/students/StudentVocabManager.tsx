@@ -182,9 +182,9 @@ function DeckEditor({
                   <div className="flex-1 min-w-0">
                     <span className="font-medium text-sm text-gray-900">{w.word}</span>
                     {w.reading && <span className="text-xs text-gray-400 ml-2">{w.reading}</span>}
-                    {w.definition_ja && <p className="text-xs text-gray-700 mt-0.5">{w.definition_ja}</p>}
-                    {w.definition_en && <p className="text-xs text-gray-400">{w.definition_en}</p>}
-                    {w.example && <p className="text-xs text-gray-400 italic">"{w.example}"</p>}
+                    {w.definition_ja && <p className="text-xs text-gray-700 mt-0.5" dangerouslySetInnerHTML={{ __html: w.definition_ja }} />}
+                    {w.definition_en && <p className="text-xs text-gray-400" dangerouslySetInnerHTML={{ __html: w.definition_en }} />}
+                    {w.example && <p className="text-xs text-gray-400 italic" dangerouslySetInnerHTML={{ __html: `"${w.example}"` }} />}
                   </div>
                   <button
                     onClick={() => handleRemoveWord(w.id)}
