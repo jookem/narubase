@@ -502,6 +502,28 @@ export async function addWordToDeck(
   return error ? { error: error.message } : {}
 }
 
+export async function bulkAddWordsToDeck(
+  deckId: string,
+  words: { word: string; reading?: string; definition_ja?: string; definition_en?: string; example?: string }[],
+): Promise<{ count?: number; error?: string }> {
+  if (!words.length) return { count: 0 }
+
+  const rows = words.map(w => ({ deck_id: deckId, ...w }))
+
+  // Supabase upsert in batches of 500 to stay within payload limits
+  let total = 0
+  for (let i = 0; i < rows.length; i += 500) {
+    const batch = rows.slice(i, i + 500)
+    const { error } = await supabase
+      .from('vocabulary_deck_words')
+      .upsert(batch, { onConflict: 'deck_id,word', ignoreDuplicates: true })
+    if (error) return { error: error.message }
+    total += batch.length
+  }
+
+  return { count: total }
+}
+
 export async function removeWordFromDeck(wordId: string): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('vocabulary_deck_words')

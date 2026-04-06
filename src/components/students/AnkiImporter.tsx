@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { addVocabularyToBank, addWordToDeck } from '@/lib/api/lessons'
+import { addVocabularyToBank, bulkAddWordsToDeck } from '@/lib/api/lessons'
 import { toast } from 'sonner'
 
 type ParsedCard = {
@@ -298,11 +298,9 @@ export function AnkiImporter({
     let total = 0
 
     if (deckId) {
-      // Import into deck template
-      for (const w of words) {
-        const { error } = await addWordToDeck(deckId, w)
-        if (!error) total++
-      }
+      const { count, error } = await bulkAddWordsToDeck(deckId, words)
+      if (error) { setError(error); setImporting(false); return }
+      total = count ?? 0
     } else if (studentId) {
       // Import into student's vocabulary bank (batches of 50)
       for (let i = 0; i < words.length; i += 50) {
