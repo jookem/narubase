@@ -34,7 +34,7 @@ export function StudentDetailPage() {
     const [studentResult, goalsResult, lessonsResult, snapshotsResult, detailsResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', studentId).single(),
       supabase.from('student_goals').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('lessons').select('*, lesson_notes(*)').eq('teacher_id', user.id).eq('student_id', studentId).order('scheduled_start', { ascending: false }).limit(10),
+      supabase.from('lessons').select('*, lesson_notes(*), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))').eq('teacher_id', user.id).eq('student_id', studentId).neq('status', 'cancelled').order('scheduled_start', { ascending: false }).limit(10),
       supabase.from('progress_snapshots').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('snapshot_date', { ascending: false }).limit(5),
       supabase.from('student_details').select('*').eq('student_id', studentId).single(),
     ])
@@ -270,6 +270,11 @@ export function StudentDetailPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {lesson.is_group && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
+                        {lesson.group_name ?? 'Group'}
+                      </span>
+                    )}
                     {lesson.lesson_notes && (
                       <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Notes</span>
                     )}

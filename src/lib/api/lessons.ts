@@ -109,7 +109,19 @@ export async function createLesson(data: {
       await supabase.from('lesson_participants').insert(
         newParticipants.map(sid => ({ lesson_id: existing.id, student_id: sid }))
       )
-      await supabase.from('lessons').update({ is_group: true }).eq('id', existing.id)
+
+      // Build group name from all participants (existing + new)
+      const allParticipantIds = [...taken, ...newParticipants]
+      const { data: nameProfiles } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .in('id', allParticipantIds)
+      const resolvedName = nameProfiles?.map(p => p.full_name.split(' ')[0]).join(' & ') ?? null
+
+      await supabase.from('lessons').update({
+        is_group: true,
+        group_name: data.group_name ?? resolvedName,
+      }).eq('id', existing.id)
     }
 
     return { success: true, grouped: true }
