@@ -20,6 +20,16 @@ type ParseResult = {
   fieldNames: string[]
 }
 
+const SQLITE_MAGIC = 'SQLite format 3\0'
+
+function isSQLite(buf: ArrayBuffer): boolean {
+  const bytes = new Uint8Array(buf, 0, 16)
+  for (let i = 0; i < 16; i++) {
+    if (bytes[i] !== SQLITE_MAGIC.charCodeAt(i)) return false
+  }
+  return true
+}
+
 async function parseApkg(file: File): Promise<ParseResult> {
   const JSZip = (await import('jszip')).default
   // @ts-ignore - sql.js lacks perfect types for dynamic import
@@ -31,15 +41,25 @@ async function parseApkg(file: File): Promise<ParseResult> {
 
   const zip = await JSZip.loadAsync(file)
 
-  // Try all Anki DB filenames (format varies by Anki version)
-  const dbFile =
-    zip.file('collection.anki21b') ??
-    zip.file('collection.anki21') ??
-    zip.file('collection.anki2')
+  // Prefer older formats — .anki21b is Anki's internal format, not standard SQLite
+  const candidates = ['collection.anki21', 'collection.anki2', 'collection.anki21b']
+  let dbBuffer: ArrayBuffer | null = null
+  for (const name of candidates) {
+    const entry = zip.file(name)
+    if (!entry) continue
+    const buf = await entry.async('arraybuffer')
+    if (isSQLite(buf)) { dbBuffer = buf; break }
+  }
 
-  if (!dbFile) throw new Error('No Anki collection database found in this file.')
+  if (!dbBuffer) {
+    const files = Object.keys(zip.files).join(', ')
+    throw new Error(
+      `Could not find a valid SQLite database inside this .apkg file.\n` +
+      `Files found: ${files || 'none'}\n\n` +
+      `Try exporting from Anki using File → Export → Anki Deck Package (.apkg).`
+    )
+  }
 
-  const dbBuffer = await dbFile.async('arraybuffer')
   const db = new SQL.Database(new Uint8Array(dbBuffer))
 
   // Read field names from the first note model in col
