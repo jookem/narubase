@@ -14,12 +14,78 @@ import type { VocabularyItem, GrammarPoint } from '@/lib/types/database'
 import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
 import { LessonNotesPDF } from '@/components/pdf/LessonNotesPDF'
 
+function NotesReadView({ notes }: { notes: any }) {
+  return (
+    <div className="space-y-5">
+      {notes.summary && (
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Summary</p>
+          <p className="text-sm text-gray-700">{notes.summary}</p>
+        </div>
+      )}
+      {notes.vocabulary?.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vocabulary</p>
+          <div className="space-y-1.5">
+            {(notes.vocabulary as VocabularyItem[]).map((v: VocabularyItem, i: number) => (
+              <div key={i} className="p-2.5 bg-brand-light rounded-lg">
+                <span className="font-medium text-brand-dark">{v.word}</span>
+                <span className="text-gray-500 mx-2">—</span>
+                <span className="text-gray-700 text-sm">{v.definition}</span>
+                {v.example && <p className="text-xs text-gray-400 italic mt-0.5">&ldquo;{v.example}&rdquo;</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {notes.grammar_points?.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Grammar Points</p>
+          <div className="space-y-1.5">
+            {(notes.grammar_points as GrammarPoint[]).map((gp: GrammarPoint, i: number) => (
+              <div key={i} className="p-2.5 bg-green-50 rounded-lg">
+                <p className="font-medium text-green-900 text-sm">{gp.point}</p>
+                <p className="text-xs text-gray-600">{gp.explanation}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {notes.homework && (
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Homework / 宿題</p>
+          <p className="text-sm text-gray-700">{notes.homework}</p>
+        </div>
+      )}
+      {(notes.strengths || notes.areas_to_focus) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {notes.strengths && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">Strengths</p>
+              <p className="text-sm text-gray-700">{notes.strengths}</p>
+            </div>
+          )}
+          {notes.areas_to_focus && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Areas to Focus</p>
+              <p className="text-sm text-gray-700">{notes.areas_to_focus}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [lesson, setLesson] = useState<any>(null)
-  const [notes, setNotes] = useState<any>(null)
+  const [notesMap, setNotesMap] = useState<Record<string, any>>({})  // key: 'group' | student_id
+  const [activeNoteTab, setActiveNoteTab] = useState<string>('group')
+  const [studentNotes, setStudentNotes] = useState<any>(null)   // student view: individual note
+  const [groupNotes, setGroupNotes] = useState<any>(null)        // student view: group note
   const [goals, setGoals] = useState<any[]>([])
   const [participants, setParticipants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,7 +108,7 @@ export function LessonDetailPage() {
           .eq('id', lessonId)
           .eq('teacher_id', user.id)
           .single(),
-        supabase.from('lesson_notes').select('*').eq('lesson_id', lessonId).single(),
+        supabase.from('lesson_notes').select('*').eq('lesson_id', lessonId),
         supabase.from('student_goals').select('*').eq('teacher_id', user.id).eq('status', 'active'),
         supabase
           .from('lesson_participants')
@@ -52,7 +118,12 @@ export function LessonDetailPage() {
 
       if (!lessonResult.data) { navigate('/lessons'); return }
       setLesson(lessonResult.data)
-      setNotes(notesResult.data ?? null)
+      // Build a map: 'group' -> group note, student_id -> individual note
+      const map: Record<string, any> = {}
+      for (const n of notesResult.data ?? []) {
+        map[n.student_id ?? 'group'] = n
+      }
+      setNotesMap(map)
       const lessonData = lessonResult.data
       setGoals((goalsResult.data ?? []).filter((g: any) =>
         g.student_id === lessonData.student_id ||
@@ -73,19 +144,27 @@ export function LessonDetailPage() {
         ? supabase.from('lessons').select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name)').eq('id', lessonId).single()
         : supabase.from('lessons').select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name)').eq('id', lessonId).eq('student_id', user.id).single()
 
-      const [lessonResult, notesResult] = await Promise.all([
+      const [lessonResult, groupNotesResult, individualNotesResult] = await Promise.all([
         lessonQuery,
         supabase
           .from('lesson_notes')
           .select('summary, vocabulary, grammar_points, homework, strengths, areas_to_focus')
           .eq('lesson_id', lessonId)
+          .is('student_id', null)
           .eq('is_visible_to_student', true)
-          .single(),
+          .maybeSingle(),
+        supabase
+          .from('lesson_notes')
+          .select('summary, vocabulary, grammar_points, homework, strengths, areas_to_focus')
+          .eq('lesson_id', lessonId)
+          .eq('student_id', user.id)
+          .maybeSingle(),
       ])
 
       if (!lessonResult.data) { navigate('/lessons'); return }
       setLesson(lessonResult.data)
-      setNotes(notesResult.data ?? null)
+      setGroupNotes(groupNotesResult.data ?? null)
+      setStudentNotes(individualNotesResult.data ?? null)
     }
 
     setLoading(false)
@@ -207,12 +286,12 @@ export function LessonDetailPage() {
           }`}>
             {lesson.status}
           </span>
-          {isTeacher && notes && (
+          {isTeacher && notesMap['group'] && (
             <PDFDownloadButton
               document={
                 <LessonNotesPDF
                   lesson={lesson}
-                  notes={notes}
+                  notes={notesMap['group']}
                   studentName={lesson.student?.full_name ?? ''}
                   teacherName={lesson.teacher?.full_name ?? ''}
                   participants={participants}
@@ -273,90 +352,65 @@ export function LessonDetailPage() {
         </Card>
       )}
 
-      {/* Notes — teacher gets full editor, student gets read-only view */}
+      {/* Notes — teacher gets full editor with tabs, student gets read-only view */}
       {isTeacher ? (
         <Card>
           <CardContent className="pt-6">
+            {/* Tab bar — only shown for group lessons */}
+            {participants.length > 0 && (
+              <div className="flex gap-1 mb-6 border-b border-gray-200">
+                {(['group', ...participants.map((p: any) => p.id)] as string[]).map(tabId => {
+                  const label = tabId === 'group' ? 'Group' : participants.find((p: any) => p.id === tabId)?.full_name?.split(' ')[0]
+                  return (
+                    <button
+                      key={tabId}
+                      onClick={() => setActiveNoteTab(tabId)}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        activeNoteTab === tabId
+                          ? 'border-brand text-brand'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             <LessonNotesEditor
+              key={activeNoteTab}
               lessonId={lessonId!}
               studentId={lesson.student_id}
-              studentIds={participants.length > 1 ? participants.map((p: any) => p.id) : undefined}
-              initialNotes={notes ?? undefined}
+              studentIds={participants.length > 0 ? participants.map((p: any) => p.id) : undefined}
+              noteStudentId={activeNoteTab === 'group' ? null : activeNoteTab}
+              initialNotes={notesMap[activeNoteTab] ?? undefined}
               goals={goals}
               onSaved={loadData}
             />
           </CardContent>
         </Card>
-      ) : notes ? (
-        <Card>
-          <CardContent className="pt-6 space-y-5">
-            <h2 className="text-lg font-semibold">Lesson Notes</h2>
-
-            {notes.summary && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Summary</p>
-                <p className="text-sm text-gray-700">{notes.summary}</p>
-              </div>
-            )}
-
-            {notes.vocabulary?.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vocabulary</p>
-                <div className="space-y-1.5">
-                  {(notes.vocabulary as VocabularyItem[]).map((v, i) => (
-                    <div key={i} className="p-2.5 bg-brand-light rounded-lg">
-                      <span className="font-medium text-brand-dark">{v.word}</span>
-                      <span className="text-gray-500 mx-2">—</span>
-                      <span className="text-gray-700 text-sm">{v.definition}</span>
-                      {v.example && (
-                        <p className="text-xs text-gray-400 italic mt-0.5">&ldquo;{v.example}&rdquo;</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {notes.grammar_points?.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Grammar Points</p>
-                <div className="space-y-1.5">
-                  {(notes.grammar_points as GrammarPoint[]).map((gp, i) => (
-                    <div key={i} className="p-2.5 bg-green-50 rounded-lg">
-                      <p className="font-medium text-green-900 text-sm">{gp.point}</p>
-                      <p className="text-xs text-gray-600">{gp.explanation}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {notes.homework && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Homework / 宿題</p>
-                <p className="text-sm text-gray-700">{notes.homework}</p>
-              </div>
-            )}
-
-            {(notes.strengths || notes.areas_to_focus) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {notes.strengths && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">Strengths</p>
-                    <p className="text-sm text-gray-700">{notes.strengths}</p>
-                  </div>
-                )}
-                {notes.areas_to_focus && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Areas to Focus</p>
-                    <p className="text-sm text-gray-700">{notes.areas_to_focus}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
+      ) : (
+        <>
+          {/* Individual notes for this student */}
+          {studentNotes && (
+            <Card>
+              <CardContent className="pt-6 space-y-5">
+                <h2 className="text-lg font-semibold">Your Notes</h2>
+                <NotesReadView notes={studentNotes} />
+              </CardContent>
+            </Card>
+          )}
+          {/* Group / shared notes */}
+          {groupNotes && (
+            <Card>
+              <CardContent className="pt-6 space-y-5">
+                <h2 className="text-lg font-semibold">{studentNotes ? 'Group Notes' : 'Lesson Notes'}</h2>
+                <NotesReadView notes={groupNotes} />
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
 
       {/* Attachments */}
       <Card>

@@ -3,6 +3,7 @@ import { convertToWebP } from '@/lib/utils/imageUtils'
 
 export async function saveLessonNotes(data: {
   lesson_id: string
+  student_id?: string | null   // null/undefined = group note; string = individual note
   summary?: string
   vocabulary?: { word: string; definition: string; example?: string; mastered?: boolean }[]
   grammar_points?: { point: string; explanation: string; examples?: string[] }[]
@@ -17,22 +18,31 @@ export async function saveLessonNotes(data: {
   if (!session?.user) return { error: 'Not authenticated.' }
   const user = session.user
 
-  const { error } = await supabase.from('lesson_notes').upsert(
-    {
-      lesson_id: data.lesson_id,
-      author_id: user.id,
-      summary: data.summary ?? null,
-      vocabulary: data.vocabulary ?? [],
-      grammar_points: data.grammar_points ?? [],
-      homework: data.homework ?? null,
-      strengths: data.strengths ?? null,
-      areas_to_focus: data.areas_to_focus ?? null,
-      teacher_notes: data.teacher_notes ?? null,
-      goal_ids: data.goal_ids ?? null,
-      is_visible_to_student: data.is_visible_to_student ?? true,
-    },
-    { onConflict: 'lesson_id' },
-  )
+  const noteData = {
+    lesson_id: data.lesson_id,
+    student_id: data.student_id ?? null,
+    author_id: user.id,
+    summary: data.summary ?? null,
+    vocabulary: data.vocabulary ?? [],
+    grammar_points: data.grammar_points ?? [],
+    homework: data.homework ?? null,
+    strengths: data.strengths ?? null,
+    areas_to_focus: data.areas_to_focus ?? null,
+    teacher_notes: data.teacher_notes ?? null,
+    goal_ids: data.goal_ids ?? null,
+    is_visible_to_student: data.is_visible_to_student ?? true,
+  }
+
+  // Partial unique indexes mean we can't use a simple upsert — select then update/insert
+  let existingQuery = supabase.from('lesson_notes').select('id').eq('lesson_id', data.lesson_id)
+  existingQuery = data.student_id
+    ? existingQuery.eq('student_id', data.student_id)
+    : existingQuery.is('student_id', null)
+  const { data: existing } = await existingQuery.maybeSingle()
+
+  const { error } = existing
+    ? await supabase.from('lesson_notes').update(noteData).eq('id', existing.id)
+    : await supabase.from('lesson_notes').insert(noteData)
 
   if (error) return { error: error.message }
   return { success: true }

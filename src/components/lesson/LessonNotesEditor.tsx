@@ -12,6 +12,7 @@ interface LessonNotesEditorProps {
   lessonId: string
   studentId: string
   studentIds?: string[]
+  noteStudentId?: string | null  // null = group note, string = individual note for that student
   initialNotes?: Partial<LessonNotes>
   goals?: StudentGoal[]
   onSaved?: () => void
@@ -21,6 +22,7 @@ export function LessonNotesEditor({
   lessonId,
   studentId,
   studentIds,
+  noteStudentId,
   initialNotes,
   goals = [],
   onSaved,
@@ -53,6 +55,7 @@ export function LessonNotesEditor({
       setSaving(true)
       await saveLessonNotes({
         lesson_id: lessonId,
+        student_id: noteStudentId,
         summary,
         vocabulary,
         grammar_points: grammarPoints,
