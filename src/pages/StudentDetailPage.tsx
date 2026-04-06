@@ -11,13 +11,15 @@ import { ProgressSnapshotForm } from '@/components/progress/ProgressSnapshotForm
 import { StudentVocabManager } from '@/components/students/StudentVocabManager'
 import { StudentProfileCard } from '@/components/students/StudentProfileCard'
 import { ScheduleLessonModal } from '@/components/lesson/ScheduleLessonModal'
+import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
+import { StudentProfilePDF } from '@/components/pdf/StudentProfilePDF'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 
 export function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [student, setStudent] = useState<any>(null)
   const [goals, setGoals] = useState<any[]>([])
@@ -83,11 +85,26 @@ export function StudentDetailPage() {
           <h1 className="text-2xl font-semibold">{student.full_name}</h1>
           <p className="text-gray-500 text-sm">{student.email}</p>
         </div>
-        {latestSnapshot?.cefr_level && (
-          <Badge className="text-sm px-3 py-1 bg-brand-light text-brand-dark border-brand/30">
-            {latestSnapshot.cefr_level}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {latestSnapshot?.cefr_level && (
+            <Badge className="text-sm px-3 py-1 bg-brand-light text-brand-dark border-brand/30">
+              {latestSnapshot.cefr_level}
+            </Badge>
+          )}
+          <PDFDownloadButton
+            document={
+              <StudentProfilePDF
+                student={student}
+                details={details}
+                goals={goals}
+                latestSnapshot={snapshots[0] ?? null}
+                teacherName={profile?.full_name ?? ''}
+              />
+            }
+            filename={`${student.full_name.replace(/\s+/g, '-').toLowerCase()}-profile.pdf`}
+            label="Export PDF"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

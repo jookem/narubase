@@ -10,6 +10,8 @@ import { LessonAttachments } from '@/components/lesson/LessonAttachments'
 import { markLessonComplete } from '@/lib/api/lessons'
 import { toast } from 'sonner'
 import type { VocabularyItem, GrammarPoint } from '@/lib/types/database'
+import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
+import { LessonNotesPDF } from '@/components/pdf/LessonNotesPDF'
 
 export function LessonDetailPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
@@ -148,6 +150,21 @@ export function LessonDetailPage() {
           }`}>
             {lesson.status}
           </span>
+          {isTeacher && notes && (
+            <PDFDownloadButton
+              document={
+                <LessonNotesPDF
+                  lesson={lesson}
+                  notes={notes}
+                  studentName={lesson.student?.full_name ?? ''}
+                  teacherName={lesson.teacher?.full_name ?? ''}
+                  participants={participants}
+                />
+              }
+              filename={`lesson-notes-${lesson.student?.full_name?.replace(/\s+/g, '-').toLowerCase()}-${lesson.scheduled_start.slice(0, 10)}.pdf`}
+              label="Export PDF"
+            />
+          )}
           {isTeacher && lesson.status === 'scheduled' && (
             <button
               onClick={handleMarkComplete}
