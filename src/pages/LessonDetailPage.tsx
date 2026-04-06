@@ -60,13 +60,21 @@ export function LessonDetailPage() {
       ))
       setParticipants((participantsResult.data ?? []).map((p: any) => p.student))
     } else {
+      // Check if student is a participant in this lesson (handles group lesson secondary students)
+      const { data: participation } = await supabase
+        .from('lesson_participants')
+        .select('lesson_id')
+        .eq('lesson_id', lessonId)
+        .eq('student_id', user.id)
+        .maybeSingle()
+
+      // Primary student: match by student_id. Secondary (participant): we verified access above, fetch by id only.
+      const lessonQuery = participation
+        ? supabase.from('lessons').select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name)').eq('id', lessonId).single()
+        : supabase.from('lessons').select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name)').eq('id', lessonId).eq('student_id', user.id).single()
+
       const [lessonResult, notesResult] = await Promise.all([
-        supabase
-          .from('lessons')
-          .select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name)')
-          .eq('id', lessonId)
-          .eq('student_id', user.id)
-          .single(),
+        lessonQuery,
         supabase
           .from('lesson_notes')
           .select('summary, vocabulary, grammar_points, homework, strengths, areas_to_focus')
