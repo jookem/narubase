@@ -55,12 +55,29 @@ export async function markLessonComplete(
   return { success: true }
 }
 
+export async function updateGroupName(
+  lessonId: string,
+  groupName: string,
+): Promise<{ error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) return { error: 'Not authenticated.' }
+
+  const { error } = await supabase
+    .from('lessons')
+    .update({ group_name: groupName })
+    .eq('id', lessonId)
+    .eq('teacher_id', session.user.id)
+
+  return error ? { error: error.message } : {}
+}
+
 export async function createLesson(data: {
   student_id: string
   student_ids?: string[]
   scheduled_start: string
   scheduled_end: string
   lesson_type: 'trial' | 'regular' | 'intensive'
+  group_name?: string
 }): Promise<{ error?: string; success?: boolean; grouped?: boolean }> {
   const { data: { session } } = await supabase.auth.getSession()
   const user = session?.user
@@ -98,6 +115,17 @@ export async function createLesson(data: {
     return { success: true, grouped: true }
   }
 
+  let groupName = data.group_name ?? null
+  if (isGroup && !groupName) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .in('id', allStudents)
+    if (profiles?.length) {
+      groupName = profiles.map(p => p.full_name.split(' ')[0]).join(' & ')
+    }
+  }
+
   const { data: lesson, error } = await supabase.from('lessons').insert({
     teacher_id: user.id,
     student_id: allStudents[0],
@@ -106,6 +134,7 @@ export async function createLesson(data: {
     lesson_type: data.lesson_type,
     status: 'completed',
     is_group: isGroup,
+    group_name: groupName,
   }).select('id').single()
 
   if (error) return { error: error.message }

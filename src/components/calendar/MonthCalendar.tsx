@@ -15,6 +15,7 @@ type Lesson = {
   scheduled_end: string
   status: string
   is_group?: boolean
+  group_name?: string | null
   student?: { full_name: string } | null
   teacher?: { full_name: string } | null
   lesson_participants?: { student: { full_name: string } | null }[]
@@ -38,9 +39,16 @@ type Props = {
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function lessonStudentNames(l: Lesson): string[] {
-  const primary = l.student?.full_name
-  const participants = (l.lesson_participants ?? []).map(p => p.student?.full_name).filter(Boolean) as string[]
-  return primary ? [primary, ...participants] : participants
+  // For group lessons, lesson_participants contains ALL students (including primary) — use it exclusively
+  if (l.is_group && l.lesson_participants?.length) {
+    return (l.lesson_participants).map(p => p.student?.full_name).filter(Boolean) as string[]
+  }
+  return l.student?.full_name ? [l.student.full_name] : []
+}
+
+function lessonLabel(l: Lesson): string {
+  if (l.is_group) return l.group_name ?? 'Group'
+  return l.student?.full_name?.split(' ')[0] ?? ''
 }
 
 export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
@@ -119,14 +127,7 @@ export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
                   >
                     {formatInTimeZone(new Date(l.scheduled_start), TZ, 'h:mm')}
                     {' '}
-                    {role === 'teacher'
-                      ? (() => {
-                          const names = lessonStudentNames(l)
-                          return names.length > 1
-                            ? `Group (${names.length})`
-                            : names[0]?.split(' ')[0] ?? ''
-                        })()
-                      : l.teacher?.full_name?.split(' ')[0]}
+                    {role === 'teacher' ? lessonLabel(l) : l.teacher?.full_name?.split(' ')[0]}
                   </div>
                 ))}
                 {dayRequests.slice(0, 1).map(r => (
@@ -154,12 +155,14 @@ export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
               <div>
                 <p className="font-medium">
                   {role === 'teacher'
-                    ? (() => {
-                        const names = lessonStudentNames(l)
-                        return names.length > 1 ? names.join(' & ') : names[0] ?? ''
-                      })()
+                    ? l.is_group
+                      ? (l.group_name ?? 'Group')
+                      : l.student?.full_name
                     : l.teacher?.full_name}
                 </p>
+                {role === 'teacher' && l.is_group && (
+                  <p className="text-xs text-gray-400">{lessonStudentNames(l).map(n => n.split(' ')[0]).join(', ')}</p>
+                )}
                 <p className="text-xs text-gray-500">
                   {formatInTimeZone(new Date(l.scheduled_start), TZ, 'h:mm a')}
                   {' – '}

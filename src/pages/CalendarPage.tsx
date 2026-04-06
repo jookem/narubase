@@ -19,7 +19,7 @@ export function CalendarPage() {
     const rangeStart = subMonths(new Date(), 6).toISOString()
     const rangeEnd = addMonths(new Date(), 6).toISOString()
 
-    const baseSelect = 'id, scheduled_start, scheduled_end, status, is_group, student:profiles!lessons_student_id_fkey(full_name), teacher:profiles!lessons_teacher_id_fkey(full_name), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))'
+    const baseSelect = 'id, scheduled_start, scheduled_end, status, is_group, group_name, student:profiles!lessons_student_id_fkey(full_name), teacher:profiles!lessons_teacher_id_fkey(full_name), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))'
 
     let lessonsPromise
 

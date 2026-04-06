@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { formatInTimeZone } from 'date-fns-tz'
 import { LessonNotesEditor } from '@/components/lesson/LessonNotesEditor'
 import { LessonAttachments } from '@/components/lesson/LessonAttachments'
-import { markLessonComplete } from '@/lib/api/lessons'
+import { markLessonComplete, updateGroupName } from '@/lib/api/lessons'
 import { cancelLesson } from '@/lib/api/bookings'
 import { toast } from 'sonner'
 import type { VocabularyItem, GrammarPoint } from '@/lib/types/database'
@@ -26,6 +26,8 @@ export function LessonDetailPage() {
   const [completing, setCompleting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [editingGroupName, setEditingGroupName] = useState(false)
+  const [groupNameValue, setGroupNameValue] = useState('')
 
   const isTeacher = profile?.role === 'teacher'
 
@@ -85,6 +87,17 @@ export function LessonDetailPage() {
     loadData()
   }, [user, lessonId, isTeacher])
 
+  async function handleSaveGroupName() {
+    if (!lessonId) return
+    const result = await updateGroupName(lessonId, groupNameValue.trim())
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      setLesson((prev: any) => ({ ...prev, group_name: groupNameValue.trim() }))
+      setEditingGroupName(false)
+    }
+  }
+
   async function handleCancelLesson() {
     if (!lessonId) return
     setCancelling(true)
@@ -137,17 +150,37 @@ export function LessonDetailPage() {
               <span>{lesson.teacher?.full_name}</span>
             )}
           </div>
-          <h1 className="text-2xl font-semibold">
-            {isTeacher
-              ? participants.length > 1
-                ? `Group Lesson — ${participants.map((p: any) => p.full_name).join(' & ')}`
-                : `${lesson.student?.full_name}'s Lesson`
-              : 'Lesson'}
-          </h1>
+          {isTeacher && lesson.is_group ? (
+            editingGroupName ? (
+              <div className="flex items-center gap-2 mt-0.5">
+                <input
+                  autoFocus
+                  value={groupNameValue}
+                  onChange={e => setGroupNameValue(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveGroupName(); if (e.key === 'Escape') setEditingGroupName(false) }}
+                  className="text-2xl font-semibold bg-transparent border-b-2 border-brand outline-none w-64"
+                />
+                <button onClick={handleSaveGroupName} className="text-sm text-brand hover:underline">Save</button>
+                <button onClick={() => setEditingGroupName(false)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setGroupNameValue(lesson.group_name ?? ''); setEditingGroupName(true) }}
+                className="group flex items-center gap-1.5 text-left"
+              >
+                <h1 className="text-2xl font-semibold">{lesson.group_name ?? 'Group Lesson'}</h1>
+                <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
+              </button>
+            )
+          ) : (
+            <h1 className="text-2xl font-semibold">
+              {isTeacher ? `${lesson.student?.full_name}'s Lesson` : 'Lesson'}
+            </h1>
+          )}
           {isTeacher && participants.length > 1 && (
             <div className="flex items-center gap-1.5 mt-1">
               <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Group</span>
-              <span className="text-xs text-gray-500">{participants.length} students</span>
+              <span className="text-xs text-gray-500">{participants.map((p: any) => p.full_name.split(' ')[0]).join(', ')}</span>
             </div>
           )}
           <p className="text-gray-500 mt-1">
