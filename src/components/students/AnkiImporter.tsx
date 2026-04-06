@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { addVocabularyToBank } from '@/lib/api/lessons'
+import { addVocabularyToBank, addWordToDeck } from '@/lib/api/lessons'
 import { toast } from 'sonner'
 
 type ParsedCard = {
@@ -229,7 +229,15 @@ function guessFieldMap(fieldNames: string[], cards: ParsedCard[]): FieldMap {
 
 const SEL_CLASS = 'px-2 py-1.5 rounded border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand'
 
-export function AnkiImporter({ studentId, onImported }: { studentId: string; onImported: () => void }) {
+export function AnkiImporter({
+  studentId,
+  deckId,
+  onImported,
+}: {
+  studentId?: string
+  deckId?: string
+  onImported: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
@@ -271,34 +279,43 @@ export function AnkiImporter({ studentId, onImported }: { studentId: string; onI
   async function handleImport() {
     if (!result) return
     setImporting(true)
-    const entries = result.cards
+
+    const words = result.cards
       .map(c => ({
-        student_id: studentId,
         word: stripHtml(c.fields[fieldMap.word] ?? ''),
         definition_en: fieldMap.definition_en >= 0 ? (c.fields[fieldMap.definition_en]?.trim() || undefined) : undefined,
         definition_ja: fieldMap.definition_ja >= 0 ? (c.fields[fieldMap.definition_ja]?.trim() || undefined) : undefined,
         example: fieldMap.example >= 0 ? (c.fields[fieldMap.example]?.trim() || undefined) : undefined,
       }))
-      .filter(e => e.word && (e.definition_en || e.definition_ja))
+      .filter(w => w.word && (w.definition_en || w.definition_ja))
 
-    if (!entries.length) {
+    if (!words.length) {
       setError('No valid cards found with the current field mapping.')
       setImporting(false)
       return
     }
 
-    // Import in batches of 50 to avoid request limits
     let total = 0
-    for (let i = 0; i < entries.length; i += 50) {
-      const batch = entries.slice(i, i + 50)
-      const res = await addVocabularyToBank(batch)
-      if (!res.error) total += batch.length
+
+    if (deckId) {
+      // Import into deck template
+      for (const w of words) {
+        const { error } = await addWordToDeck(deckId, w)
+        if (!error) total++
+      }
+    } else if (studentId) {
+      // Import into student's vocabulary bank (batches of 50)
+      for (let i = 0; i < words.length; i += 50) {
+        const batch = words.slice(i, i + 50).map(w => ({ ...w, student_id: studentId }))
+        const res = await addVocabularyToBank(batch)
+        if (!res.error) total += batch.length
+      }
     }
 
     setImporting(false)
     setOpen(false)
     setResult(null)
-    toast.success(`Imported ${total} words from Anki deck`)
+    toast.success(`Imported ${total} words`)
     onImported()
   }
 

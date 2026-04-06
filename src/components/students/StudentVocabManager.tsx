@@ -19,6 +19,7 @@ import {
 } from '@/lib/api/lessons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AnkiImporter } from './AnkiImporter'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import type { VocabularyBankEntry } from '@/lib/types/database'
@@ -152,13 +153,20 @@ function DeckEditor({
             <Input value={defEn} onChange={e => setDefEn(e.target.value)} placeholder="Definition (EN)" />
             <Input value={example} onChange={e => setExample(e.target.value)} placeholder="Example sentence" />
           </div>
-          <button
-            type="submit"
-            disabled={saving || !word.trim() || !defJa.trim()}
-            className="px-4 py-1.5 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? 'Adding…' : '+ Add Word'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={saving || !word.trim() || !defJa.trim()}
+              className="px-4 py-1.5 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Adding…' : '+ Add Word'}
+            </button>
+            <AnkiImporter deckId={deck.id} onImported={async () => {
+              const { deck: refreshed } = await getDeckWithWords(deck.id)
+              if (refreshed?.words) setWords(refreshed.words)
+              onUpdated()
+            }} />
+          </div>
         </form>
 
         {/* Word list */}
