@@ -1,4 +1,22 @@
 import { useState, useEffect } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { recordPuzzleAttempt, type Puzzle, type PuzzlePart } from '@/lib/api/puzzles'
 
 const LABEL_COLORS: Record<string, { car: string; badge: string }> = {
@@ -25,10 +43,88 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 interface Car {
-  id: number
+  id: string   // string id required by dnd-kit
+  originalIdx: number
   part: PuzzlePart
 }
 
+// ── Sortable car component ────────────────────────────────────
+function TrainCar({
+  car,
+  isCorrect,
+  isDragging,
+}: {
+  car: Car
+  isCorrect: boolean
+  isDragging?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, over } = useSortable({ id: car.id })
+  const colors = getColors(car.part.label)
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-end shrink-0">
+      <div className="flex flex-col items-center">
+        <div
+          {...attributes}
+          {...listeners}
+          className={`flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px]
+            cursor-grab active:cursor-grabbing select-none rounded-sm touch-none
+            transition-colors duration-150
+            ${isCorrect
+              ? 'bg-green-100 border-green-400'
+              : `${colors.car} hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/20`
+            }
+          `}
+        >
+          <p className="text-sm font-semibold text-gray-900 text-center leading-tight">{car.part.text}</p>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium
+            ${isCorrect ? 'bg-green-200 text-green-800' : colors.badge}`}>
+            {car.part.label}
+          </span>
+        </div>
+        {/* Wheels */}
+        <div className="flex justify-around w-full px-2 -mt-1">
+          <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500 shadow-inner" />
+          <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500 shadow-inner" />
+        </div>
+      </div>
+      {/* Coupler */}
+      <div className="w-2 h-2 bg-gray-600 mb-5 shrink-0" />
+    </div>
+  )
+}
+
+// ── Drag overlay (floating ghost car) ─────────────────────────
+function GhostCar({ car }: { car: Car }) {
+  const colors = getColors(car.part.label)
+  return (
+    <div className="flex items-end shrink-0 pointer-events-none">
+      <div className="flex flex-col items-center">
+        <div className={`flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px]
+          rounded-sm shadow-2xl shadow-black/50 -translate-y-3 scale-105
+          ${colors.car} border-brand`}
+        >
+          <p className="text-sm font-semibold text-gray-900 text-center leading-tight">{car.part.text}</p>
+          <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium ${colors.badge}`}>
+            {car.part.label}
+          </span>
+        </div>
+        <div className="flex justify-around w-full px-2 -mt-1">
+          <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500" />
+          <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────
 interface Props {
   puzzle: Puzzle
   onNext: () => void
@@ -42,66 +138,56 @@ type State = 'playing' | 'correct' | 'wrong'
 
 export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, total }: Props) {
   const [cars, setCars] = useState<Car[]>([])
-  const [selected, setSelected] = useState<number | null>(null)
   const [gameState, setGameState] = useState<State>('playing')
   const [attempts, setAttempts] = useState(0)
   const [shake, setShake] = useState(false)
-  // Indices of the two cars mid-swap animation
-  const [swapping, setSwapping] = useState<number[]>([])
-  // Train drives off left on correct, then success UI fades in
+  const [activeCar, setActiveCar] = useState<Car | null>(null)
   const [trainExiting, setTrainExiting] = useState(false)
   const [showCorrect, setShowCorrect] = useState(false)
 
   useEffect(() => {
-    const shuffled = shuffle(puzzle.parts.map((p, i) => ({ id: i, part: p })))
+    const shuffled = shuffle(
+      puzzle.parts.map((p, i) => ({ id: String(i), originalIdx: i, part: p }))
+    )
     setCars(shuffled)
-    setSelected(null)
     setGameState('playing')
     setAttempts(0)
-    setSwapping([])
+    setActiveCar(null)
     setTrainExiting(false)
     setShowCorrect(false)
   }, [puzzle.id])
 
-  function handleCarTap(idx: number) {
-    if (gameState !== 'playing' || swapping.length > 0) return
+  // Require a small movement before drag starts so taps don't accidentally drag
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
 
-    if (selected === null) {
-      setSelected(idx)
-      return
-    }
-    if (selected === idx) {
-      setSelected(null)
-      return
-    }
+  function handleDragStart(event: DragStartEvent) {
+    const car = cars.find(c => c.id === event.active.id)
+    setActiveCar(car ?? null)
+  }
 
-    // Animate both cars lifting, then swap
-    const from = selected
-    setSwapping([from, idx])
-    setSelected(null)
-
-    setTimeout(() => {
-      setCars(prev => {
-        const next = [...prev]
-        ;[next[from], next[idx]] = [next[idx], next[from]]
-        return next
-      })
-      setSwapping([])
-    }, 220) // slightly shorter than animation so swap happens near peak
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveCar(null)
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setCars(prev => {
+      const oldIdx = prev.findIndex(c => c.id === active.id)
+      const newIdx = prev.findIndex(c => c.id === over.id)
+      return arrayMove(prev, oldIdx, newIdx)
+    })
   }
 
   function checkAnswer() {
     const newAttempts = attempts + 1
     setAttempts(newAttempts)
-
-    const isCorrect = cars.every((car, idx) => car.id === idx)
+    const isCorrect = cars.every((car, idx) => car.originalIdx === idx)
 
     if (isCorrect) {
       setGameState('correct')
       recordPuzzleAttempt(puzzle.id, true)
-      // Small pause then the train drives off
       setTimeout(() => setTrainExiting(true), 200)
-      // Success UI appears after train has exited
       setTimeout(() => setShowCorrect(true), 1100)
     } else {
       setGameState('wrong')
@@ -133,84 +219,56 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
           <p className="text-3xl font-bold text-white">{puzzle.japanese_sentence}</p>
         </div>
 
-        {/* Track */}
+        {/* Track label */}
         <div className="flex items-center gap-2">
           <div className="h-px flex-1 bg-gray-700" />
           <span className="text-xs text-gray-600 uppercase tracking-widest">Track</span>
           <div className="h-px flex-1 bg-gray-700" />
         </div>
 
-        {/* Train — pt-6 gives lifted cards room without clipping */}
+        {/* Train */}
         <div className="overflow-x-auto pt-6 pb-2">
-          <div
-            className={`flex items-end gap-0
-              ${shake ? 'animate-shake' : ''}
-              ${trainExiting ? 'animate-train-exit' : ''}
-            `}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           >
-            {/* Locomotive */}
-            <div className="flex items-end shrink-0">
-              <div className="flex flex-col items-center">
-                <div className="bg-gray-700 rounded-l-xl px-3 py-4 flex flex-col items-center justify-center border-2 border-gray-600 min-w-[52px]">
-                  <span className="text-2xl">🚂</span>
+            <div className={`flex items-end gap-0 ${shake ? 'animate-shake' : ''} ${trainExiting ? 'animate-train-exit' : ''}`}>
+              {/* Locomotive */}
+              <div className="flex items-end shrink-0">
+                <div className="flex flex-col items-center">
+                  <div className="bg-gray-700 rounded-l-xl px-3 py-4 flex flex-col items-center justify-center border-2 border-gray-600 min-w-[52px]">
+                    <span className="text-2xl">🚂</span>
+                  </div>
+                  <div className="flex justify-around w-full px-1 -mt-1">
+                    <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
+                    <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
+                  </div>
                 </div>
-                {/* Loco wheels */}
-                <div className="flex justify-around w-full px-1 -mt-1">
-                  <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
-                  <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
-                </div>
+                <div className="w-3 h-2 bg-gray-600 mb-5" />
               </div>
-              <div className="w-3 h-2 bg-gray-600 mb-3" />
+
+              <SortableContext items={cars.map(c => c.id)} strategy={horizontalListSortingStrategy}>
+                {cars.map(car => (
+                  <TrainCar
+                    key={car.id}
+                    car={car}
+                    isCorrect={gameState === 'correct'}
+                    isDragging={activeCar?.id === car.id}
+                  />
+                ))}
+              </SortableContext>
             </div>
 
-            {/* Cars */}
-            {cars.map((car, idx) => {
-              const colors = getColors(car.part.label)
-              const isSelected = selected === idx
-              const isSwappingCar = swapping.includes(idx)
-              const isCorrectState = gameState === 'correct'
-
-              let carClass = 'flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px] cursor-pointer select-none rounded-sm '
-
-              if (isCorrectState) {
-                carClass += 'bg-green-100 border-green-400 transition-all duration-300 scale-105'
-              } else if (isSwappingCar) {
-                carClass += `${colors.car} border-brand animate-car-swap`
-              } else if (isSelected) {
-                carClass += `${colors.car} border-brand shadow-lg shadow-brand/30 scale-110 -translate-y-3 transition-all duration-150`
-              } else {
-                carClass += `${colors.car} hover:scale-105 hover:-translate-y-1 transition-all duration-150`
-              }
-
-              return (
-                <div key={car.id} className="flex items-end shrink-0">
-                  <div className="flex flex-col items-center">
-                    <div className={carClass} onClick={() => handleCarTap(idx)}>
-                      <p className="text-sm font-semibold text-gray-900 text-center leading-tight">{car.part.text}</p>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium ${isCorrectState ? 'bg-green-200 text-green-800' : colors.badge}`}>
-                        {car.part.label}
-                      </span>
-                      {isSelected && (
-                        <span className="text-xs text-brand mt-1 opacity-70">selected</span>
-                      )}
-                    </div>
-                    {/* Wheels */}
-                    <div className="flex justify-around w-full px-2 -mt-1">
-                      <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500 shadow-inner" />
-                      <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500 shadow-inner" />
-                    </div>
-                  </div>
-                  {idx < cars.length - 1 && (
-                    <div className="w-2 h-2 bg-gray-600 mb-5 shrink-0" />
-                  )}
-                </div>
-              )
-            })}
-          </div>
+            <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+              {activeCar ? <GhostCar car={activeCar} /> : null}
+            </DragOverlay>
+          </DndContext>
         </div>
 
         <p className="text-center text-xs text-gray-600">
-          Tap a car to select it, then tap another car to swap positions
+          Drag cars along the track to reorder them
         </p>
 
         {/* Hint after wrong */}
@@ -220,7 +278,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
           </div>
         )}
 
-        {/* Success — fades in after train exits */}
+        {/* Success */}
         {showCorrect && (
           <div className="text-center space-y-4 animate-[fadeIn_0.4s_ease]">
             <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-4 py-3">
@@ -229,10 +287,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
               </p>
               {puzzle.hint && <p className="text-sm text-green-300/70 mt-1">💡 {puzzle.hint}</p>}
             </div>
-            <button
-              onClick={onNext}
-              className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90 transition-colors"
-            >
+            <button onClick={onNext} className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90 transition-colors">
               {isLast ? 'Finish 🚉' : 'Next Puzzle →'}
             </button>
           </div>
@@ -241,10 +296,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
         {/* Check button */}
         {gameState === 'playing' && (
           <div className="text-center">
-            <button
-              onClick={checkAnswer}
-              className="px-8 py-3 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-colors shadow-lg"
-            >
+            <button onClick={checkAnswer} className="px-8 py-3 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-colors shadow-lg">
               Check Order
             </button>
           </div>
