@@ -7,6 +7,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import Link from 'next/link'
 import { GoalForm } from '@/components/progress/GoalForm'
 import { ProgressSnapshotForm } from '@/components/progress/ProgressSnapshotForm'
+import { StudentProfileCard } from '@/components/students/StudentProfileCard'
 
 export default async function StudentDetailPage({
   params,
@@ -18,7 +19,7 @@ export default async function StudentDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const [studentResult, goalsResult, lessonsResult, snapshotsResult] = await Promise.all([
+  const [studentResult, goalsResult, lessonsResult, snapshotsResult, detailsResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('*')
@@ -47,6 +48,12 @@ export default async function StudentDetailPage({
       .eq('teacher_id', user.id)
       .order('snapshot_date', { ascending: false })
       .limit(5),
+
+    supabase
+      .from('student_details')
+      .select('*')
+      .eq('student_id', studentId)
+      .single(),
   ])
 
   if (!studentResult.data) notFound()
@@ -56,6 +63,7 @@ export default async function StudentDetailPage({
   const lessons = lessonsResult.data ?? []
   const snapshots = snapshotsResult.data ?? []
   const latestSnapshot = snapshots[0]
+  const details = detailsResult.data ?? null
 
   const completedLessons = lessons.filter((l: any) => l.status === 'completed').length
   const activeGoals = goals.filter(g => g.status === 'active').length
@@ -105,6 +113,9 @@ export default async function StudentDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Profile */}
+      <StudentProfileCard studentId={studentId} details={details} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Goals */}

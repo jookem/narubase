@@ -16,6 +16,7 @@ import { AvailabilityPage } from '@/pages/AvailabilityPage'
 import { BookPage } from '@/pages/BookPage'
 import { GoalsPage } from '@/pages/GoalsPage'
 import { VocabularyPage } from '@/pages/VocabularyPage'
+import { GrammarPage } from '@/pages/GrammarPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/book" element={<BookPage />} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/vocabulary" element={<VocabularyPage />} />
+        <Route path="/grammar" element={<GrammarPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 

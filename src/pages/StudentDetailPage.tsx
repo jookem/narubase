@@ -9,6 +9,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { GoalForm } from '@/components/progress/GoalForm'
 import { ProgressSnapshotForm } from '@/components/progress/ProgressSnapshotForm'
 import { StudentVocabManager } from '@/components/students/StudentVocabManager'
+import { GrammarBankManager } from '@/components/students/GrammarBankManager'
 import { StudentProfileCard } from '@/components/students/StudentProfileCard'
 import { ScheduleLessonModal } from '@/components/lesson/ScheduleLessonModal'
 import { updateStudentName } from '@/lib/api/students'
@@ -282,6 +283,7 @@ export function StudentDetailPage() {
       </div>
 
       <StudentVocabManager studentId={studentId!} />
+      <GrammarBankManager studentId={studentId!} />
 
       <Card>
         <CardHeader className="pb-3">
