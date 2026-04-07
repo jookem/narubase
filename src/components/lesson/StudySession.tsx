@@ -143,9 +143,9 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
           >
             {!flipped ? (
               <div className="text-center space-y-3">
-                <p className="text-3xl font-bold text-gray-900">{current.word}</p>
+                <p className="text-5xl font-bold text-gray-900 font-sans">{current.word}</p>
                 {current.reading && (
-                  <p className="text-lg text-gray-400">{current.reading}</p>
+                  <p className="text-xl text-gray-400">{current.reading}</p>
                 )}
                 <button
                   onClick={e => { e.stopPropagation(); speak(current.word) }}
@@ -166,10 +166,10 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
                   />
                 )}
                 {current.definition_ja && (
-                  <p className="text-xl font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: current.definition_ja }} />
+                  <p className="text-3xl font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: current.definition_ja }} />
                 )}
                 {current.definition_en && (
-                  <p className="text-base text-gray-500" dangerouslySetInnerHTML={{ __html: current.definition_en }} />
+                  <p className="text-lg text-gray-500 font-sans" dangerouslySetInnerHTML={{ __html: current.definition_en }} />
                 )}
                 {current.example && (
                   <p className="text-sm text-gray-400 italic border-t pt-3 mt-3 w-full" dangerouslySetInnerHTML={{ __html: `&ldquo;${current.example}&rdquo;` }} />

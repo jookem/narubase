@@ -39,7 +39,7 @@ export function VocabularyFlashcard({
             {!flipped ? (
               <>
                 <div className="flex items-center justify-center gap-2">
-                  <p className="text-lg font-semibold text-gray-900">{entry.word}</p>
+                  <p className="text-2xl font-bold text-gray-900 font-sans">{entry.word}</p>
                   <button
                     onClick={e => { e.stopPropagation(); speak(entry.word) }}
                     className="text-gray-400 hover:text-brand transition-colors shrink-0"
@@ -61,10 +61,10 @@ export function VocabularyFlashcard({
                   />
                 )}
                 {entry.definition_ja && (
-                  <p className="text-sm font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: entry.definition_ja }} />
+                  <p className="text-base font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: entry.definition_ja }} />
                 )}
                 {entry.definition_en && (
-                  <p className="text-sm text-gray-600 mt-0.5" dangerouslySetInnerHTML={{ __html: entry.definition_en }} />
+                  <p className="text-base text-gray-600 mt-0.5 font-sans" dangerouslySetInnerHTML={{ __html: entry.definition_en }} />
                 )}
                 {entry.example && (
                   <p className="text-xs text-gray-500 italic mt-2" dangerouslySetInnerHTML={{ __html: `&ldquo;${entry.example}&rdquo;` }} />
