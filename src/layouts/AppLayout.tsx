@@ -50,7 +50,7 @@ export function AppLayout() {
                   height={42}
                 />
               </Link>
-              <nav className="hidden md:flex items-center gap-1">
+              <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1">
                 {nav.map(item => (
                   <NavLink
                     key={item.href}
@@ -83,7 +83,7 @@ export function AppLayout() {
         <Outlet />
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
+      <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
         <div className={`grid h-16 ${isTeacher ? 'grid-cols-5' : 'grid-cols-7'}`}>
           {nav.map(item => (
             <NavLink

@@ -202,11 +202,11 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
   const progress = Math.round((puzzleNumber / total) * 100)
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Train puzzle session" className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
       {/* Header */}
       <div className="w-full max-w-2xl flex items-center justify-between mb-4">
         <span className="text-sm text-gray-400">{puzzleNumber} / {total}</span>
-        <button onClick={onClose} className="text-gray-500 hover:text-white text-sm transition-colors">✕ Exit</button>
+        <button aria-label="Exit puzzle session" onClick={onClose} className="text-gray-500 hover:text-white text-sm transition-colors">✕ Exit</button>
       </div>
 
       {/* Progress bar */}

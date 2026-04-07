@@ -338,11 +338,11 @@ export function AnkiImporter({
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Import Anki Deck" className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
               <span className="text-base font-semibold">Import Anki Deck</span>
-              <button onClick={() => { setOpen(false); setResult(null); setError('') }} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button aria-label="Close" onClick={() => { setOpen(false); setResult(null); setError('') }} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">

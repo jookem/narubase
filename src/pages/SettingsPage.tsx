@@ -196,6 +196,7 @@ export function SettingsPage() {
                       </div>
                     )}
                     <button
+                      aria-label="Change profile photo"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       className="absolute -bottom-1 -right-1 w-7 h-7 bg-brand text-white rounded-full flex items-center justify-center shadow hover:bg-brand/90 transition-colors disabled:opacity-50"
@@ -267,6 +268,7 @@ export function SettingsPage() {
                       </div>
                     )}
                     <button
+                      aria-label="Change profile photo"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       className="absolute -bottom-1 -right-1 w-7 h-7 bg-brand text-white rounded-full flex items-center justify-center shadow hover:bg-brand/90 transition-colors disabled:opacity-50"

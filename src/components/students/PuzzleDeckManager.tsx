@@ -300,7 +300,7 @@ function PuzzleEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Edit puzzle deck" className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
@@ -320,7 +320,7 @@ function PuzzleEditor({
             <button onClick={async () => { await onDelete(deck.id, name); onClose() }} className="text-xs text-gray-300 hover:text-red-500 transition-colors">
               Delete deck
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+            <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
         </div>
 

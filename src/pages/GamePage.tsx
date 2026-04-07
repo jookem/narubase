@@ -89,7 +89,7 @@ export function GamePage() {
   // Session complete screen
   if (sessionComplete && activePuzzles) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
+      <div role="dialog" aria-modal="true" aria-label="Game complete" className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
         <CelebrationScreen
           title="All Aboard! 🚉"
           subtitle={`You completed ${activePuzzles.length} puzzle${activePuzzles.length !== 1 ? 's' : ''}`}

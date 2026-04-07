@@ -143,7 +143,7 @@ function DeckEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Edit vocabulary deck" className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -176,7 +176,7 @@ function DeckEditor({
             >
               Delete deck
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+            <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
         </div>
 

@@ -77,7 +77,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Vocabulary study session" className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
       {/* Header */}
       <div className="w-full max-w-lg flex items-center justify-between mb-6">
         <div className="text-sm text-gray-400">
@@ -88,6 +88,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
           )}
         </div>
         <button
+          aria-label="Exit study session"
           onClick={handleClose}
           className="text-gray-500 hover:text-white text-sm transition-colors"
         >

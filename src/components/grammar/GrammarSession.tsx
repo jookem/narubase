@@ -129,13 +129,13 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
   const sentence = current?.sentence_with_blank ?? current?.point ?? ''
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Grammar study session" className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
       {/* Header */}
       <div className="w-full max-w-lg flex items-center justify-between mb-4">
         <span className="text-sm text-gray-400">
           {done ? <span className="text-white font-medium">Session complete!</span> : `${total - queue.length} / ${total}`}
         </span>
-        <button onClick={handleClose} className="text-gray-500 hover:text-white text-sm transition-colors">✕ Exit</button>
+        <button aria-label="Exit grammar session" onClick={handleClose} className="text-gray-500 hover:text-white text-sm transition-colors">✕ Exit</button>
       </div>
 
       {/* Progress bar */}
