@@ -32,41 +32,49 @@ export function VocabularyFlashcard({
 
   return (
     <div className="cursor-pointer" onClick={() => setFlipped(f => !f)}>
-      <Card className={`transition-all min-h-[120px] ${flipped ? 'bg-brand-light' : 'bg-white'}`}>
-        <CardContent className="pt-4 pb-3 space-y-2">
-          {!flipped ? (
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-semibold text-gray-900">{entry.word}</p>
-                <button
-                  onClick={e => { e.stopPropagation(); speak(entry.word) }}
-                  className="text-gray-400 hover:text-brand transition-colors shrink-0"
-                  title="Listen"
-                >
-                  🔊
-                </button>
-              </div>
-              {entry.reading && <p className="text-sm text-gray-500">{entry.reading}</p>}
-              <p className="text-xs text-gray-400 mt-2">タップして意味を見る / Tap to reveal</p>
-            </div>
-          ) : (
-            <div>
-              {entry.image_url && (
-                <img
-                  src={entry.image_url}
-                  alt={entry.word}
-                  className="w-full max-h-32 object-contain rounded-md mb-2"
-                />
-              )}
-              {entry.definition_ja && <p className="text-sm font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: entry.definition_ja }} />}
-              {entry.definition_en && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: entry.definition_en }} />}
-              {entry.example && (
-                <p className="text-xs text-gray-500 italic mt-2" dangerouslySetInnerHTML={{ __html: `&ldquo;${entry.example}&rdquo;` }} />
-              )}
-            </div>
-          )}
+      <Card className={`transition-all ${flipped ? 'bg-brand-light' : 'bg-white'}`}>
+        <CardContent className="pt-4 pb-3 flex flex-col gap-2">
+          {/* Content area — fixed height, centred on both sides */}
+          <div className="min-h-[80px] flex flex-col items-center justify-center text-center">
+            {!flipped ? (
+              <>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="text-lg font-semibold text-gray-900">{entry.word}</p>
+                  <button
+                    onClick={e => { e.stopPropagation(); speak(entry.word) }}
+                    className="text-gray-400 hover:text-brand transition-colors shrink-0"
+                    title="Listen"
+                  >
+                    🔊
+                  </button>
+                </div>
+                {entry.reading && <p className="text-sm text-gray-500 mt-0.5">{entry.reading}</p>}
+                <p className="text-xs text-gray-400 mt-2">タップして意味を見る / Tap to reveal</p>
+              </>
+            ) : (
+              <>
+                {entry.image_url && (
+                  <img
+                    src={entry.image_url}
+                    alt={entry.word}
+                    className="max-h-24 object-contain rounded-md mb-2"
+                  />
+                )}
+                {entry.definition_ja && (
+                  <p className="text-sm font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: entry.definition_ja }} />
+                )}
+                {entry.definition_en && (
+                  <p className="text-sm text-gray-600 mt-0.5" dangerouslySetInnerHTML={{ __html: entry.definition_en }} />
+                )}
+                {entry.example && (
+                  <p className="text-xs text-gray-500 italic mt-2" dangerouslySetInnerHTML={{ __html: `&ldquo;${entry.example}&rdquo;` }} />
+                )}
+              </>
+            )}
+          </div>
 
-          <div className="flex gap-1 mt-2" onClick={e => e.stopPropagation()}>
+          {/* Mastery buttons */}
+          <div className="flex gap-1 justify-center" onClick={e => e.stopPropagation()}>
             {MASTERY.map((m, i) => (
               <button
                 key={i}
