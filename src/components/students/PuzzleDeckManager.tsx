@@ -134,16 +134,25 @@ function SourcePicker({
   )
 }
 
-const LABELS = ['Subject', 'Verb', 'Object', 'Adjective', 'Adverb', 'Complement', 'Other']
+const LABELS = [
+  'Noun', 'Pronoun', 'Verb', 'Adjective', 'Adverb',
+  'Preposition', 'Conjunction', 'Interjection',
+  'Subject', 'Object', 'Complement', 'Other',
+]
 
 const LABEL_COLORS: Record<string, string> = {
-  Subject:    'bg-blue-100 text-blue-700',
-  Verb:       'bg-red-100 text-red-700',
-  Object:     'bg-green-100 text-green-700',
-  Adjective:  'bg-purple-100 text-purple-700',
-  Adverb:     'bg-orange-100 text-orange-700',
-  Complement: 'bg-pink-100 text-pink-700',
-  Other:      'bg-gray-100 text-gray-600',
+  Noun:         'bg-blue-100 text-blue-700',
+  Pronoun:      'bg-sky-100 text-sky-700',
+  Verb:         'bg-red-100 text-red-700',
+  Adjective:    'bg-purple-100 text-purple-700',
+  Adverb:       'bg-orange-100 text-orange-700',
+  Preposition:  'bg-teal-100 text-teal-700',
+  Conjunction:  'bg-yellow-100 text-yellow-700',
+  Interjection: 'bg-rose-100 text-rose-700',
+  Subject:      'bg-indigo-100 text-indigo-700',
+  Object:       'bg-green-100 text-green-700',
+  Complement:   'bg-pink-100 text-pink-700',
+  Other:        'bg-gray-100 text-gray-600',
 }
 
 // ── Puzzle Editor Modal ───────────────────────────────────────

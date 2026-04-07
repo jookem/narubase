@@ -2,13 +2,18 @@ import { useState, useEffect } from 'react'
 import { recordPuzzleAttempt, type Puzzle, type PuzzlePart } from '@/lib/api/puzzles'
 
 const LABEL_COLORS: Record<string, { car: string; badge: string }> = {
-  Subject:    { car: 'bg-blue-50 border-blue-300',    badge: 'bg-blue-200 text-blue-800' },
-  Verb:       { car: 'bg-red-50 border-red-300',      badge: 'bg-red-200 text-red-800' },
-  Object:     { car: 'bg-green-50 border-green-300',  badge: 'bg-green-200 text-green-800' },
-  Adjective:  { car: 'bg-purple-50 border-purple-300',badge: 'bg-purple-200 text-purple-800' },
-  Adverb:     { car: 'bg-orange-50 border-orange-300',badge: 'bg-orange-200 text-orange-800' },
-  Complement: { car: 'bg-pink-50 border-pink-300',    badge: 'bg-pink-200 text-pink-800' },
-  Other:      { car: 'bg-gray-50 border-gray-300',    badge: 'bg-gray-200 text-gray-700' },
+  Noun:         { car: 'bg-blue-50 border-blue-300',    badge: 'bg-blue-200 text-blue-800' },
+  Pronoun:      { car: 'bg-sky-50 border-sky-300',      badge: 'bg-sky-200 text-sky-800' },
+  Verb:         { car: 'bg-red-50 border-red-300',      badge: 'bg-red-200 text-red-800' },
+  Adjective:    { car: 'bg-purple-50 border-purple-300',badge: 'bg-purple-200 text-purple-800' },
+  Adverb:       { car: 'bg-orange-50 border-orange-300',badge: 'bg-orange-200 text-orange-800' },
+  Preposition:  { car: 'bg-teal-50 border-teal-300',    badge: 'bg-teal-200 text-teal-800' },
+  Conjunction:  { car: 'bg-yellow-50 border-yellow-300',badge: 'bg-yellow-200 text-yellow-800' },
+  Interjection: { car: 'bg-rose-50 border-rose-300',    badge: 'bg-rose-200 text-rose-800' },
+  Subject:      { car: 'bg-indigo-50 border-indigo-300',badge: 'bg-indigo-200 text-indigo-800' },
+  Object:       { car: 'bg-green-50 border-green-300',  badge: 'bg-green-200 text-green-800' },
+  Complement:   { car: 'bg-pink-50 border-pink-300',    badge: 'bg-pink-200 text-pink-800' },
+  Other:        { car: 'bg-gray-50 border-gray-300',    badge: 'bg-gray-200 text-gray-700' },
 }
 
 function getColors(label: string) {
