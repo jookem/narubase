@@ -465,12 +465,15 @@ export function StudentVocabManager({ studentId }: Props) {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Vocabulary Bank
-            {!loading && (
-              <span className="ml-2 text-xs font-normal text-gray-400">{vocab.length} word{vocab.length !== 1 ? 's' : ''}</span>
-            )}
-          </CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              Vocabulary Bank
+              {!loading && (
+                <span className="ml-2 text-xs font-normal text-gray-400">{vocab.length} word{vocab.length !== 1 ? 's' : ''}</span>
+              )}
+            </CardTitle>
+            <AnkiImporter studentId={studentId} onImported={loadVocab} />
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-4">

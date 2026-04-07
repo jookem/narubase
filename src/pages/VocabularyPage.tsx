@@ -6,6 +6,7 @@ import { VocabularyFlashcard } from '@/components/lesson/VocabularyFlashcard'
 import { StudySession } from '@/components/lesson/StudySession'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { PageError } from '@/components/shared/PageError'
+import { AnkiImporter } from '@/components/students/AnkiImporter'
 
 const MASTERY_LABELS = ['新しい', '見た', '覚えてる', 'マスター']
 const MASTERY_LABELS_EN = ['New', 'Seen', 'Familiar', 'Mastered']
@@ -113,24 +114,25 @@ export function VocabularyPage() {
             </p>
           </div>
 
-          {vocab.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
-              {dueForReview.length > 0 && (
-                <button
-                  onClick={() => setStudyCards(dueForReview)}
-                  className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  復習 ({dueForReview.length})
-                </button>
-              )}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            <AnkiImporter studentId={user!.id} onImported={loadVocab} />
+            {dueForReview.length > 0 && (
+              <button
+                onClick={() => setStudyCards(dueForReview)}
+                className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                復習 ({dueForReview.length})
+              </button>
+            )}
+            {vocab.length > 0 && (
               <button
                 onClick={() => setStudyCards([...vocab])}
                 className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors"
               >
                 全部学習
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* View toggle */}
