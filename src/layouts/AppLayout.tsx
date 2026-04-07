@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Calendar, Clock, BookOpen,
-  Home, CalendarPlus, Target, Languages, GraduationCap,
+  Home, CalendarPlus, Target, Languages, GraduationCap, Train,
 } from 'lucide-react'
 import { AvatarMenu } from '@/components/shared/AvatarMenu'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,6 +22,7 @@ const studentNav = [
   { href: '/goals', label: '目標', sub: 'Goals', icon: Target },
   { href: '/vocabulary', label: '単語', sub: 'Vocab', icon: Languages },
   { href: '/grammar', label: '文法', sub: 'Grammar', icon: GraduationCap },
+  { href: '/game', label: 'ゲーム', sub: 'Game', icon: Train },
 ]
 
 export function AppLayout() {
