@@ -61,7 +61,7 @@ export function VocabularyFlashcard({
                   />
                 )}
                 {entry.definition_ja && (
-                  <p className="text-base font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: entry.definition_ja }} />
+                  <p className="text-2xl font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: entry.definition_ja }} />
                 )}
                 {entry.definition_en && (
                   <p className="text-base text-gray-600 mt-0.5 font-sans" dangerouslySetInnerHTML={{ __html: entry.definition_en }} />

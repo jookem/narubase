@@ -166,7 +166,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
                   />
                 )}
                 {current.definition_ja && (
-                  <p className="text-3xl font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: current.definition_ja }} />
+                  <p className="text-5xl font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: current.definition_ja }} />
                 )}
                 {current.definition_en && (
                   <p className="text-lg text-gray-500 font-sans" dangerouslySetInnerHTML={{ __html: current.definition_en }} />
