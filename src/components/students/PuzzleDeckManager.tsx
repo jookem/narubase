@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import nlp from 'compromise'
 import {
   listPuzzleDecks, createPuzzleDeck, deletePuzzleDeck, renamePuzzleDeck,
   getPuzzleDeckWithPuzzles, createPuzzle, deletePuzzle,
@@ -23,6 +24,43 @@ function sentenceToParts(sentence: string): PuzzlePart[] {
     .split(/\s+/)
     .filter(w => w.length > 0)
     .map(text => ({ text, label: 'Other' }))
+}
+
+function isJapanese(text: string): boolean {
+  return /[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)
+}
+
+function tagsToLabel(tags: Record<string, boolean>): string {
+  if (tags.Pronoun) return 'Pronoun'
+  if (tags.Verb || tags.Copula || tags.Auxiliary || tags.Modal) return 'Verb'
+  if (tags.Adjective) return 'Adjective'
+  if (tags.Adverb) return 'Adverb'
+  if (tags.Preposition) return 'Preposition'
+  if (tags.Conjunction) return 'Conjunction'
+  if (tags.Noun || tags.ProperNoun) return 'Noun'
+  return 'Other'
+}
+
+async function translateAndParse(
+  text: string,
+): Promise<{ english: string; parts: PuzzlePart[] }> {
+  let english = text.trim()
+
+  if (isJapanese(text)) {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ja|en`,
+    )
+    const json = await res.json()
+    english = json.responseData?.translatedText ?? text
+  }
+
+  const doc = nlp(english)
+  const terms = doc.terms().json() as Array<{ text: string; tags: Record<string, boolean> }>
+  const parts: PuzzlePart[] = terms
+    .map(t => ({ text: t.text.trim(), label: tagsToLabel(t.tags) }))
+    .filter(p => p.text.length > 0)
+
+  return { english, parts }
 }
 
 // ── Puzzle Editor Modal ───────────────────────────────────────
@@ -53,6 +91,7 @@ function PuzzleEditor({
   const [manualSentence, setManualSentence] = useState('')
   const [manualHint, setManualHint] = useState('')
   const [addingManual, setAddingManual] = useState(false)
+  const [translating, setTranslating] = useState(false)
 
   const [deleting, setDeleting] = useState<string | null>(null)
 
@@ -145,6 +184,30 @@ function PuzzleEditor({
     else toast.error('No valid sentences found (need at least 2 words each).')
   }
 
+  async function handleTranslateAndAdd() {
+    const s = manualSentence.trim()
+    if (!s) return
+    setTranslating(true)
+    try {
+      const { english, parts } = await translateAndParse(s)
+      if (parts.length < 2) { toast.error('Need at least 2 words after translation.'); return }
+      const { puzzle, error } = await createPuzzle(deck.id, {
+        japanese_sentence: isJapanese(s) ? s : english,
+        hint: manualHint.trim() || (isJapanese(s) ? english : undefined),
+        parts,
+      })
+      if (error) { toast.error(error); return }
+      setPuzzles(prev => [...prev, puzzle!])
+      setManualSentence(''); setManualHint('')
+      onUpdated()
+      toast.success(`Added: "${english}" (${parts.length} parts)`)
+    } catch {
+      toast.error('Translation failed. Check your connection.')
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   async function handleAddManual(e: React.FormEvent) {
     e.preventDefault()
     const s = manualSentence.trim()
@@ -233,28 +296,38 @@ function PuzzleEditor({
           </button>
         </div>
 
-        {/* Manual add */}
-        <form onSubmit={handleAddManual} className="px-6 py-3 border-b shrink-0 flex items-center gap-2">
-          <Input
-            value={manualSentence}
-            onChange={e => setManualSentence(e.target.value)}
-            placeholder="Or type a sentence manually…"
-            className="flex-1 h-8 text-sm"
-          />
-          <Input
-            value={manualHint}
-            onChange={e => setManualHint(e.target.value)}
-            placeholder="Hint (optional)"
-            className="w-40 h-8 text-sm"
-          />
-          <button
-            type="submit"
-            disabled={addingManual || !manualSentence.trim()}
-            className="px-3 py-1.5 text-sm bg-brand text-white rounded-md disabled:opacity-50 whitespace-nowrap"
-          >
-            {addingManual ? '…' : '+ Add'}
-          </button>
-        </form>
+        {/* Manual add with auto-translation */}
+        <div className="px-6 py-3 border-b shrink-0 space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              value={manualSentence}
+              onChange={e => setManualSentence(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleTranslateAndAdd() }}
+              placeholder="Type Japanese or English sentence…"
+              className="flex-1 h-8 text-sm"
+            />
+            <Input
+              value={manualHint}
+              onChange={e => setManualHint(e.target.value)}
+              placeholder="Hint (optional)"
+              className="w-36 h-8 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleTranslateAndAdd}
+              disabled={translating || !manualSentence.trim()}
+              className="px-3 py-1.5 text-sm bg-brand text-white rounded-md disabled:opacity-50 whitespace-nowrap"
+            >
+              {translating ? 'Translating…' : isJapanese(manualSentence) ? '🔤 Translate & Add' : '+ Add with POS tags'}
+            </button>
+            <span className="text-xs text-gray-400">
+              {isJapanese(manualSentence)
+                ? 'Will translate to English and tag parts of speech'
+                : 'Parts of speech tagged automatically'}
+            </span>
+          </div>
+        </div>
 
         {/* Puzzle list */}
         <div className="overflow-y-auto flex-1 px-6 py-3">
