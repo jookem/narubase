@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   listGrammar,
@@ -65,6 +65,26 @@ function DeckEditor({
   const [addHint, setAddHint] = useState('')
   const [addDistractors, setAddDistractors] = useState('')
   const [saving, setSaving] = useState(false)
+  const addSentenceRef = useRef<HTMLInputElement>(null)
+  const editSentenceRef = useRef<HTMLInputElement>(null)
+
+  function insertBlank(
+    ref: React.RefObject<HTMLInputElement | null>,
+    value: string,
+    setter: (v: string) => void,
+  ) {
+    const el = ref.current
+    if (!el) { setter(value + '_____'); return }
+    const start = el.selectionStart ?? value.length
+    const end = el.selectionEnd ?? value.length
+    const next = value.slice(0, start) + '_____' + value.slice(end)
+    setter(next)
+    // Restore cursor after the inserted blank
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + 5, start + 5)
+    })
+  }
 
   // Inline edit
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -190,13 +210,24 @@ function DeckEditor({
 
         {/* Add form */}
         <form onSubmit={handleAdd} className="px-6 py-4 border-b space-y-2 shrink-0 bg-gray-50">
-          <p className="text-xs text-gray-500">Use <code className="bg-gray-200 px-1 rounded">_____</code> (5 underscores) to mark the blank.</p>
-          <Input
-            value={addSentence}
-            onChange={e => setAddSentence(e.target.value)}
-            placeholder='Sentence with blank * e.g. "There _____ a park."'
-            required
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              ref={addSentenceRef}
+              value={addSentence}
+              onChange={e => setAddSentence(e.target.value)}
+              placeholder='Sentence * e.g. "There _____ a park."'
+              className="flex-1"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => insertBlank(addSentenceRef, addSentence, setAddSentence)}
+              title="Insert blank (_____)"
+              className="shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-100 transition-colors font-mono text-gray-600 hover:text-brand"
+            >
+              _____
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Input value={addAnswer} onChange={e => setAddAnswer(e.target.value)} placeholder="Answer * e.g. is" required />
             <Input value={addHint} onChange={e => setAddHint(e.target.value)} placeholder="Japanese hint e.g. 「単数」です" />
@@ -223,7 +254,10 @@ function DeckEditor({
                 <div key={p.id} className="border-b border-gray-100 last:border-0">
                   {editingId === p.id ? (
                     <div className="py-2 space-y-1.5">
-                      <Input value={editFields.sentence} onChange={e => setEditFields(f => ({ ...f, sentence: e.target.value }))} placeholder='Sentence with blank *' className="h-7 text-xs" />
+                      <div className="flex items-center gap-1.5">
+                        <Input ref={editSentenceRef} value={editFields.sentence} onChange={e => setEditFields(f => ({ ...f, sentence: e.target.value }))} placeholder='Sentence with blank *' className="h-7 text-xs flex-1" />
+                        <button type="button" onClick={() => insertBlank(editSentenceRef, editFields.sentence, v => setEditFields(f => ({ ...f, sentence: v })))} title="Insert blank" className="shrink-0 px-2 h-7 text-xs border border-gray-300 rounded hover:bg-gray-100 font-mono text-gray-500 hover:text-brand transition-colors">_____</button>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Input value={editFields.answer} onChange={e => setEditFields(f => ({ ...f, answer: e.target.value }))} placeholder="Answer *" className="h-7 text-xs" />
                         <Input value={editFields.hint} onChange={e => setEditFields(f => ({ ...f, hint: e.target.value }))} placeholder="Japanese hint" className="h-7 text-xs" />
