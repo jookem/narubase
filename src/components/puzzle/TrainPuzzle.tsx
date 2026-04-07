@@ -227,7 +227,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
         </div>
 
         {/* Train */}
-        <div className="overflow-x-auto pt-6 pb-2">
+        <div className={`pt-6 pb-2 ${trainExiting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
