@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { format, differenceInDays } from 'date-fns'
 import { PageError } from '@/components/shared/PageError'
+import { toast } from 'sonner'
 
 const statusColors: Record<string, string> = {
   active: 'bg-brand-light text-brand-dark',
@@ -52,6 +53,21 @@ export function GoalsPage() {
     return <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
   }
 
+  async function toggleAchieved(goal: any) {
+    const newStatus = goal.status === 'achieved' ? 'active' : 'achieved'
+    const { error: err } = await supabase
+      .from('student_goals')
+      .update({ status: newStatus })
+      .eq('id', goal.id)
+      .eq('student_id', user!.id)
+    if (err) {
+      toast.error('Could not update goal')
+    } else {
+      setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, status: newStatus } : g))
+      if (newStatus === 'achieved') toast.success('目標達成！ Goal marked as achieved!')
+    }
+  }
+
   const active = goals.filter(g => g.status === 'active')
   const achieved = goals.filter(g => g.status === 'achieved')
   const other = goals.filter(g => !['active', 'achieved'].includes(g.status))
@@ -75,36 +91,37 @@ export function GoalsPage() {
       {active.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">進行中 / Active</h2>
-          {active.map(goal => <GoalCard key={goal.id} goal={goal} />)}
+          {active.map(goal => <GoalCard key={goal.id} goal={goal} onToggleAchieved={toggleAchieved} />)}
         </section>
       )}
 
       {achieved.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">達成！ / Achieved</h2>
-          {achieved.map(goal => <GoalCard key={goal.id} goal={goal} />)}
+          {achieved.map(goal => <GoalCard key={goal.id} goal={goal} onToggleAchieved={toggleAchieved} />)}
         </section>
       )}
 
       {other.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Other</h2>
-          {other.map(goal => <GoalCard key={goal.id} goal={goal} />)}
+          {other.map(goal => <GoalCard key={goal.id} goal={goal} onToggleAchieved={toggleAchieved} />)}
         </section>
       )}
     </div>
   )
 }
 
-function GoalCard({ goal }: { goal: any }) {
+function GoalCard({ goal, onToggleAchieved }: { goal: any; onToggleAchieved: (goal: any) => void }) {
   const daysUntil = goal.target_date
     ? differenceInDays(new Date(goal.target_date), new Date())
     : null
+  const canToggle = goal.status === 'active' || goal.status === 'achieved'
 
   return (
     <Card>
       <CardContent className="pt-4">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
             <h3 className="font-medium text-gray-900">{goal.title}</h3>
             {goal.description && <p className="text-sm text-gray-500 mt-1">{goal.description}</p>}
@@ -119,9 +136,23 @@ function GoalCard({ goal }: { goal: any }) {
               </p>
             )}
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-3 ${statusColors[goal.status] ?? ''}`}>
-            {statusLabels[goal.status] ?? goal.status}
-          </span>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[goal.status] ?? ''}`}>
+              {statusLabels[goal.status] ?? goal.status}
+            </span>
+            {canToggle && (
+              <button
+                onClick={() => onToggleAchieved(goal)}
+                className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                  goal.status === 'achieved'
+                    ? 'text-gray-400 hover:text-gray-600'
+                    : 'text-green-600 hover:bg-green-50 border border-green-200'
+                }`}
+              >
+                {goal.status === 'achieved' ? 'Undo' : '✓ Mark achieved'}
+              </button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
