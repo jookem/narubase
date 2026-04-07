@@ -42,10 +42,15 @@ type State = 'playing' | 'correct' | 'wrong'
 
 export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, total }: Props) {
   const [cars, setCars] = useState<Car[]>([])
-  const [selected, setSelected] = useState<number | null>(null) // index in cars array
+  const [selected, setSelected] = useState<number | null>(null)
   const [gameState, setGameState] = useState<State>('playing')
   const [attempts, setAttempts] = useState(0)
   const [shake, setShake] = useState(false)
+  // Indices of the two cars mid-swap animation
+  const [swapping, setSwapping] = useState<number[]>([])
+  // Train drives off left on correct, then success UI fades in
+  const [trainExiting, setTrainExiting] = useState(false)
+  const [showCorrect, setShowCorrect] = useState(false)
 
   useEffect(() => {
     const shuffled = shuffle(puzzle.parts.map((p, i) => ({ id: i, part: p })))
@@ -53,28 +58,36 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
     setSelected(null)
     setGameState('playing')
     setAttempts(0)
+    setSwapping([])
+    setTrainExiting(false)
+    setShowCorrect(false)
   }, [puzzle.id])
 
   function handleCarTap(idx: number) {
-    if (gameState !== 'playing') return
+    if (gameState !== 'playing' || swapping.length > 0) return
 
     if (selected === null) {
       setSelected(idx)
       return
     }
-
     if (selected === idx) {
       setSelected(null)
       return
     }
 
-    // Swap the two cars
-    setCars(prev => {
-      const next = [...prev]
-      ;[next[selected], next[idx]] = [next[idx], next[selected]]
-      return next
-    })
+    // Animate both cars lifting, then swap
+    const from = selected
+    setSwapping([from, idx])
     setSelected(null)
+
+    setTimeout(() => {
+      setCars(prev => {
+        const next = [...prev]
+        ;[next[from], next[idx]] = [next[idx], next[from]]
+        return next
+      })
+      setSwapping([])
+    }, 220) // slightly shorter than animation so swap happens near peak
   }
 
   function checkAnswer() {
@@ -86,6 +99,10 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
     if (isCorrect) {
       setGameState('correct')
       recordPuzzleAttempt(puzzle.id, true)
+      // Small pause then the train drives off
+      setTimeout(() => setTrainExiting(true), 200)
+      // Success UI appears after train has exited
+      setTimeout(() => setShowCorrect(true), 1100)
     } else {
       setGameState('wrong')
       recordPuzzleAttempt(puzzle.id, false)
@@ -110,13 +127,13 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
       </div>
 
       <div className="w-full max-w-2xl space-y-8">
-        {/* Japanese sentence prompt */}
+        {/* Prompt */}
         <div className="text-center">
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">Arrange the English translation</p>
           <p className="text-3xl font-bold text-white">{puzzle.japanese_sentence}</p>
         </div>
 
-        {/* Track label */}
+        {/* Track */}
         <div className="flex items-center gap-2">
           <div className="h-px flex-1 bg-gray-700" />
           <span className="text-xs text-gray-600 uppercase tracking-widest">Track</span>
@@ -124,13 +141,17 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
         </div>
 
         {/* Train */}
-        <div className={`flex items-stretch gap-0 overflow-x-auto pb-2 ${shake ? 'animate-shake' : ''}`}>
+        <div
+          className={`flex items-stretch gap-0 overflow-x-auto pb-2
+            ${shake ? 'animate-shake' : ''}
+            ${trainExiting ? 'animate-train-exit' : ''}
+          `}
+        >
           {/* Locomotive */}
           <div className="flex items-center shrink-0">
             <div className="bg-gray-700 rounded-l-xl px-3 py-4 flex flex-col items-center justify-center border-2 border-gray-600 min-w-[52px]">
               <span className="text-2xl">🚂</span>
             </div>
-            {/* Connector */}
             <div className="w-3 h-2 bg-gray-600 self-center" />
           </div>
 
@@ -138,23 +159,26 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
           {cars.map((car, idx) => {
             const colors = getColors(car.part.label)
             const isSelected = selected === idx
-            const isCorrectPos = gameState === 'correct'
+            const isSwappingCar = swapping.includes(idx)
+            const isCorrectState = gameState === 'correct'
 
-            let carClass = `flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px] cursor-pointer transition-all duration-200 select-none `
+            let carClass = 'flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px] cursor-pointer select-none '
 
-            if (isCorrectPos) {
-              carClass += 'bg-green-100 border-green-400 scale-105'
+            if (isCorrectState) {
+              carClass += 'bg-green-100 border-green-400 transition-all duration-300 scale-105'
+            } else if (isSwappingCar) {
+              carClass += `${colors.car} border-brand animate-car-swap`
             } else if (isSelected) {
-              carClass += `${colors.car} border-brand shadow-lg shadow-brand/30 scale-105 -translate-y-1`
+              carClass += `${colors.car} border-brand shadow-lg shadow-brand/30 scale-110 -translate-y-2 transition-all duration-150`
             } else {
-              carClass += `${colors.car} hover:scale-105 hover:-translate-y-0.5`
+              carClass += `${colors.car} hover:scale-105 hover:-translate-y-1 transition-all duration-150`
             }
 
             return (
-              <div key={`${car.id}-${idx}`} className="flex items-stretch shrink-0">
+              <div key={car.id} className="flex items-stretch shrink-0">
                 <div className={carClass} onClick={() => handleCarTap(idx)}>
                   <p className="text-sm font-semibold text-gray-900 text-center leading-tight">{car.part.text}</p>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium ${isCorrectPos ? 'bg-green-200 text-green-800' : colors.badge}`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium ${isCorrectState ? 'bg-green-200 text-green-800' : colors.badge}`}>
                     {car.part.label}
                   </span>
                   {isSelected && (
@@ -170,19 +194,19 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
         </div>
 
         <p className="text-center text-xs text-gray-600">
-          Tap a car to select it, then tap another car to swap their positions
+          Tap a car to select it, then tap another car to swap positions
         </p>
 
-        {/* Hint (shown after wrong) */}
+        {/* Hint after wrong */}
         {gameState === 'wrong' && puzzle.hint && (
           <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl px-4 py-3 text-center">
             <p className="text-sm text-yellow-300">💡 {puzzle.hint}</p>
           </div>
         )}
 
-        {/* Correct message + next */}
-        {gameState === 'correct' && (
-          <div className="text-center space-y-4">
+        {/* Success — fades in after train exits */}
+        {showCorrect && (
+          <div className="text-center space-y-4 animate-[fadeIn_0.4s_ease]">
             <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-4 py-3">
               <p className="text-green-400 font-semibold">
                 {attempts === 1 ? '🎉 Perfect first try!' : `✓ Correct! (${attempts} attempt${attempts !== 1 ? 's' : ''})`}
