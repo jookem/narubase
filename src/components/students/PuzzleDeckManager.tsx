@@ -36,16 +36,17 @@ async function loadSourceItems(): Promise<SourceItem[]> {
     }
   }
 
-  // Vocabulary decks — each word may have an example sentence
+  // Vocabulary decks — use example sentence when available, fall back to definition_en
   const { data: vocabDecks } = await supabase
     .from('vocabulary_decks')
-    .select('name, vocabulary_deck_words(word, example)')
+    .select('name, vocabulary_deck_words(word, example, definition_en)')
     .order('created_at', { ascending: false })
 
   for (const deck of vocabDecks ?? []) {
     for (const w of (deck as any).vocabulary_deck_words ?? []) {
-      if (w.example?.trim()) {
-        items.push({ sentence: w.example.trim(), hint: w.word, source: `Vocab: ${deck.name}` })
+      const sentence = w.example?.trim() || w.definition_en?.replace(/<[^>]*>/g, '').trim()
+      if (sentence) {
+        items.push({ sentence, hint: w.word, source: `Vocab: ${deck.name}` })
       }
     }
   }
