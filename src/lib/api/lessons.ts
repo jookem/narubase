@@ -483,6 +483,14 @@ export async function renameDeck(deckId: string, name: string): Promise<{ error?
 }
 
 export async function deleteDeck(deckId: string): Promise<{ error?: string }> {
+  // Remove all student vocab entries that came from this deck
+  const { error: vocabErr } = await supabase
+    .from('vocabulary_bank')
+    .delete()
+    .eq('deck_id', deckId)
+
+  if (vocabErr) return { error: vocabErr.message }
+
   const { error } = await supabase
     .from('vocabulary_decks')
     .delete()

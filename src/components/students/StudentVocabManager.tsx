@@ -325,7 +325,7 @@ export function StudentVocabManager({ studentId }: Props) {
   }
 
   async function handleDeleteDeck(deckId: string, deckName: string) {
-    if (!confirm(`Delete deck "${deckName}"? This removes the deck template but does NOT remove words already assigned to students.`)) return
+    if (!confirm(`Delete deck "${deckName}"? This will remove the deck and all its words from every student it was assigned to.`)) return
     setDeleting(deckId)
     const { error } = await deleteDeck(deckId)
     setDeleting(null)
