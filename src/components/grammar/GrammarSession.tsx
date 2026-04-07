@@ -13,16 +13,22 @@ function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5)
 }
 
+function isEnglish(text: string): boolean {
+  return text.trim().length > 0 && !/[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)
+}
+
 function buildChoices(current: GrammarBankEntry, all: GrammarBankEntry[]): string[] {
   const correct = current.explanation
+
+  // Only use English explanations as distractors
   const pool = all
-    .filter(e => e.id !== current.id)
+    .filter(e => e.id !== current.id && isEnglish(e.explanation))
     .map(e => e.explanation)
     .filter(e => e !== correct)
 
   const distractors = shuffle(pool).slice(0, 3)
 
-  // Pad with generic distractors if not enough entries
+  // Pad with English fallbacks if not enough entries
   const fallbacks = [
     'Used to express a past action',
     'Indicates a continuing state',
@@ -30,6 +36,8 @@ function buildChoices(current: GrammarBankEntry, all: GrammarBankEntry[]): strin
     'Shows a conditional relationship',
     'Used for making requests',
     'Expresses obligation or necessity',
+    'Describes a habitual action',
+    'Used to give or receive something',
   ].filter(f => f !== correct && !distractors.includes(f))
 
   while (distractors.length < 3) {
