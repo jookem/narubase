@@ -5,9 +5,133 @@ import {
   assignPuzzleDeckToStudent, removePuzzleDeckFromStudent, getAssignedDeckIds,
   type PuzzleDeck, type Puzzle, type PuzzlePart,
 } from '@/lib/api/puzzles'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+
+// ── Source picker types ───────────────────────────────────────
+interface SourceItem {
+  sentence: string   // the Japanese / example sentence to use as prompt
+  hint: string       // the grammar point / word as a hint
+  source: string     // deck name for display
+}
+
+async function loadSourceItems(): Promise<SourceItem[]> {
+  const items: SourceItem[] = []
+
+  // Grammar decks — each point may have example sentences
+  const { data: grammarDecks } = await supabase
+    .from('grammar_decks')
+    .select('name, grammar_deck_points(point, explanation, examples)')
+    .order('created_at', { ascending: false })
+
+  for (const deck of grammarDecks ?? []) {
+    for (const pt of (deck as any).grammar_deck_points ?? []) {
+      for (const ex of pt.examples ?? []) {
+        if (ex?.trim()) {
+          items.push({ sentence: ex.trim(), hint: pt.point, source: `Grammar: ${deck.name}` })
+        }
+      }
+    }
+  }
+
+  // Vocabulary decks — each word may have an example sentence
+  const { data: vocabDecks } = await supabase
+    .from('vocabulary_decks')
+    .select('name, vocabulary_deck_words(word, example)')
+    .order('created_at', { ascending: false })
+
+  for (const deck of vocabDecks ?? []) {
+    for (const w of (deck as any).vocabulary_deck_words ?? []) {
+      if (w.example?.trim()) {
+        items.push({ sentence: w.example.trim(), hint: w.word, source: `Vocab: ${deck.name}` })
+      }
+    }
+  }
+
+  return items
+}
+
+// ── Source Picker Modal ───────────────────────────────────────
+function SourcePicker({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (sentence: string, hint: string) => void
+  onClose: () => void
+}) {
+  const [items, setItems] = useState<SourceItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('')
+
+  useEffect(() => {
+    loadSourceItems().then(i => { setItems(i); setLoading(false) })
+  }, [])
+
+  const filtered = filter.trim()
+    ? items.filter(i =>
+        i.sentence.toLowerCase().includes(filter.toLowerCase()) ||
+        i.hint.toLowerCase().includes(filter.toLowerCase()) ||
+        i.source.toLowerCase().includes(filter.toLowerCase())
+      )
+    : items
+
+  // Group by source deck
+  const groups = filtered.reduce<Record<string, SourceItem[]>>((acc, item) => {
+    ;(acc[item.source] ??= []).push(item)
+    return acc
+  }, {})
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <span className="font-semibold text-gray-900">Source from Deck</span>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="px-6 py-3 border-b shrink-0">
+          <Input
+            autoFocus
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Filter by sentence, word, or deck…"
+            className="h-8 text-sm"
+          />
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-3 space-y-4">
+          {loading ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />)}</div>
+          ) : Object.keys(groups).length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">
+              {items.length === 0
+                ? 'No examples found in your grammar or vocabulary decks yet.'
+                : 'No matches for that filter.'}
+            </p>
+          ) : (
+            Object.entries(groups).map(([source, groupItems]) => (
+              <div key={source}>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{source}</p>
+                <div className="space-y-1">
+                  {groupItems.map((item, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { onSelect(item.sentence, item.hint); onClose() }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-brand-light border border-transparent hover:border-brand/20 transition-colors"
+                    >
+                      <p className="text-sm text-gray-900">{item.sentence}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">hint: {item.hint}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const LABELS = ['Subject', 'Verb', 'Object', 'Adjective', 'Adverb', 'Complement', 'Other']
 
@@ -43,6 +167,7 @@ function PuzzleEditor({
   const [hint, setHint] = useState('')
   const [parts, setParts] = useState<PuzzlePart[]>([{ text: '', label: 'Subject' }])
   const [saving, setSaving] = useState(false)
+  const [showSourcePicker, setShowSourcePicker] = useState(false)
 
   // Editing existing puzzle
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -193,11 +318,28 @@ function PuzzleEditor({
           </div>
         </div>
 
+        {showSourcePicker && (
+          <SourcePicker
+            onSelect={(sentence, hint) => { setJapanese(sentence); setHint(hint) }}
+            onClose={() => setShowSourcePicker(false)}
+          />
+        )}
+
         {/* Add puzzle form */}
         <form onSubmit={handleCreate} className="px-6 py-4 border-b space-y-3 shrink-0">
-          <div className="grid grid-cols-2 gap-2">
-            <Input value={japanese} onChange={e => setJapanese(e.target.value)} placeholder="Japanese sentence *" required />
-            <Input value={hint} onChange={e => setHint(e.target.value)} placeholder="Hint / explanation (optional)" />
+          <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 flex-1">
+              <Input value={japanese} onChange={e => setJapanese(e.target.value)} placeholder="Japanese sentence *" required />
+              <Input value={hint} onChange={e => setHint(e.target.value)} placeholder="Hint / explanation (optional)" />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSourcePicker(true)}
+              className="shrink-0 px-3 py-1.5 text-xs border border-brand/30 text-brand rounded-md hover:bg-brand-light transition-colors"
+              title="Pick from grammar or vocabulary deck"
+            >
+              Source from Deck
+            </button>
           </div>
           <PartsForm
             parts={parts}
