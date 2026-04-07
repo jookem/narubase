@@ -140,57 +140,73 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
           <div className="h-px flex-1 bg-gray-700" />
         </div>
 
-        {/* Train */}
-        <div
-          className={`flex items-stretch gap-0 overflow-x-auto pb-2
-            ${shake ? 'animate-shake' : ''}
-            ${trainExiting ? 'animate-train-exit' : ''}
-          `}
-        >
-          {/* Locomotive */}
-          <div className="flex items-center shrink-0">
-            <div className="bg-gray-700 rounded-l-xl px-3 py-4 flex flex-col items-center justify-center border-2 border-gray-600 min-w-[52px]">
-              <span className="text-2xl">🚂</span>
+        {/* Train — pt-6 gives lifted cards room without clipping */}
+        <div className="overflow-x-auto pt-6 pb-2">
+          <div
+            className={`flex items-end gap-0
+              ${shake ? 'animate-shake' : ''}
+              ${trainExiting ? 'animate-train-exit' : ''}
+            `}
+          >
+            {/* Locomotive */}
+            <div className="flex items-end shrink-0">
+              <div className="flex flex-col items-center">
+                <div className="bg-gray-700 rounded-l-xl px-3 py-4 flex flex-col items-center justify-center border-2 border-gray-600 min-w-[52px]">
+                  <span className="text-2xl">🚂</span>
+                </div>
+                {/* Loco wheels */}
+                <div className="flex justify-around w-full px-1 -mt-1">
+                  <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
+                  <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
+                </div>
+              </div>
+              <div className="w-3 h-2 bg-gray-600 mb-3" />
             </div>
-            <div className="w-3 h-2 bg-gray-600 self-center" />
-          </div>
 
-          {/* Cars */}
-          {cars.map((car, idx) => {
-            const colors = getColors(car.part.label)
-            const isSelected = selected === idx
-            const isSwappingCar = swapping.includes(idx)
-            const isCorrectState = gameState === 'correct'
+            {/* Cars */}
+            {cars.map((car, idx) => {
+              const colors = getColors(car.part.label)
+              const isSelected = selected === idx
+              const isSwappingCar = swapping.includes(idx)
+              const isCorrectState = gameState === 'correct'
 
-            let carClass = 'flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px] cursor-pointer select-none '
+              let carClass = 'flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px] cursor-pointer select-none rounded-sm '
 
-            if (isCorrectState) {
-              carClass += 'bg-green-100 border-green-400 transition-all duration-300 scale-105'
-            } else if (isSwappingCar) {
-              carClass += `${colors.car} border-brand animate-car-swap`
-            } else if (isSelected) {
-              carClass += `${colors.car} border-brand shadow-lg shadow-brand/30 scale-110 -translate-y-2 transition-all duration-150`
-            } else {
-              carClass += `${colors.car} hover:scale-105 hover:-translate-y-1 transition-all duration-150`
-            }
+              if (isCorrectState) {
+                carClass += 'bg-green-100 border-green-400 transition-all duration-300 scale-105'
+              } else if (isSwappingCar) {
+                carClass += `${colors.car} border-brand animate-car-swap`
+              } else if (isSelected) {
+                carClass += `${colors.car} border-brand shadow-lg shadow-brand/30 scale-110 -translate-y-3 transition-all duration-150`
+              } else {
+                carClass += `${colors.car} hover:scale-105 hover:-translate-y-1 transition-all duration-150`
+              }
 
-            return (
-              <div key={car.id} className="flex items-stretch shrink-0">
-                <div className={carClass} onClick={() => handleCarTap(idx)}>
-                  <p className="text-sm font-semibold text-gray-900 text-center leading-tight">{car.part.text}</p>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium ${isCorrectState ? 'bg-green-200 text-green-800' : colors.badge}`}>
-                    {car.part.label}
-                  </span>
-                  {isSelected && (
-                    <span className="text-xs text-brand mt-1 opacity-70">selected</span>
+              return (
+                <div key={car.id} className="flex items-end shrink-0">
+                  <div className="flex flex-col items-center">
+                    <div className={carClass} onClick={() => handleCarTap(idx)}>
+                      <p className="text-sm font-semibold text-gray-900 text-center leading-tight">{car.part.text}</p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1.5 font-medium ${isCorrectState ? 'bg-green-200 text-green-800' : colors.badge}`}>
+                        {car.part.label}
+                      </span>
+                      {isSelected && (
+                        <span className="text-xs text-brand mt-1 opacity-70">selected</span>
+                      )}
+                    </div>
+                    {/* Wheels */}
+                    <div className="flex justify-around w-full px-2 -mt-1">
+                      <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500 shadow-inner" />
+                      <div className="w-4 h-4 rounded-full bg-gray-600 border-2 border-gray-500 shadow-inner" />
+                    </div>
+                  </div>
+                  {idx < cars.length - 1 && (
+                    <div className="w-2 h-2 bg-gray-600 mb-5 shrink-0" />
                   )}
                 </div>
-                {idx < cars.length - 1 && (
-                  <div className="w-2 h-2 bg-gray-600 self-center shrink-0" />
-                )}
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
         <p className="text-center text-xs text-gray-600">
