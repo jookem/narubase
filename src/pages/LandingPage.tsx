@@ -25,7 +25,7 @@ export function LandingPage() {
       {/* Header */}
       <header className="border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <img src="/NaruBase_B_IndigoTeal.svg" alt="" width={100} height={42} />
+          <img src="/narubase.svg" alt="" width={100} height={42} />
           <div className="flex items-center gap-3">
             <Link
               to="/login"
