@@ -59,13 +59,14 @@ function TrainCar({
   isCorrect: boolean
   isDragging?: boolean
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, over } = useSortable({ id: car.id })
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: car.id })
   const colors = getColors(car.part.label)
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.35 : 1,
+    touchAction: 'none' as const,
   }
 
   return (
@@ -75,7 +76,7 @@ function TrainCar({
           {...attributes}
           {...listeners}
           className={`flex flex-col items-center justify-center px-4 py-3 border-2 min-w-[100px] max-w-[160px]
-            cursor-grab active:cursor-grabbing select-none rounded-sm touch-none
+            cursor-grab active:cursor-grabbing select-none rounded-sm
             transition-colors duration-150
             ${isCorrect
               ? 'bg-green-100 border-green-400'
@@ -158,10 +159,9 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
     setShowCorrect(false)
   }, [puzzle.id])
 
-  // Require a small movement before drag starts so taps don't accidentally drag
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 30 } }),
   )
 
   function handleDragStart(event: DragStartEvent) {
@@ -229,7 +229,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
         </div>
 
         {/* Train */}
-        <div className={`pt-6 pb-2 ${trainExiting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
+        <div className={`pt-6 pb-2 ${trainExiting ? 'overflow-hidden' : 'overflow-x-auto'} ${activeCar ? 'touch-none' : ''}`}>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
