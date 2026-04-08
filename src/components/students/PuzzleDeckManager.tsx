@@ -15,8 +15,10 @@ import { toast } from 'sonner'
 // ── Parts of speech ───────────────────────────────────────────
 
 const LABELS = [
-  'Noun', 'Pronoun', 'Verb', 'Adjective', 'Adverb',
+  'Noun', 'Pronoun', 'Verb', 'Auxiliary', 'Modal',
+  'Adjective', 'Adverb', 'Article', 'Determiner',
   'Preposition', 'Conjunction', 'Interjection', 'Interrogative',
+  'Numeral', 'Particle', 'Infinitive',
   'Subject', 'Object', 'Complement', 'Other',
 ]
 
@@ -24,12 +26,19 @@ const LABEL_COLORS: Record<string, string> = {
   Noun:          'bg-blue-100 text-blue-700',
   Pronoun:       'bg-sky-100 text-sky-700',
   Verb:          'bg-red-100 text-red-700',
+  Auxiliary:     'bg-emerald-100 text-emerald-700',
+  Modal:         'bg-violet-100 text-violet-700',
   Adjective:     'bg-purple-100 text-purple-700',
   Adverb:        'bg-orange-100 text-orange-700',
+  Article:       'bg-amber-100 text-amber-700',
+  Determiner:    'bg-lime-100 text-lime-700',
   Preposition:   'bg-teal-100 text-teal-700',
   Conjunction:   'bg-yellow-100 text-yellow-700',
   Interjection:  'bg-rose-100 text-rose-700',
   Interrogative: 'bg-cyan-100 text-cyan-700',
+  Numeral:       'bg-fuchsia-100 text-fuchsia-700',
+  Particle:      'bg-slate-100 text-slate-600',
+  Infinitive:    'bg-stone-100 text-stone-600',
   Subject:       'bg-indigo-100 text-indigo-700',
   Object:        'bg-green-100 text-green-700',
   Complement:    'bg-pink-100 text-pink-700',
