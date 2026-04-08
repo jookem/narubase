@@ -22,29 +22,9 @@ const features = [
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <img src="/narubase_v2.svg" alt="" style={{ height: 40, width: 'auto' }} />
-          <div className="flex items-center gap-3">
-            <Link
-              to="/login"
-              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/signup"
-              className="text-sm bg-brand text-white px-4 py-1.5 rounded-md hover:bg-brand-dark transition-colors"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 py-20 text-center">
+        <img src="/narubase_v2.svg" alt="NaruBase" style={{ height: 120, width: 'auto' }} className="mx-auto mb-6" />
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight">
           English lessons,<br />
           <span className="text-brand">organized.</span>
