@@ -253,10 +253,11 @@ function PuzzleEditor({
     try {
       const { english, japanese, parts } = await translateAndParse(s)
       if (parts.length < 2) { toast.error('Need at least 2 words after translation.'); return }
-      const autoHint = isJapanese(s) ? english : (japanese ?? undefined)
       const { puzzle, error } = await createPuzzle(deck.id, {
-        japanese_sentence: isJapanese(s) ? s : english,
-        hint: manualHint.trim() || autoHint,
+        // Student always sees Japanese — use input directly if Japanese, otherwise use translation
+        japanese_sentence: isJapanese(s) ? s : (japanese ?? s),
+        // Hint is always the English sentence — teacher can override with manualHint
+        hint: manualHint.trim() || english,
         parts,
       })
       if (error) { toast.error(error); return }
