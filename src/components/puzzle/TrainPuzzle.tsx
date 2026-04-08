@@ -126,83 +126,80 @@ function GhostCar({ car }: { car: Car }) {
   )
 }
 
-// ── Custom scrollbar for the train track ─────────────────────
-function TrainScrollBar({ scrollRef }: { scrollRef: React.RefObject<HTMLDivElement | null> }) {
-  const trackRef = useRef<HTMLDivElement>(null)
-  const [thumb, setThumb] = useState({ left: 0, width: 0 })
-  const dragStart = useRef<{ x: number; scrollLeft: number } | null>(null)
+// ── Train track + scroll arrows ───────────────────────────────
+function TrainTrack({ scrollRef }: { scrollRef: React.RefObject<HTMLDivElement | null> }) {
+  const [canLeft, setCanLeft] = useState(false)
+  const [canRight, setCanRight] = useState(false)
 
-  const recalc = useCallback(() => {
+  const update = useCallback(() => {
     const el = scrollRef.current
-    const track = trackRef.current
-    if (!el || !track) return
-    const ratio = el.clientWidth / el.scrollWidth
-    if (ratio >= 1) { setThumb({ left: 0, width: 0 }); return }
-    const trackW = track.clientWidth
-    const thumbW = Math.max(48, ratio * trackW)
-    const maxScroll = el.scrollWidth - el.clientWidth
-    const thumbLeft = maxScroll > 0 ? (el.scrollLeft / maxScroll) * (trackW - thumbW) : 0
-    setThumb({ left: thumbLeft, width: thumbW })
+    if (!el) return
+    setCanLeft(el.scrollLeft > 4)
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4)
   }, [scrollRef])
 
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    el.addEventListener('scroll', recalc, { passive: true })
-    const ro = new ResizeObserver(recalc)
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = new ResizeObserver(update)
     ro.observe(el)
-    recalc()
-    return () => { el.removeEventListener('scroll', recalc); ro.disconnect() }
-  }, [recalc])
+    update()
+    return () => { el.removeEventListener('scroll', update); ro.disconnect() }
+  }, [update])
 
-  function jumpToClick(e: React.PointerEvent<HTMLDivElement>) {
-    const el = scrollRef.current
-    const track = trackRef.current
-    if (!el || !track) return
-    const rect = track.getBoundingClientRect()
-    const ratio = (e.clientX - rect.left) / rect.width
-    el.scrollLeft = ratio * (el.scrollWidth - el.clientWidth)
+  function scroll(dir: 'left' | 'right') {
+    scrollRef.current?.scrollBy({ left: dir === 'left' ? -200 : 200, behavior: 'smooth' })
   }
 
-  function onThumbDown(e: React.PointerEvent<HTMLDivElement>) {
-    e.stopPropagation()
-    e.currentTarget.setPointerCapture(e.pointerId)
-    dragStart.current = { x: e.clientX, scrollLeft: scrollRef.current?.scrollLeft ?? 0 }
-  }
-
-  function onThumbMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragStart.current) return
-    const el = scrollRef.current
-    const track = trackRef.current
-    if (!el || !track) return
-    const dx = e.clientX - dragStart.current.x
-    const scrollRatio = (el.scrollWidth - el.clientWidth) / (track.clientWidth - thumb.width)
-    el.scrollLeft = dragStart.current.scrollLeft + dx * scrollRatio
-  }
-
-  function onThumbUp() { dragStart.current = null }
-
-  if (thumb.width === 0) return null
+  // Don't render the track controls if everything fits
+  if (!canLeft && !canRight) return (
+    <TrackRails />
+  )
 
   return (
-    <div
-      ref={trackRef}
-      className="relative mx-1 rounded-full cursor-pointer"
-      style={{
-        height: 28,
-        background: 'repeating-linear-gradient(90deg, #374151 0px, #374151 2px, #0f172a 2px, #0f172a 22px)',
-        borderRadius: 14,
-      }}
-      onPointerDown={jumpToClick}
-    >
-      <div
-        className="absolute rounded-full bg-gray-300 active:bg-white cursor-grab active:cursor-grabbing"
-        style={{ top: 4, height: 20, left: thumb.left, width: thumb.width }}
-        onPointerDown={onThumbDown}
-        onPointerMove={onThumbMove}
-        onPointerUp={onThumbUp}
-        onPointerCancel={onThumbUp}
-      />
+    <div>
+      {/* Rails */}
+      <TrackRails />
+      {/* Scroll arrows */}
+      <div className="flex items-center justify-between mt-2 px-1">
+        <button
+          onClick={() => scroll('left')}
+          disabled={!canLeft}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all
+            disabled:opacity-20 disabled:cursor-default
+            text-gray-300 hover:text-white hover:bg-gray-700 active:bg-gray-600"
+          aria-label="Scroll left"
+        >
+          <span className="text-lg leading-none">‹‹</span> scroll
+        </button>
+        <span className="text-xs text-gray-600 tracking-widest uppercase">swipe or tap arrows</span>
+        <button
+          onClick={() => scroll('right')}
+          disabled={!canRight}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all
+            disabled:opacity-20 disabled:cursor-default
+            text-gray-300 hover:text-white hover:bg-gray-700 active:bg-gray-600"
+          aria-label="Scroll right"
+        >
+          scroll <span className="text-lg leading-none">››</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function TrackRails() {
+  return (
+    <div className="relative mx-0 mt-0" style={{ height: 20 }}>
+      {/* Top rail */}
+      <div className="absolute top-0 left-0 right-0 h-2 bg-gray-600 rounded-sm" />
+      {/* Sleepers (cross-ties) */}
+      <div className="absolute inset-0" style={{
+        background: 'repeating-linear-gradient(90deg, transparent 0px, transparent 14px, #4b5563 14px, #4b5563 22px)',
+      }} />
+      {/* Bottom rail */}
+      <div className="absolute bottom-0 left-0 right-0 h-2 bg-gray-600 rounded-sm" />
     </div>
   )
 }
@@ -351,7 +348,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
             </DragOverlay>
           </DndContext>
         </div>
-        <TrainScrollBar scrollRef={trackScrollRef} />
+        <TrainTrack scrollRef={trackScrollRef} />
         </div>
 
         <p className="text-center text-xs text-gray-600">
