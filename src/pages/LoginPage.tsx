@@ -93,7 +93,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center pb-4">
-          <div className="flex items-center justify-center gap-3 mb-2">
+          <div className="flex items-center justify-center gap-2 mb-2">
             {/* icon = text (32px) × 1.333 ≈ 43px */}
             <img src="/narubase_logo.svg" alt="" aria-hidden="true" style={{ height: 43, width: 'auto' }} />
             <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 300, fontSize: 32, color: '#3D3DB4', letterSpacing: '0.01em', lineHeight: 1 }}>

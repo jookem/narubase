@@ -42,7 +42,7 @@ export function AppLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-8">
-              <Link to="/dashboard" className="flex items-center gap-2.5">
+              <Link to="/dashboard" className="flex items-center gap-1.5">
                 {/* icon height = text height (20px) × 1.333 ≈ 27px */}
                 <img src="/narubase_logo.svg" alt="" aria-hidden="true" style={{ height: 27, width: 'auto' }} />
                 <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 300, fontSize: 20, color: '#3D3DB4', letterSpacing: '0.01em', lineHeight: 1 }}>
