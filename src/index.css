@@ -119,19 +119,20 @@
 
 /* Train puzzle — always-visible horizontal scrollbar */
 .train-track {
-  scrollbar-width: thin;
-  scrollbar-color: #4b5563 #1e293b;
+  scrollbar-width: auto;
+  scrollbar-color: #6b7280 #1e293b;
 }
 .train-track::-webkit-scrollbar {
-  height: 6px;
+  height: 12px;
 }
 .train-track::-webkit-scrollbar-track {
   background: #1e293b;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .train-track::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 3px;
+  background: #6b7280;
+  border-radius: 6px;
+  border: 2px solid #1e293b;
 }
 
 @layer base {
