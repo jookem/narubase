@@ -108,19 +108,25 @@ export function ProgressSnapshotForm({
           </div>
         </div>
 
-        {(['speaking', 'listening', 'reading', 'writing'] as const).map(skill => (
-          <div key={skill} className="space-y-1">
+        {([
+          { key: 'speaking',  color: '#02508E' },
+          { key: 'listening', color: '#9b51e0' },
+          { key: 'reading',   color: '#10b981' },
+          { key: 'writing',   color: '#f59e0b' },
+        ] as const).map(({ key, color }) => (
+          <div key={key} className="space-y-1">
             <div className="flex justify-between">
-              <Label className="text-xs capitalize">{skill}</Label>
-              <span className="text-xs font-medium">{scores[skill]}/10</span>
+              <Label className="text-xs capitalize">{key}</Label>
+              <span className="text-xs font-medium" style={{ color }}>{scores[key]}/10</span>
             </div>
             <input
               type="range"
               min={0}
               max={10}
-              value={scores[skill]}
-              onChange={e => setScores(prev => ({ ...prev, [skill]: Number(e.target.value) }))}
-              className="w-full accent-blue-600"
+              value={scores[key]}
+              onChange={e => setScores(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+              className="w-full"
+              style={{ accentColor: color }}
             />
           </div>
         ))}
