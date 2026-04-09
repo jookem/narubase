@@ -24,12 +24,6 @@ export default defineConfig({
         lang: 'ja',
         icons: [
           {
-            src: '/narubase_logo.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
-          },
-          {
             src: '/icons/icon-48.png',
             sizes: '48x48',
             type: 'image/png',
