@@ -24,6 +24,12 @@ export default defineConfig({
         lang: 'ja',
         icons: [
           {
+            src: '/icons/icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
             src: '/icons/icon-48.png',
             sizes: '48x48',
             type: 'image/png',
