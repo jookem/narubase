@@ -184,7 +184,7 @@ export function StudentDetailPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Goals</CardTitle>
+              <CardTitle className="text-base">Learning Goals</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {goals.length === 0 && <p className="text-sm text-gray-500">No goals yet.</p>}

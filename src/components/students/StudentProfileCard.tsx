@@ -241,7 +241,7 @@ export function StudentProfileCard({
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Goals &amp; Notes</h3>
               <div>
-                <Label className="text-xs">Learning Goals</Label>
+                <Label className="text-xs">Life Goals</Label>
                 <Textarea placeholder="What does this student want to achieve?" value={f.learning_goals} onChange={e => set('learning_goals', e.target.value)} rows={3} className="mt-1" />
               </div>
               <div>
@@ -306,7 +306,7 @@ export function StudentProfileCard({
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Goals &amp; Notes</p>
                     <dl className="space-y-1.5 text-sm">
-                      {d.learning_goals && <><dt className="text-gray-500">Learning Goals</dt><dd className="whitespace-pre-wrap">{d.learning_goals}</dd></>}
+                      {d.learning_goals && <><dt className="text-gray-500">Life Goals</dt><dd className="whitespace-pre-wrap">{d.learning_goals}</dd></>}
                       {d.notes && <><dt className="text-gray-500">Notes</dt><dd className="whitespace-pre-wrap">{d.notes}</dd></>}
                     </dl>
                   </div>
