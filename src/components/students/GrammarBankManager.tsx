@@ -92,6 +92,61 @@ function DeckEditor({
   const [savingEdit, setSavingEdit] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
 
+  // JSON import
+  const [showImport, setShowImport] = useState(false)
+  const [importJson, setImportJson] = useState('')
+  const [importing, setImporting] = useState(false)
+
+  type ImportRow = { sentence: string; answer: string; hint?: string; distractors?: string[] }
+
+  function parseImport(): { rows: ImportRow[]; error: string | null } {
+    try {
+      const parsed = JSON.parse(importJson)
+      if (!Array.isArray(parsed)) return { rows: [], error: 'Must be a JSON array [ ... ]' }
+      const rows: ImportRow[] = []
+      for (let i = 0; i < parsed.length; i++) {
+        const r = parsed[i]
+        if (!r.sentence || !r.answer) return { rows: [], error: `Item ${i + 1} missing "sentence" or "answer"` }
+        if (!r.sentence.includes('_____')) return { rows: [], error: `Item ${i + 1} sentence must contain _____` }
+        rows.push({
+          sentence: String(r.sentence),
+          answer: String(r.answer),
+          hint: r.hint ? String(r.hint) : undefined,
+          distractors: Array.isArray(r.distractors) ? r.distractors.map(String) : [],
+        })
+      }
+      return { rows, error: null }
+    } catch {
+      return { rows: [], error: 'Invalid JSON — check for missing commas or brackets' }
+    }
+  }
+
+  async function handleImport() {
+    const { rows, error } = parseImport()
+    if (error) { toast.error(error); return }
+    if (rows.length === 0) { toast.error('No items found in JSON.'); return }
+    setImporting(true)
+    let added = 0
+    for (const r of rows) {
+      const { error: err } = await addPointToDeck(deck.id, {
+        point: r.sentence,
+        explanation: r.answer,
+        sentence_with_blank: r.sentence,
+        answer: r.answer,
+        hint_ja: r.hint,
+        distractors: r.distractors ?? [],
+      })
+      if (!err) added++
+    }
+    const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
+    setPoints(refreshed?.points ?? points)
+    setImporting(false)
+    setShowImport(false)
+    setImportJson('')
+    onUpdated()
+    toast.success(`Imported ${added} of ${rows.length} question${rows.length !== 1 ? 's' : ''}`)
+  }
+
   useEffect(() => {
     if (!deck.points) {
       getGrammarDeckWithPoints(deck.id).then(({ deck: d }) => {
@@ -203,10 +258,50 @@ function DeckEditor({
             </button>
           )}
           <div className="flex items-center gap-3 ml-4">
+            <button
+              onClick={() => setShowImport(v => !v)}
+              className="text-xs text-brand hover:text-brand/80 transition-colors"
+            >
+              {showImport ? 'Cancel import' : '↓ Import JSON'}
+            </button>
             <button onClick={async () => { await onDelete(deck.id, name); onClose() }} className="text-xs text-gray-300 hover:text-red-500 transition-colors">Delete deck</button>
             <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
         </div>
+
+        {/* JSON Import */}
+        {showImport ? (
+          <div className="px-6 py-4 border-b space-y-3 shrink-0 bg-amber-50">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Paste JSON to bulk import</p>
+              <button onClick={() => { setShowImport(false); setImportJson('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+            <p className="text-xs text-amber-700 font-mono bg-amber-100 rounded p-2 leading-relaxed">
+              {'[{ "sentence": "She _____ every day.", "answer": "runs", "hint": "動詞", "distractors": ["run","ran","running"] }, ...]'}
+            </p>
+            <textarea
+              autoFocus
+              value={importJson}
+              onChange={e => setImportJson(e.target.value)}
+              placeholder="Paste JSON array here…"
+              rows={6}
+              className="w-full text-xs font-mono border border-amber-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+            />
+            {importJson.trim() && (() => {
+              const { rows, error } = parseImport()
+              return error
+                ? <p className="text-xs text-red-500">{error}</p>
+                : <p className="text-xs text-green-700">{rows.length} question{rows.length !== 1 ? 's' : ''} ready to import</p>
+            })()}
+            <button
+              onClick={handleImport}
+              disabled={importing || !importJson.trim()}
+              className="px-4 py-1.5 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50"
+            >
+              {importing ? 'Importing…' : 'Import All'}
+            </button>
+          </div>
+        ) : null}
 
         {/* Add form */}
         <form onSubmit={handleAdd} className="px-6 py-4 border-b space-y-2 shrink-0 bg-gray-50">
