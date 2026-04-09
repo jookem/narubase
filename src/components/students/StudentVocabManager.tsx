@@ -468,12 +468,7 @@ export function StudentVocabManager({ studentId }: Props) {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">
-              Vocabulary Bank
-              {!loading && (
-                <span className="ml-2 text-xs font-normal text-gray-400">{vocab.length} word{vocab.length !== 1 ? 's' : ''}</span>
-              )}
-            </CardTitle>
+            <CardTitle className="text-base">Vocabulary Bank</CardTitle>
             <AnkiImporter studentId={studentId} onImported={loadVocab} />
           </div>
         </CardHeader>
@@ -555,36 +550,6 @@ export function StudentVocabManager({ studentId }: Props) {
             )}
           </div>
 
-          {/* ── Word List (grouped by deck) ── */}
-          {loading ? (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}
-            </div>
-          ) : vocab.length === 0 ? (
-            <p className="text-sm text-gray-400">No vocabulary assigned yet. Create a deck, add words, then assign it to this student.</p>
-          ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-              {deckGroups.map(({ deckId, deckName, words }) => (
-                <div key={deckId ?? '__ungrouped__'}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      {deckName} <span className="font-normal">({words.length})</span>
-                    </span>
-                    {deckId && (
-                      <button
-                        onClick={() => handleRemoveDeck(deckId, deckName)}
-                        disabled={removing === deckId}
-                        className="text-xs text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
-                      >
-                        {removing === deckId ? '…' : 'Remove deck'}
-                      </button>
-                    )}
-                  </div>
-                  {words.map(v => <VocabRow key={v.id} v={v} />)}
-                </div>
-              ))}
-            </div>
-          )}
         </CardContent>
       </Card>
     </>
