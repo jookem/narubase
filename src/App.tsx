@@ -19,6 +19,7 @@ import { VocabularyPage } from '@/pages/VocabularyPage'
 import { GrammarPage } from '@/pages/GrammarPage'
 import { GamePage } from '@/pages/GamePage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { IOSInstallBanner } from '@/components/shared/IOSInstallBanner'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -69,6 +70,7 @@ export function App() {
         <NotificationsProvider>
           <AppRoutes />
           <Toaster />
+          <IOSInstallBanner />
         </NotificationsProvider>
       </AuthProvider>
     </BrowserRouter>
