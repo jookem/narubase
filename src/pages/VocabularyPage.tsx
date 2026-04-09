@@ -7,9 +7,6 @@ import { StudySession } from '@/components/lesson/StudySession'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { PageError } from '@/components/shared/PageError'
 
-const MASTERY_LABELS = ['新しい', '見た', '覚えてる', 'マスター']
-const MASTERY_LABELS_EN = ['New', 'Seen', 'Familiar', 'Mastered']
-
 type DeckGroup = {
   deckId: string | null
   deckName: string
@@ -23,7 +20,6 @@ export function VocabularyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [studyCards, setStudyCards] = useState<VocabularyBankEntry[] | null>(null)
-  const [view, setView] = useState<'decks' | 'mastery'>('decks')
   const [search, setSearch] = useState('')
 
   async function loadVocab() {
@@ -98,11 +94,6 @@ export function VocabularyPage() {
     return a.deckName.localeCompare(b.deckName)
   })
 
-  const byMastery = [0, 1, 2, 3].map(level => ({
-    level,
-    words: filtered.filter(v => v.mastery_level === level),
-  }))
-
   return (
     <>
       {studyCards && (
@@ -153,24 +144,6 @@ export function VocabularyPage() {
           />
         )}
 
-        {/* View toggle */}
-        {vocab.length > 0 && (
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-            <button
-              onClick={() => setView('decks')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${view === 'decks' ? 'bg-white shadow-sm font-medium text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              デッキ別
-            </button>
-            <button
-              onClick={() => setView('mastery')}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${view === 'mastery' ? 'bg-white shadow-sm font-medium text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              レベル別
-            </button>
-          </div>
-        )}
-
         {/* Due for review banner */}
         {dueForReview.length > 0 && (
           <section className="space-y-3">
@@ -186,7 +159,7 @@ export function VocabularyPage() {
         )}
 
         {/* Deck view */}
-        {view === 'decks' && deckGroups.map(({ deckId, deckName, words }) => (
+        {deckGroups.map(({ deckId, deckName, words }) => (
           <section key={deckId ?? '__other__'} className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium text-gray-600 uppercase tracking-wide">
@@ -207,29 +180,6 @@ export function VocabularyPage() {
           </section>
         ))}
 
-        {/* Mastery view */}
-        {view === 'mastery' && byMastery.map(({ level, words }) =>
-          words.length === 0 ? null : (
-            <section key={level} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                  {MASTERY_LABELS[level]} / {MASTERY_LABELS_EN[level]} ({words.length})
-                </h2>
-                <button
-                  onClick={() => setStudyCards(words)}
-                  className="text-xs text-gray-400 hover:text-brand transition-colors"
-                >
-                  Study this group →
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {words.map(word => (
-                  <VocabularyFlashcard key={word.id} entry={word} onMasteryChanged={loadVocab} />
-                ))}
-              </div>
-            </section>
-          )
-        )}
 
         {vocab.length === 0 && (
           <Card>

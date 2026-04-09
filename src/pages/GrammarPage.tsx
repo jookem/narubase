@@ -62,15 +62,15 @@ export function GrammarPage() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="space-y-3">
           <div>
             <h1 className="text-2xl font-semibold">文法 / Grammar</h1>
             <p className="text-gray-500 text-sm mt-1">
-              {entries.length} point{entries.length !== 1 ? 's' : ''} · {due.length} due for review
+              {entries.length}点 collected · {due.length} due for review
             </p>
           </div>
           {entries.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
               {due.length > 0 && (
                 <button
                   onClick={() => setStudyCards(due)}
