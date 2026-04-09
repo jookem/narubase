@@ -33,6 +33,7 @@ export function StudentDetailPage() {
   const [snapshots, setSnapshots] = useState<any[]>([])
   const [details, setDetails] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [deletingSnapshot, setDeletingSnapshot] = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
 
@@ -43,7 +44,7 @@ export function StudentDetailPage() {
       supabase.from('profiles').select('*').eq('id', studentId).single(),
       supabase.from('student_goals').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('created_at', { ascending: false }),
       supabase.from('lessons').select('*, lesson_notes(*), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))').eq('teacher_id', user.id).eq('student_id', studentId).neq('status', 'cancelled').order('scheduled_start', { ascending: false }).limit(10),
-      supabase.from('progress_snapshots').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('snapshot_date', { ascending: false }).limit(5),
+      supabase.from('progress_snapshots').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('snapshot_date', { ascending: false }),
       supabase.from('student_details').select('*').eq('student_id', studentId).single(),
     ])
 
@@ -58,6 +59,14 @@ export function StudentDetailPage() {
     setSnapshots(snapshotsResult.data ?? [])
     setDetails(detailsResult.data ?? null)
     setLoading(false)
+  }
+
+  async function handleDeleteSnapshot(id: string) {
+    setDeletingSnapshot(id)
+    const { error } = await supabase.from('progress_snapshots').delete().eq('id', id).eq('teacher_id', user!.id)
+    setDeletingSnapshot(null)
+    if (error) toast.error('Failed to delete assessment')
+    else { toast.success('Assessment deleted'); loadData() }
   }
 
   useEffect(() => {
@@ -278,6 +287,35 @@ export function StudentDetailPage() {
                     <Line type="monotone" dataKey="Writing" stroke="#f59e0b" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+          {snapshots.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Assessment History</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {snapshots.map(s => (
+                  <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                    <div className="text-sm text-gray-700">
+                      {format(new Date(s.snapshot_date), 'MMM d, yyyy')}
+                      {s.cefr_level && <span className="ml-2 text-xs text-brand font-medium">{s.cefr_level}</span>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-400">
+                        S:{s.speaking_score} L:{s.listening_score} R:{s.reading_score} W:{s.writing_score}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteSnapshot(s.id)}
+                        disabled={deletingSnapshot === s.id}
+                        className="text-xs text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                      >
+                        {deletingSnapshot === s.id ? '…' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
