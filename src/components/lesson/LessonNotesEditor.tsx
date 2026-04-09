@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { saveLessonNotes, addVocabularyToBank } from '@/lib/api/lessons'
+import { saveLessonNotes, addVocabularyToBank, listDecks, addWordToDeck, type Deck } from '@/lib/api/lessons'
+import { listGrammarDecks, addPointToDeck, type GrammarDeck } from '@/lib/api/grammar'
 import { toast } from 'sonner'
 import type { LessonNotes, VocabularyItem, GrammarPoint, StudentGoal } from '@/lib/types/database'
 
@@ -50,6 +51,16 @@ export function LessonNotesEditor({
   const [newGrammarPoint, setNewGrammarPoint] = useState('')
   const [newGrammarExplanation, setNewGrammarExplanation] = useState('')
 
+  const [vocabDecks, setVocabDecks] = useState<Deck[]>([])
+  const [grammarDecks, setGrammarDecks] = useState<GrammarDeck[]>([])
+  const [selectedVocabDeckId, setSelectedVocabDeckId] = useState('')
+  const [selectedGrammarDeckId, setSelectedGrammarDeckId] = useState('')
+
+  useEffect(() => {
+    listDecks().then(({ decks }) => setVocabDecks(decks ?? []))
+    listGrammarDecks().then(({ decks }) => setGrammarDecks(decks ?? []))
+  }, [])
+
   const triggerAutoSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
@@ -72,7 +83,7 @@ export function LessonNotesEditor({
     }, 2000)
   }, [lessonId, summary, vocabulary, grammarPoints, homework, strengths, areasToFocus, teacherNotes, selectedGoalIds, isVisible])
 
-  function addVocabItem() {
+  async function addVocabItem() {
     if (!newWord.trim() || !newDefinitionJa.trim()) return
     const item: VocabularyItem = {
       word: newWord.trim(),
@@ -86,6 +97,19 @@ export function LessonNotesEditor({
     setNewDefinitionEn('')
     setNewExample('')
     triggerAutoSave()
+    if (selectedVocabDeckId) {
+      const { error } = await addWordToDeck(selectedVocabDeckId, {
+        word: item.word,
+        definition_ja: item.definition_ja,
+        definition_en: item.definition_en,
+        example: item.example,
+      })
+      if (error) toast.error('Failed to add to deck: ' + error)
+      else {
+        const deckName = vocabDecks.find(d => d.id === selectedVocabDeckId)?.name ?? 'deck'
+        toast.success(`Added to "${deckName}"`)
+      }
+    }
   }
 
   function removeVocabItem(index: number) {
@@ -93,7 +117,7 @@ export function LessonNotesEditor({
     triggerAutoSave()
   }
 
-  function addGrammarPoint() {
+  async function addGrammarPoint() {
     if (!newGrammarPoint.trim() || !newGrammarExplanation.trim()) return
     const point: GrammarPoint = {
       point: newGrammarPoint.trim(),
@@ -103,6 +127,17 @@ export function LessonNotesEditor({
     setNewGrammarPoint('')
     setNewGrammarExplanation('')
     triggerAutoSave()
+    if (selectedGrammarDeckId) {
+      const { error } = await addPointToDeck(selectedGrammarDeckId, {
+        point: point.point,
+        explanation: point.explanation,
+      })
+      if (error) toast.error('Failed to add to grammar deck: ' + error)
+      else {
+        const deckName = grammarDecks.find(d => d.id === selectedGrammarDeckId)?.name ?? 'deck'
+        toast.success(`Added to "${deckName}"`)
+      }
+    }
   }
 
   function removeGrammarPoint(index: number) {
@@ -230,6 +265,18 @@ export function LessonNotesEditor({
           <Input value={newDefinitionEn} onChange={e => setNewDefinitionEn(e.target.value)} placeholder="English meaning (optional)" />
           <Input value={newExample} onChange={e => setNewExample(e.target.value)} placeholder="Example sentence (optional)" />
         </div>
+        {vocabDecks.length > 0 && (
+          <select
+            value={selectedVocabDeckId}
+            onChange={e => setSelectedVocabDeckId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent bg-white"
+          >
+            <option value="">+ Add to vocab bank only (no deck)</option>
+            {vocabDecks.map(d => (
+              <option key={d.id} value={d.id}>{d.name} ({d.word_count ?? 0} words)</option>
+            ))}
+          </select>
+        )}
         <Button size="sm" variant="outline" onClick={addVocabItem} disabled={!newWord || !newDefinitionJa}>
           + Add Word
         </Button>
@@ -254,6 +301,18 @@ export function LessonNotesEditor({
           <Input value={newGrammarPoint} onChange={e => setNewGrammarPoint(e.target.value)} placeholder="Grammar point (e.g. Past perfect)" />
           <Input value={newGrammarExplanation} onChange={e => setNewGrammarExplanation(e.target.value)} placeholder="Explanation" />
         </div>
+        {grammarDecks.length > 0 && (
+          <select
+            value={selectedGrammarDeckId}
+            onChange={e => setSelectedGrammarDeckId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent bg-white"
+          >
+            <option value="">+ Add to grammar bank only (no deck)</option>
+            {grammarDecks.map(d => (
+              <option key={d.id} value={d.id}>{d.name} ({d.point_count ?? 0} points)</option>
+            ))}
+          </select>
+        )}
         <Button size="sm" variant="outline" onClick={addGrammarPoint} disabled={!newGrammarPoint || !newGrammarExplanation}>
           + Add Grammar Point
         </Button>
