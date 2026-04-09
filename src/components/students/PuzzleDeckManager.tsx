@@ -234,7 +234,7 @@ function PuzzleEditor({
         if (parts.length < 2) continue
         const { puzzle, error } = await createPuzzle(deck.id, {
           japanese_sentence: isJapanese(sentence) ? sentence : (japanese ?? sentence),
-          hint: hint || english,
+          hint: english,
           parts,
         })
         if (!error && puzzle) {
