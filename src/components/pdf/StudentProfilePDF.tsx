@@ -133,7 +133,7 @@ export function StudentProfilePDF({ student, details: d, goals, latestSnapshot, 
             {/* Learning Goals text */}
             {d?.learning_goals && (
               <View style={s.section}>
-                <Text style={s.sectionLabel}>Life Goals</Text>
+                <Text style={s.sectionLabel}>Dreams</Text>
                 <View style={s.notesBox}>
                   <Text>{d.learning_goals}</Text>
                 </View>
