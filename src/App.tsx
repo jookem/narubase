@@ -18,6 +18,7 @@ import { GoalsPage } from '@/pages/GoalsPage'
 import { VocabularyPage } from '@/pages/VocabularyPage'
 import { GrammarPage } from '@/pages/GrammarPage'
 import { GamePage } from '@/pages/GamePage'
+import { SpellingPage } from '@/pages/SpellingPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { InstallBanner } from '@/components/shared/IOSInstallBanner'
 
@@ -55,6 +56,7 @@ function AppRoutes() {
         <Route path="/vocabulary" element={<VocabularyPage />} />
         <Route path="/grammar" element={<GrammarPage />} />
         <Route path="/game" element={<GamePage />} />
+        <Route path="/spelling" element={<SpellingPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
