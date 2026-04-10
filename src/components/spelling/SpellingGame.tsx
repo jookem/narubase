@@ -33,18 +33,17 @@ interface SpellingGameProps {
 
 // ── Helpers ───────────────────────────────────────────────────────
 
+function shuffle<T>(arr: T[]): T[] {
+  return [...arr].sort(() => Math.random() - 0.5)
+}
+
 function makeTiles(word: string): LetterTile[] {
   const tiles: LetterTile[] = word.toLowerCase().split('').map((l, i) => ({ id: `${i}:${l}`, letter: l }))
   for (let attempt = 0; attempt < 20; attempt++) {
-    const shuffled = [...tiles].sort(() => Math.random() - 0.5)
+    const shuffled = shuffle(tiles)
     if (tiles.length <= 1 || shuffled.some((t, i) => t.id !== tiles[i].id)) return shuffled
   }
   return [...tiles].reverse()
-}
-
-function dragPhaseCount(total: number): number {
-  if (total <= 3) return total
-  return Math.ceil(total * 0.6)
 }
 
 // ── DraggableTile ─────────────────────────────────────────────────
@@ -66,7 +65,6 @@ function DraggableTile({ tile, source, slotIdx, inSlot = false, isCorrect = fals
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
 
   if (inSlot) {
-    // Slot tiles: fill the slot container, no own border/bg
     return (
       <button
         ref={setNodeRef}
@@ -101,14 +99,12 @@ function DraggableTile({ tile, source, slotIdx, inSlot = false, isCorrect = fals
 
 // ── DroppableSlot ─────────────────────────────────────────────────
 
-interface SlotProps {
+function DroppableSlot({ slotId, tile, isCorrect, onRemove }: {
   slotId: string
   tile: LetterTile | null
   isCorrect: boolean
   onRemove: () => void
-}
-
-function DroppableSlot({ slotId, tile, isCorrect, onRemove }: SlotProps) {
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: slotId })
   const slotIdx = parseInt(slotId.split('-')[1])
 
@@ -157,7 +153,14 @@ function DroppablePool({ children }: { children: React.ReactNode }) {
 // ── Main component ────────────────────────────────────────────────
 
 export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) {
-  const [wordIdx, setWordIdx] = useState(0)
+  // Build two rounds: drag phase (all words) then type phase (same words reshuffled)
+  const [allRounds] = useState<VocabularyBankEntry[]>(() => [
+    ...words,
+    ...shuffle(words),
+  ])
+  const totalWords = words.length
+
+  const [roundIdx, setRoundIdx] = useState(0)
   const [pool, setPool] = useState<LetterTile[]>([])
   const [slots, setSlots] = useState<(LetterTile | null)[]>([])
   const [activeDrag, setActiveDrag] = useState<{ tile: LetterTile } | null>(null)
@@ -170,48 +173,53 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
   const [correctCount, setCorrectCount] = useState(0)
   const typeRef = useRef<HTMLInputElement>(null)
 
-  const dragCount = dragPhaseCount(words.length)
-  const currentWord = words[wordIdx]
-  const currentPhase: 'drag' | 'type' = wordIdx < dragCount ? 'drag' : 'type'
+  const currentWord = allRounds[roundIdx]
+  const currentPhase: 'drag' | 'type' = roundIdx < totalWords ? 'drag' : 'type'
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 30 } }),
   )
 
-  // ── Init a word ────────────────────────────────────────────────
+  // ── Init a round ───────────────────────────────────────────────
 
-  function initWord(idx: number) {
-    const w = words[idx]
+  function initRound(idx: number, phase: 'drag' | 'type') {
+    const w = allRounds[idx]
     if (!w) return
-    setPool(makeTiles(w.word))
-    setSlots(new Array(w.word.length).fill(null))
+    if (phase === 'drag') {
+      setPool(makeTiles(w.word))
+      setSlots(new Array(w.word.length).fill(null))
+    } else {
+      setPool([])
+      setSlots([])
+      setTypeInput('')
+      setTypeWrong(false)
+    }
     setWordDone(false)
-    setTypeInput('')
-    setTypeWrong(false)
     speak(w.word)
   }
 
-  useEffect(() => { initWord(0) }, [])
+  useEffect(() => { initRound(0, 'drag') }, [])
 
   useEffect(() => {
     if (currentPhase === 'type' && !showTransition) {
       setTimeout(() => typeRef.current?.focus(), 150)
     }
-  }, [wordIdx, showTransition])
+  }, [roundIdx, showTransition])
 
   // ── Advance ────────────────────────────────────────────────────
 
   function advance() {
-    const next = wordIdx + 1
-    if (next >= words.length) { setSessionDone(true); return }
-    if (wordIdx < dragCount && next >= dragCount) {
-      setWordIdx(next)
+    const next = roundIdx + 1
+    if (next >= allRounds.length) { setSessionDone(true); return }
+    // Crossing from drag to type phase
+    if (roundIdx < totalWords && next >= totalWords) {
+      setRoundIdx(next)
       setShowTransition(true)
       return
     }
-    setWordIdx(next)
-    initWord(next)
+    setRoundIdx(next)
+    initRound(next, next < totalWords ? 'drag' : 'type')
   }
 
   // ── Drag handlers ──────────────────────────────────────────────
@@ -232,14 +240,12 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
     const data = active.data.current as { source: 'pool' | 'slot'; slotIdx?: number }
     const overId = over.id as string
 
-    // Locate the dragged tile
     const draggedTile: LetterTile | undefined =
       data.source === 'pool'
         ? pool.find(t => t.id === active.id)
         : slots[data.slotIdx!] ?? undefined
     if (!draggedTile) return
 
-    // Remove from source
     let newPool = data.source === 'pool'
       ? pool.filter(t => t.id !== draggedTile.id)
       : [...pool]
@@ -251,12 +257,20 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
     if (overId.startsWith('slot-')) {
       const targetIdx = parseInt(overId.split('-')[1])
       const displaced = newSlots[targetIdx]
-      if (displaced) newPool = [...newPool, displaced]
+
+      if (displaced && data.source === 'slot' && data.slotIdx !== undefined) {
+        // Slot → slot with occupied target: SWAP
+        newSlots[data.slotIdx] = displaced
+      } else if (displaced) {
+        // Pool → slot with occupied target: bump displaced to pool
+        newPool = [...newPool, displaced]
+      }
+
       newSlots[targetIdx] = draggedTile
     } else if (overId === 'pool' && data.source === 'slot') {
       newPool = [...newPool, draggedTile]
     } else {
-      // Dropped nowhere useful — return to source
+      // Dropped nowhere useful — restore
       if (data.source === 'pool') newPool = [...newPool, draggedTile]
       else if (data.slotIdx !== undefined) newSlots[data.slotIdx] = draggedTile
     }
@@ -292,7 +306,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
     setTimeout(() => setShaking(false), 600)
   }
 
-  function correct() {
+  function onCorrect() {
     setCorrectCount(c => c + 1)
     setWordDone(true)
     launchConfetti()
@@ -302,14 +316,14 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
   function checkDrag() {
     if (slots.some(s => s === null)) { shake(); return }
     const answer = slots.map(s => s!.letter).join('')
-    if (answer === currentWord.word.toLowerCase()) correct()
+    if (answer === currentWord.word.toLowerCase()) onCorrect()
     else shake()
   }
 
   function checkType() {
     if (!typeInput.trim()) return
     if (typeInput.toLowerCase().trim() === currentWord.word.toLowerCase()) {
-      correct()
+      onCorrect()
     } else {
       setTypeWrong(true)
       shake()
@@ -317,13 +331,11 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
     }
   }
 
-  // ── Slot correctness ───────────────────────────────────────────
-
-  function isCorrect(slotIdx: number) {
+  function isSlotCorrect(slotIdx: number) {
     return slots[slotIdx]?.letter === currentWord.word.toLowerCase()[slotIdx]
   }
 
-  const progress = (wordIdx / words.length) * 100
+  const progress = (roundIdx / allRounds.length) * 100
 
   // ── Session complete ───────────────────────────────────────────
 
@@ -332,7 +344,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
         <CelebrationScreen
           title="スペリング完了！ 🎉"
-          subtitle={`${correctCount} / ${words.length} words spelled correctly`}
+          subtitle={`${correctCount} / ${allRounds.length} rounds correct`}
           onClose={onComplete}
           closeLabel="Back to Decks"
         />
@@ -348,10 +360,10 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
         <div className="text-6xl">⌨️</div>
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Now type it!</h2>
-          <p className="text-gray-400 text-sm">You've arranged the letters — now spell from memory.</p>
+          <p className="text-gray-400 text-sm">Great work arranging the letters — now spell the same words from memory.</p>
         </div>
         <button
-          onClick={() => { setShowTransition(false); initWord(wordIdx) }}
+          onClick={() => { setShowTransition(false); initRound(roundIdx, 'type') }}
           className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90 transition-colors"
         >
           Let's go →
@@ -375,7 +387,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="text-gray-400 text-sm tabular-nums">{wordIdx + 1}/{words.length}</span>
+        <span className="text-gray-400 text-sm tabular-nums">{roundIdx + 1}/{allRounds.length}</span>
       </div>
 
       {/* Content */}
@@ -383,9 +395,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
 
         {/* Phase badge */}
         <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-          currentPhase === 'drag'
-            ? 'bg-brand/30 text-blue-200'
-            : 'bg-teal-900/50 text-teal-300'
+          currentPhase === 'drag' ? 'bg-brand/30 text-blue-200' : 'bg-teal-900/50 text-teal-300'
         }`}>
           {currentPhase === 'drag' ? '🧩 Arrange the letters' : '⌨️ Type the word'}
         </div>
@@ -414,21 +424,18 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
         {/* ── Drag phase ── */}
         {currentPhase === 'drag' && (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-
-            {/* Answer slots */}
             <div className={`flex gap-2 flex-wrap justify-center ${shaking ? 'animate-shake' : ''}`}>
               {slots.map((tile, i) => (
                 <DroppableSlot
                   key={`slot-${i}`}
                   slotId={`slot-${i}`}
                   tile={tile}
-                  isCorrect={isCorrect(i)}
+                  isCorrect={isSlotCorrect(i)}
                   onRemove={() => removeSlotTile(i)}
                 />
               ))}
             </div>
 
-            {/* Letter pool */}
             <DroppablePool>
               <div className="flex gap-2 flex-wrap justify-center min-h-[52px]">
                 {pool.map(tile => (
@@ -442,7 +449,6 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
               </div>
             </DroppablePool>
 
-            {/* Drag overlay ghost */}
             <DragOverlay>
               {activeDrag && (
                 <div className="w-11 h-11 border-2 border-brand bg-white rounded-xl font-bold text-lg
