@@ -68,8 +68,8 @@ type Feedback = { corrected: string | null; feedback: string }
 function PassageBox({ title, text }: { title: string | null; text: string }) {
   return (
     <div className="border-2 border-gray-300 rounded-lg p-4">
-      {title && <p className="font-bold text-center text-base mb-2">{title}</p>}
-      <p className="text-sm leading-relaxed text-gray-700">{text}</p>
+      {title && <p className="font-bold text-center text-lg mb-2">{title}</p>}
+      <p className="text-base leading-relaxed text-gray-700">{text}</p>
     </div>
   )
 }
