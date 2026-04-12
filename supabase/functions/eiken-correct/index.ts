@@ -12,11 +12,46 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+function buildPrompt(body: Record<string, any>): string {
+  const { student_input, level, format, picture_description, picture_b_description,
+    passage_title, passage_text, starter_sentence, questions } = body
+
+  const base = `You are a helpful English teacher assisting Japanese ESL students practicing for the ${level} exam.`
+  const correction = `\nYour task:\n1. Fix any grammar or spelling mistakes in the student's response, keeping their meaning and vocabulary close to the original\n2. Write a short, encouraging feedback message (1-2 sentences)\n3. Be lenient — partial correct answers are acceptable\n\nRespond ONLY with valid JSON: {"corrected":"corrected version","feedback":"encouraging message"}`
+
+  if (format === 'passage' || format === 'passage-qa') {
+    const passageContext = passage_text
+      ? `Passage title: ${passage_title ?? ''}\nPassage: ${passage_text}`
+      : ''
+    const pictureContext = picture_description ? `Picture shows: ${picture_description}` : ''
+    const questionsContext = questions?.length
+      ? `Questions the student should answer:\n${questions.map((q: string, i: number) => `No.${i + 1}: ${q}`).join('\n')}`
+      : ''
+    return `${base}\n\n${passageContext}\n${pictureContext}\n${questionsContext}\n\nStudent's response:\n"${student_input}"${correction}`
+  }
+
+  if (format === 'dual') {
+    const aContext = picture_description ? `Picture A shows: ${picture_description}` : ''
+    const bContext = picture_b_description ? `Picture B shows: ${picture_b_description}` : ''
+    return `${base}\n\nThe student was shown two pictures and asked to describe them.\n${aContext}\n${bContext}\n\nStudent's response:\n"${student_input}"${correction}`
+  }
+
+  if (format === 'comic' || format === 'comic-timer') {
+    const starterContext = starter_sentence ? `The story must begin with: "${starter_sentence}"` : ''
+    const comicContext = picture_description ? `Comic strip shows: ${picture_description}` : ''
+    return `${base}\n\nThe student was shown a comic strip and asked to narrate the story.\n${starterContext}\n${comicContext}\n\nStudent's response:\n"${student_input}"${correction}`
+  }
+
+  // Fallback
+  return `${base}\n\nPicture shows: ${picture_description ?? 'unknown'}\n\nStudent's response:\n"${student_input}"${correction}`
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { student_input, level, picture_description } = await req.json()
+    const body = await req.json()
+    const { student_input } = body
 
     if (!student_input || student_input.trim().length < 3) {
       return jsonResponse({
@@ -25,26 +60,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const pictureContext = picture_description
-      ? `The picture shows: ${picture_description}`
-      : 'No picture description was provided.'
-
-    const prompt = `You are a helpful English teacher assisting Japanese ESL students practicing for the ${level} exam.
-
-${pictureContext}
-
-The student was shown this picture and asked to describe it in English. Here is their response:
-
-"${student_input}"
-
-Your task:
-1. Fix any grammar or spelling mistakes in their response
-2. Keep their meaning and vocabulary as close to the original as possible — only change what is wrong
-3. Write a short, encouraging feedback message (1-2 sentences in English)
-4. Be lenient — if the student described something visible in the picture, that is acceptable even if they missed other details
-
-Respond ONLY with valid JSON in this exact format with no extra text:
-{"corrected":"the corrected version here","feedback":"encouraging message here"}`
+    const prompt = buildPrompt(body)
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -55,7 +71,7 @@ Respond ONLY with valid JSON in this exact format with no extra text:
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 256,
+        max_tokens: 512,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -64,8 +80,6 @@ Respond ONLY with valid JSON in this exact format with no extra text:
 
     const ai = await res.json()
     const text: string = ai.content?.[0]?.text ?? ''
-
-    // Strip markdown code fences if Claude wrapped the JSON
     const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
     const result = JSON.parse(cleaned)
 
