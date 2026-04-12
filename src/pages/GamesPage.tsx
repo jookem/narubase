@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { TrainPuzzle } from '@/components/puzzle/TrainPuzzle'
 import { SpellingGame } from '@/components/spelling/SpellingGame'
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
+import { PictureDescription } from '@/components/eiken/PictureDescription'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 export function GamesPage() {
   const { user } = useAuth()
-  const [tab, setTab] = useState<'train' | 'spelling'>('train')
+  const [tab, setTab] = useState<'train' | 'spelling' | 'picture'>('train')
 
   // ── Train state ────────────────────────────────────────────────
   const [trainDecks, setTrainDecks] = useState<DeckWithPuzzles[]>([])
@@ -232,8 +233,9 @@ export function GamesPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-        <Tab label="🚂 Train Puzzles" active={tab === 'train'} onClick={() => setTab('train')} />
+        <Tab label="🚂 Train" active={tab === 'train'} onClick={() => setTab('train')} />
         <Tab label="🔤 Spelling" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
+        <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
       </div>
 
       {/* ── Train tab ── */}
@@ -316,6 +318,9 @@ export function GamesPage() {
           </div>
         )
       )}
+
+      {/* ── Picture tab ── */}
+      {tab === 'picture' && <PictureDescription />}
 
       {/* ── Spelling tab ── */}
       {tab === 'spelling' && (
