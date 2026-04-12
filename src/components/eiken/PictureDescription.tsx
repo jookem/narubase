@@ -390,7 +390,7 @@ export function PictureDescription() {
         )}
         {inputMode === 'text' && (
           <Textarea value={transcript} onChange={e => setTranscript(e.target.value)}
-            placeholder={level.placeholder} rows={3} className="resize-none" disabled={inputDisabled} />
+            placeholder={level?.placeholder} rows={3} className="resize-none" disabled={inputDisabled} />
         )}
         <button onClick={handleSubmit} disabled={!transcript.trim() || isLoading || inputDisabled}
           className="w-full py-3 bg-brand text-white text-sm font-semibold rounded-xl disabled:opacity-40 transition-opacity">
