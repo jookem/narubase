@@ -228,6 +228,24 @@ export function VocabularyPage() {
                 全部学習
               </button>
             )}
+            {deckGroups.filter(d => d.deckId).length > 0 && (
+              <div className="relative">
+                <select
+                  className="px-4 py-2 bg-purple-500 text-white text-sm font-medium rounded-lg appearance-none cursor-pointer pr-8"
+                  defaultValue=""
+                  onChange={e => {
+                    const deck = deckGroups.find(d => d.deckId === e.target.value)
+                    if (deck) setQuizDeck({ ...deck, words: getStudyBatch(deck.words) })
+                    e.target.value = ''
+                  }}
+                >
+                  <option value="" disabled>📝 Quiz a deck…</option>
+                  {deckGroups.filter(d => d.deckId).map(d => (
+                    <option key={d.deckId} value={d.deckId!}>{d.deckName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -318,20 +336,12 @@ export function VocabularyPage() {
                   <h2 className="text-sm font-medium text-gray-600 uppercase tracking-wide">
                     {deckName} ({words.length})
                   </h2>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setQuizDeck({ deckId, deckName, words: getStudyBatch(words) })}
-                      className="text-xs text-purple-500 hover:text-purple-700 font-medium transition-colors"
-                    >
-                      📝 Quiz
-                    </button>
-                    <button
-                      onClick={() => setStudyCards(getStudyBatch(words))}
-                      className="text-xs text-gray-400 hover:text-brand transition-colors"
-                    >
-                      このデッキを学習 →
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setStudyCards(getStudyBatch(words))}
+                    className="text-xs text-gray-400 hover:text-brand transition-colors"
+                  >
+                    このデッキを学習 →
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {words.map(word => (
