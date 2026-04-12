@@ -8,6 +8,7 @@ import { speak } from '@/lib/tts'
 import { updateVocabMastery } from '@/lib/api/lessons'
 import type { VocabularyBankEntry, MasteryLevel } from '@/lib/types/database'
 import { PageError } from '@/components/shared/PageError'
+import { VocabQuizGame } from '@/components/vocab/VocabQuizGame'
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export function VocabularyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [studyCards, setStudyCards] = useState<VocabularyBankEntry[] | null>(null)
+  const [quizDeck, setQuizDeck] = useState<DeckGroup | null>(null)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<View>('az')
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -189,6 +191,13 @@ export function VocabularyPage() {
           cards={studyCards}
           onClose={() => setStudyCards(null)}
           onComplete={() => { setStudyCards(null); loadVocab() }}
+        />
+      )}
+      {quizDeck && (
+        <VocabQuizGame
+          words={quizDeck.words}
+          deckName={quizDeck.deckName}
+          onClose={() => setQuizDeck(null)}
         />
       )}
 
@@ -309,12 +318,20 @@ export function VocabularyPage() {
                   <h2 className="text-sm font-medium text-gray-600 uppercase tracking-wide">
                     {deckName} ({words.length})
                   </h2>
-                  <button
-                    onClick={() => setStudyCards(getStudyBatch(words))}
-                    className="text-xs text-gray-400 hover:text-brand transition-colors"
-                  >
-                    このデッキを学習 →
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setQuizDeck({ deckId, deckName, words })}
+                      className="text-xs text-purple-500 hover:text-purple-700 font-medium transition-colors"
+                    >
+                      📝 Quiz
+                    </button>
+                    <button
+                      onClick={() => setStudyCards(getStudyBatch(words))}
+                      className="text-xs text-gray-400 hover:text-brand transition-colors"
+                    >
+                      このデッキを学習 →
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {words.map(word => (
