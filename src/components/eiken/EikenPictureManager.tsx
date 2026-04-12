@@ -53,7 +53,8 @@ export function EikenPictureManager() {
 
   const fmt = levelFormat(selectedLevel)
   const hasPassage = fmt === 'passage'
-  const hasQuestions = selectedLevel === 'Eiken 3'
+  const questionCount = selectedLevel === 'Eiken 5' ? 3 : selectedLevel === 'Eiken 4' ? 4 : selectedLevel === 'Eiken 3' ? 5 : 0
+  const hasQuestions = questionCount > 0
   const hasImageB = selectedLevel === 'Eiken Pre-2'
   const hasStarter = fmt === 'comic'
 
@@ -266,8 +267,8 @@ export function EikenPictureManager() {
             {/* Questions for Eiken 3 */}
             {hasQuestions && (
               <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-600">Questions (No. 1–5)</label>
-                {form.questions.map((q, i) => (
+                <label className="text-xs font-medium text-gray-600">Questions (No. 1–{questionCount})</label>
+                {form.questions.slice(0, questionCount).map((q, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="text-xs text-gray-400 mt-2 w-10 shrink-0">No. {i + 1}</span>
                     <input

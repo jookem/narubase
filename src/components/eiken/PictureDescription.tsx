@@ -24,19 +24,19 @@ type Level = {
 
 const LEVELS: Level[] = [
   {
-    id: '5', label: 'Eiken 5', cefr: 'A1', format: 'passage',
-    hint: 'Read the passage, then describe the picture (1-2 sentences).',
-    placeholder: 'e.g. A boy is playing with his dog in the garden.',
+    id: '5', label: 'Eiken 5', cefr: 'A1', format: 'passage-qa',
+    hint: 'Read the passage, look at the picture, then answer the 3 questions.',
+    placeholder: 'No.1 ... No.2 ... No.3 ...',
   },
   {
-    id: '4', label: 'Eiken 4', cefr: 'A1-A2', format: 'passage',
-    hint: 'Read the passage, then describe the picture (2-3 sentences).',
-    placeholder: 'e.g. Some boys are playing soccer. A girl is sitting on a bench.',
+    id: '4', label: 'Eiken 4', cefr: 'A1-A2', format: 'passage-qa',
+    hint: 'Read the passage, look at the picture, then answer the 4 questions.',
+    placeholder: 'No.1 ... No.2 ... No.3 ... No.4 ...',
   },
   {
     id: '3', label: 'Eiken 3', cefr: 'A2', format: 'passage-qa',
-    hint: 'Read the passage and look at the picture, then answer all questions.',
-    placeholder: 'No.1 They can learn English... No.2 He is going to read...',
+    hint: 'Read the passage, look at the picture, then answer all 5 questions.',
+    placeholder: 'No.1 ... No.2 ... No.3 ... No.4 ... No.5 ...',
   },
   {
     id: 'pre2', label: 'Eiken Pre-2', cefr: 'A2-B1', format: 'dual',
