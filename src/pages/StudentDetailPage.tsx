@@ -12,6 +12,7 @@ import { ProgressSnapshotForm } from '@/components/progress/ProgressSnapshotForm
 import { StudentVocabManager } from '@/components/students/StudentVocabManager'
 import { GrammarBankManager } from '@/components/students/GrammarBankManager'
 import { PuzzleDeckManager } from '@/components/students/PuzzleDeckManager'
+import { EikenPictureManager } from '@/components/eiken/EikenPictureManager'
 import { StudentProfileCard } from '@/components/students/StudentProfileCard'
 import { ScheduleLessonModal } from '@/components/lesson/ScheduleLessonModal'
 import { updateStudentName } from '@/lib/api/students'
@@ -326,6 +327,7 @@ export function StudentDetailPage() {
       <StudentVocabManager studentId={studentId!} />
       <GrammarBankManager studentId={studentId!} />
       <PuzzleDeckManager studentId={studentId!} />
+      <EikenPictureManager />
 
       <Card>
         <CardHeader className="pb-3">

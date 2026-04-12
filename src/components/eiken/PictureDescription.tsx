@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -72,9 +72,18 @@ const LEVELS: Level[] = [
 
 type Feedback = { corrected: string | null; feedback: string }
 
-// ── Image placeholder ──────────────────────────────────────────────
+// ── Image display ──────────────────────────────────────────────────
 
-function ImagePlaceholder({ panels }: { panels: 1 | 4 }) {
+function ImageDisplay({ imageUrl, panels }: { imageUrl: string | null; panels: 1 | 4 }) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt="Describe this picture"
+        className="w-full rounded-xl border border-gray-200 object-cover"
+      />
+    )
+  }
   if (panels === 4) {
     return (
       <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden border border-gray-200">
@@ -89,7 +98,7 @@ function ImagePlaceholder({ panels }: { panels: 1 | 4 }) {
   return (
     <div className="aspect-video rounded-xl bg-gray-100 border border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-300">
       <span className="text-5xl">🖼️</span>
-      <span className="text-xs">Picture goes here</span>
+      <span className="text-xs">No picture uploaded yet</span>
     </div>
   )
 }
@@ -103,7 +112,24 @@ export function PictureDescription() {
   const [transcript, setTranscript] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
+  const [currentImage, setCurrentImage] = useState<string | null>(null)
   const recogRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!level) return
+    supabase
+      .from('eiken_pictures')
+      .select('image_url')
+      .eq('level', level.label)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const random = data[Math.floor(Math.random() * data.length)]
+          setCurrentImage(random.image_url)
+        } else {
+          setCurrentImage(null)
+        }
+      })
+  }, [level])
 
   // ── Recording ────────────────────────────────────────────────────
 
@@ -251,7 +277,7 @@ export function PictureDescription() {
         <p className="text-sm text-gray-500">{level.description}</p>
       </div>
 
-      <ImagePlaceholder panels={level.panels} />
+      <ImageDisplay imageUrl={currentImage} panels={level.panels} />
 
       <p className="text-xs text-gray-400 italic">{level.hint}</p>
 
