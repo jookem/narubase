@@ -113,20 +113,22 @@ export function PictureDescription() {
   const [isLoading, setIsLoading] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [currentImage, setCurrentImage] = useState<string | null>(null)
+  const [currentDescription, setCurrentDescription] = useState<string | null>(null)
   const recogRef = useRef<any>(null)
 
   useEffect(() => {
     if (!level) return
+    setCurrentImage(null)
+    setCurrentDescription(null)
     supabase
       .from('eiken_pictures')
-      .select('image_url')
+      .select('image_url, description')
       .eq('level', level.label)
       .then(({ data }) => {
         if (data && data.length > 0) {
           const random = data[Math.floor(Math.random() * data.length)]
           setCurrentImage(random.image_url)
-        } else {
-          setCurrentImage(null)
+          setCurrentDescription(random.description ?? null)
         }
       })
   }, [level])
@@ -165,7 +167,11 @@ export function PictureDescription() {
     setIsLoading(true)
     try {
       const { data, error } = await supabase.functions.invoke('eiken-correct', {
-        body: { student_input: transcript.trim(), level: level.label },
+        body: {
+          student_input: transcript.trim(),
+          level: level.label,
+          picture_description: currentDescription ?? undefined,
+        },
       })
       if (error) throw error
       setFeedback(data as Feedback)
