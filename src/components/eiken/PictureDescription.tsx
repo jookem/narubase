@@ -175,7 +175,8 @@ export function PictureDescription() {
       })
       if (error) throw error
       setFeedback(data as Feedback)
-    } catch {
+    } catch (err) {
+      console.error('eiken-correct error:', err)
       setFeedback({ corrected: null, feedback: 'Could not check your answer. Please try again.' })
     } finally {
       setIsLoading(false)

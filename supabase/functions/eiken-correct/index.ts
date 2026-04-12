@@ -64,7 +64,10 @@ Respond ONLY with valid JSON in this exact format with no extra text:
 
     const ai = await res.json()
     const text: string = ai.content?.[0]?.text ?? ''
-    const result = JSON.parse(text)
+
+    // Strip markdown code fences if Claude wrapped the JSON
+    const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+    const result = JSON.parse(cleaned)
 
     return jsonResponse(result)
   } catch (err) {
