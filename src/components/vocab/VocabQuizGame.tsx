@@ -69,6 +69,7 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
           body: {
             words: uncached.map(w => ({ word: w.word, definition_en: w.definition_en })),
             level: deckName,
+            wordPool: words.map(w => ({ word: w.word })),
           },
         })
         if (fnError) {

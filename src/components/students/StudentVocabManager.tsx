@@ -333,6 +333,7 @@ function QuizEditorModal({
       const data = await invokequiz({
         words: targets.map(w => ({ word: w.word, definition_en: w.definition_en })),
         level: deck.name,
+        wordPool: entries.map(w => ({ word: w.word })),
       })
       const raw: { word: string; sentence: string; distractors: string[] }[] = data.questions ?? []
       await Promise.all(raw.map(q => {
@@ -359,6 +360,7 @@ function QuizEditorModal({
       const data = await invokequiz({
         words: [{ word: entry.word, definition_en: entry.definition_en }],
         level: deck.name,
+        wordPool: entries.map(w => ({ word: w.word })),
       })
       const q = (data.questions ?? [])[0]
       if (!q) throw new Error('No question returned')

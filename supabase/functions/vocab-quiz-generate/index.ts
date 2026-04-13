@@ -14,7 +14,6 @@ function jsonResponse(body: unknown, status = 200) {
 
 /** Extract individual JSON objects from a potentially malformed array string. */
 function extractQuestions(text: string): { word: string; sentence: string; distractors: string[] }[] {
-  // First try clean parse
   const arrayMatch = text.match(/\[[\s\S]*\]/)
   if (arrayMatch) {
     try {
@@ -24,7 +23,6 @@ function extractQuestions(text: string): { word: string; sentence: string; distr
     }
   }
 
-  // Extract individual {...} objects and parse each separately
   const results: { word: string; sentence: string; distractors: string[] }[] = []
   const objectRegex = /\{[^{}]*\}/g
   let match
@@ -45,7 +43,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { words, level } = await req.json()
+    const { words, level, wordPool } = await req.json()
 
     if (!words?.length) return jsonResponse({ error: 'No words provided' }, 400)
 
@@ -55,34 +53,38 @@ Deno.serve(async (req) => {
       )
       .join('\n')
 
-    const prompt = `You are creating ${level ?? 'Eiken 5'} level fill-in-the-blank vocabulary questions for Japanese ESL students (A1 level).
+    // Other words in the deck that can serve as distractors
+    const poolWords: string[] = (wordPool ?? [])
+      .map((w: { word: string }) => w.word)
+      .filter((w: string) => !words.find((t: { word: string }) => t.word === w))
 
-For each word below, create:
-1. A natural English sentence at A1 level where the target word fills the blank (_____).
+    const poolSection = poolWords.length > 0
+      ? `\nVocabulary pool (prefer picking distractors from this list):\n${poolWords.join(', ')}\n`
+      : ''
 
-CRITICAL RULES for the sentence:
-- The blank must use the EXACT inflected form that fits the sentence grammar.
-  If subject is she/he/it and tense is present simple, use the -s form (e.g. "makes" not "make").
-  The "word" key in your JSON must also use this exact form.
-- The sentence must contain a SPECIFIC context clue that makes ONLY ONE word logically correct.
-  After writing the sentence, mentally test EVERY distractor in the blank. If any distractor also makes sense, rewrite the sentence with a stronger clue.
-  BAD: "My grandfather stayed at the _____ for three days." (hospital AND hotel both work)
-  GOOD: "My grandfather stayed at the _____ for three days after his operation." (only hospital)
-- Keep grammar simple (present simple, present continuous, basic past).
-- Use everyday topics (family, school, weather, food, hobbies).
-- Sentence length: 8-14 words.
-- IMPORTANT: Do NOT use apostrophes (write "does not" not "doesn't", "I am" not "I'm"). This ensures valid JSON.
+    const prompt = `You are creating fill-in-the-blank vocabulary quiz questions for Japanese ESL students studying for ${level ?? 'Eiken 5'}.
 
-2. Exactly 3 distractor words that are:
-   - The same part of speech and grammatical form as the answer
-   - Clearly wrong given the specific context clue in the sentence
-   - Similar difficulty level
+For each target word below, write:
+1. One simple English sentence where the target word fills the blank (_____).
+2. Exactly 3 distractor words (wrong answers).
+${poolSection}
+SENTENCE RULES:
+- Keep sentences very short and simple (6-10 words). This is Eiken 5 / elementary level.
+- Use only basic vocabulary and grammar (present simple, past simple).
+- The sentence must make it clear that ONLY the target word fits the blank.
+- Do NOT use apostrophes. Write "does not" not "doesn't", "I am" not "I'm".
+- Topics: school, family, food, weather, sports, daily life.
 
-Words:
+DISTRACTOR RULES:
+- Pick 2 distractors from the vocabulary pool above when possible (same part of speech as the answer).
+- Add 1 distractor that is semantically related to the correct answer (e.g. a near-synonym or same category word).
+- All 3 distractors must be clearly wrong in the sentence context.
+
+Target words:
 ${wordList}
 
-Respond ONLY with a valid JSON array, no markdown, no extra text:
-[{"word":"makes","sentence":"My mother _____ delicious food for dinner every night.","distractors":["buys","orders","sells"]}]`
+Respond ONLY with a JSON array, no markdown, no extra text:
+[{"word":"runs","sentence":"She _____ to school every morning.","distractors":["walks","swims","reads"]}]`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -110,7 +112,7 @@ Respond ONLY with a valid JSON array, no markdown, no extra text:
 
     if (!questions.length) {
       console.error('No questions extracted from:', text.slice(0, 500))
-      return jsonResponse({ error: `Could not parse questions from AI response` }, 500)
+      return jsonResponse({ error: 'Could not parse questions from AI response' }, 500)
     }
 
     return jsonResponse({ questions })
