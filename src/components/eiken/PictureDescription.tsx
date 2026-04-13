@@ -355,50 +355,48 @@ export function PictureDescription() {
   const isComicTimer = fmt === 'comic-timer'
   const inputDisabled = isComicTimer && !prepDone
 
-  function InputArea() {
-    return (
-      <>
-        {canUseSpeech && (
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setInputMode('speech')}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${inputMode === 'speech' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
-              🎤 Speak
-            </button>
-            <button onClick={() => { stopRecording(); setInputMode('text') }}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
-              ✏️ Type
+  const inputArea = (
+    <>
+      {canUseSpeech && (
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <button onClick={() => setInputMode('speech')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${inputMode === 'speech' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+            🎤 Speak
+          </button>
+          <button onClick={() => { stopRecording(); setInputMode('text') }}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+            ✏️ Type
+          </button>
+        </div>
+      )}
+      {inputMode === 'speech' && (
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <button onClick={isRecording ? stopRecording : startRecording} disabled={inputDisabled}
+              className={`w-20 h-20 rounded-full text-3xl transition-all active:scale-95 disabled:opacity-30 ${
+                isRecording ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200' : 'bg-gray-100 hover:bg-gray-200'
+              }`}>
+              {isRecording ? '⏹' : '🎤'}
             </button>
           </div>
-        )}
-        {inputMode === 'speech' && (
-          <div className="space-y-3">
-            <div className="flex justify-center">
-              <button onClick={isRecording ? stopRecording : startRecording} disabled={inputDisabled}
-                className={`w-20 h-20 rounded-full text-3xl transition-all active:scale-95 disabled:opacity-30 ${
-                  isRecording ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200' : 'bg-gray-100 hover:bg-gray-200'
-                }`}>
-                {isRecording ? '⏹' : '🎤'}
-              </button>
-            </div>
-            <p className="text-center text-xs text-gray-400">
-              {inputDisabled ? 'Wait for preparation time to end' : isRecording ? 'Recording… tap to stop' : 'Tap to start speaking'}
-            </p>
-            {transcript && (
-              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 min-h-[60px] leading-relaxed">{transcript}</div>
-            )}
-          </div>
-        )}
-        {inputMode === 'text' && (
-          <Textarea value={transcript} onChange={e => setTranscript(e.target.value)}
-            placeholder={level?.placeholder} rows={3} className="resize-none" disabled={inputDisabled} />
-        )}
-        <button onClick={handleSubmit} disabled={!transcript.trim() || isLoading || inputDisabled}
-          className="w-full py-3 bg-brand text-white text-sm font-semibold rounded-xl disabled:opacity-40 transition-opacity">
-          {isLoading ? 'Checking…' : 'Submit'}
-        </button>
-      </>
-    )
-  }
+          <p className="text-center text-xs text-gray-400">
+            {inputDisabled ? 'Wait for preparation time to end' : isRecording ? 'Recording… tap to stop' : 'Tap to start speaking'}
+          </p>
+          {transcript && (
+            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 min-h-[60px] leading-relaxed">{transcript}</div>
+          )}
+        </div>
+      )}
+      {inputMode === 'text' && (
+        <Textarea value={transcript} onChange={e => setTranscript(e.target.value)}
+          placeholder={level?.placeholder} rows={3} className="resize-none" disabled={inputDisabled} />
+      )}
+      <button onClick={handleSubmit} disabled={!transcript.trim() || isLoading || inputDisabled}
+        className="w-full py-3 bg-brand text-white text-sm font-semibold rounded-xl disabled:opacity-40 transition-opacity">
+        {isLoading ? 'Checking…' : 'Submit'}
+      </button>
+    </>
+  )
 
   // ── Passage-QA: viewing passage + image ────────────────────────
 
@@ -460,7 +458,7 @@ export function PictureDescription() {
           <p className="text-xs font-semibold text-gray-400 mb-1">No. {questionIndex + 1}</p>
           <p className="text-sm font-medium text-gray-800">{currentQ}</p>
         </div>
-        <InputArea />
+        {inputArea}
       </div>
     )
   }
@@ -529,7 +527,7 @@ export function PictureDescription() {
       )}
 
       <p className="text-xs text-gray-400 italic">{level.hint}</p>
-      {!noPicture && <InputArea />}
+      {!noPicture && inputArea}
     </div>
   )
 }
