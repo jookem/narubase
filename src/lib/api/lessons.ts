@@ -566,18 +566,26 @@ export async function assignDeckToStudent(
     .select('*')
     .eq('deck_id', deckId)
 
-  if (fetchErr) return { error: fetchErr.message }
+  if (fetchErr) {
+    console.error('[assignDeck] fetch deck words error', fetchErr)
+    return { error: fetchErr.message }
+  }
   if (!words?.length) return { count: 0 }
 
   const wordTexts = words.map(w => w.word)
 
   // Find words already in the student's bank so we can update their deck_id
   // without touching mastery/progress fields
-  const { data: existing } = await supabase
+  const { data: existing, error: existingErr } = await supabase
     .from('vocabulary_bank')
     .select('id, word')
     .eq('student_id', studentId)
     .in('word', wordTexts)
+
+  if (existingErr) {
+    console.error('[assignDeck] fetch existing words error', existingErr)
+    return { error: existingErr.message }
+  }
 
   const existingByWord = new Map((existing ?? []).map(e => [e.word, e.id]))
 
@@ -587,8 +595,12 @@ export async function assignDeckToStudent(
     const { error: updateErr } = await supabase
       .from('vocabulary_bank')
       .update({ deck_id: deckId })
+      .eq('student_id', studentId)
       .in('id', existingIds)
-    if (updateErr) return { error: updateErr.message }
+    if (updateErr) {
+      console.error('[assignDeck] update deck_id error', updateErr)
+      return { error: updateErr.message }
+    }
   }
 
   // Insert only words not yet in the bank
@@ -606,10 +618,13 @@ export async function assignDeckToStudent(
     }))
 
   if (newEntries.length > 0) {
-    const { error } = await supabase
+    const { error: insertErr } = await supabase
       .from('vocabulary_bank')
       .insert(newEntries)
-    if (error) return { error: error.message }
+    if (insertErr) {
+      console.error('[assignDeck] insert new words error', insertErr)
+      return { error: insertErr.message }
+    }
   }
 
   return { count: words.length }

@@ -615,22 +615,34 @@ export function StudentVocabManager({ studentId }: Props) {
 
   async function handleSync(deckId: string, deckName: string) {
     setSyncing(deckId)
-    const { error } = await assignDeckToStudent(deckId, studentId)
-    setSyncing(null)
-    if (error) { toast.error(error); return }
-    const added = deckSyncStatus[deckId] ?? 0
-    setDeckSyncStatus(prev => { const n = { ...prev }; delete n[deckId]; return n })
-    toast.success(`Synced "${deckName}" — ${added} word${added !== 1 ? 's' : ''} added`)
-    loadVocab()
+    try {
+      const { error } = await assignDeckToStudent(deckId, studentId)
+      if (error) { toast.error(error); return }
+      const added = deckSyncStatus[deckId] ?? 0
+      setDeckSyncStatus(prev => { const n = { ...prev }; delete n[deckId]; return n })
+      toast.success(`Synced "${deckName}" — ${added} word${added !== 1 ? 's' : ''} added`)
+      loadVocab()
+    } catch (e: any) {
+      console.error('[handleSync]', e)
+      toast.error(e?.message ?? 'Sync failed')
+    } finally {
+      setSyncing(null)
+    }
   }
 
   async function handleSyncAll(deckId: string, deckName: string) {
     setSyncingAll(deckId)
-    const { synced, error } = await syncDeckToAllStudents(deckId)
-    setSyncingAll(null)
-    if (error) { toast.error(error); return }
-    toast.success(`"${deckName}" synced to ${synced} student${synced !== 1 ? 's' : ''}`)
-    loadVocab()
+    try {
+      const { synced, error } = await syncDeckToAllStudents(deckId)
+      if (error) { toast.error(error); return }
+      toast.success(`"${deckName}" synced to ${synced} student${synced !== 1 ? 's' : ''}`)
+      loadVocab()
+    } catch (e: any) {
+      console.error('[handleSyncAll]', e)
+      toast.error(e?.message ?? 'Sync failed')
+    } finally {
+      setSyncingAll(null)
+    }
   }
 
   async function handleRemoveDeck(deckId: string, deckName: string) {
