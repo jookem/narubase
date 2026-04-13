@@ -12,6 +12,35 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+/** Extract individual JSON objects from a potentially malformed array string. */
+function extractQuestions(text: string): { word: string; sentence: string; distractors: string[] }[] {
+  // First try clean parse
+  const arrayMatch = text.match(/\[[\s\S]*\]/)
+  if (arrayMatch) {
+    try {
+      return JSON.parse(arrayMatch[0])
+    } catch {
+      // fall through to object-by-object extraction
+    }
+  }
+
+  // Extract individual {...} objects and parse each separately
+  const results: { word: string; sentence: string; distractors: string[] }[] = []
+  const objectRegex = /\{[^{}]*\}/g
+  let match
+  while ((match = objectRegex.exec(text)) !== null) {
+    try {
+      const obj = JSON.parse(match[0])
+      if (obj.word && obj.sentence && Array.isArray(obj.distractors)) {
+        results.push(obj)
+      }
+    } catch {
+      // skip malformed object
+    }
+  }
+  return results
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -39,11 +68,10 @@ CRITICAL RULES for the sentence:
   After writing the sentence, mentally test EVERY distractor in the blank. If any distractor also makes sense, rewrite the sentence with a stronger clue.
   BAD: "My grandfather stayed at the _____ for three days." (hospital AND hotel both work)
   GOOD: "My grandfather stayed at the _____ for three days after his operation." (only hospital)
-  BAD: "There is a big _____ near my house." (tree/building/bridge all work)
-  GOOD: "She paid a toll and drove across the _____ over the river." (only bridge)
 - Keep grammar simple (present simple, present continuous, basic past).
 - Use everyday topics (family, school, weather, food, hobbies).
-- Sentence length: 8–14 words.
+- Sentence length: 8-14 words.
+- IMPORTANT: Do NOT use apostrophes (write "does not" not "doesn't", "I am" not "I'm"). This ensures valid JSON.
 
 2. Exactly 3 distractor words that are:
    - The same part of speech and grammatical form as the answer
@@ -53,7 +81,7 @@ CRITICAL RULES for the sentence:
 Words:
 ${wordList}
 
-Respond ONLY with a valid JSON array, no extra text:
+Respond ONLY with a valid JSON array, no markdown, no extra text:
 [{"word":"makes","sentence":"My mother _____ delicious food for dinner every night.","distractors":["buys","orders","sells"]}]`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -78,9 +106,12 @@ Respond ONLY with a valid JSON array, no extra text:
 
     const ai = await res.json()
     const text: string = ai.content?.[0]?.text ?? ''
-    const jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) throw new Error(`No JSON array in response: ${text.slice(0, 200)}`)
-    const questions = JSON.parse(jsonMatch[0])
+    const questions = extractQuestions(text)
+
+    if (!questions.length) {
+      console.error('No questions extracted from:', text.slice(0, 500))
+      return jsonResponse({ error: `Could not parse questions from AI response` }, 500)
+    }
 
     return jsonResponse({ questions })
   } catch (err) {
