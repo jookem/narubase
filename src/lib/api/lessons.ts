@@ -589,14 +589,17 @@ export async function assignDeckToStudent(
 
   const existingByWord = new Map((existing ?? []).map(e => [e.word, e.id]))
 
-  // Update deck_id for words already in bank (preserves mastery/next_review)
-  const existingIds = [...existingByWord.values()]
-  if (existingIds.length > 0) {
+  // Update deck_id for words already in bank (preserves mastery/next_review).
+  // Batch by word text (shorter than UUIDs) to avoid URL length limits.
+  const existingWords = [...existingByWord.keys()]
+  const BATCH = 50
+  for (let i = 0; i < existingWords.length; i += BATCH) {
+    const batch = existingWords.slice(i, i + BATCH)
     const { error: updateErr } = await supabase
       .from('vocabulary_bank')
       .update({ deck_id: deckId })
       .eq('student_id', studentId)
-      .in('id', existingIds)
+      .in('word', batch)
     if (updateErr) {
       console.error('[assignDeck] update deck_id error', updateErr)
       return { error: updateErr.message }
