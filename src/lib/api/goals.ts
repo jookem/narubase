@@ -21,6 +21,28 @@ export async function createGoal(data: {
   return { success: true }
 }
 
+export async function updateGoal(
+  goalId: string,
+  data: { title: string; description?: string; target_date?: string; status: string },
+): Promise<{ error?: string; success?: boolean }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const { error } = await supabase
+    .from('student_goals')
+    .update({
+      title: data.title,
+      description: data.description || null,
+      target_date: data.target_date || null,
+      status: data.status,
+    })
+    .eq('id', goalId)
+    .eq('teacher_id', user.id)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
 export async function updateGoalStatus(
   goalId: string,
   status: string,

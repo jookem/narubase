@@ -16,6 +16,9 @@ import { EikenPictureManager } from '@/components/eiken/EikenPictureManager'
 import { StudentProfileCard } from '@/components/students/StudentProfileCard'
 import { ScheduleLessonModal } from '@/components/lesson/ScheduleLessonModal'
 import { updateStudentName } from '@/lib/api/students'
+import { updateGoal } from '@/lib/api/goals'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
 import { StudentProfilePDF } from '@/components/pdf/StudentProfilePDF'
@@ -37,6 +40,9 @@ export function StudentDetailPage() {
   const [deletingSnapshot, setDeletingSnapshot] = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
+  const [goalEdits, setGoalEdits] = useState<{ title: string; description: string; target_date: string; status: string }>({ title: '', description: '', target_date: '', status: 'active' })
+  const [savingGoal, setSavingGoal] = useState(false)
 
   async function loadData() {
     if (!user || !studentId) return
@@ -202,12 +208,82 @@ export function StudentDetailPage() {
                 const daysUntil = goal.target_date
                   ? differenceInDays(new Date(goal.target_date), new Date())
                   : null
+                const isEditing = editingGoalId === goal.id
+
+                if (isEditing) {
+                  return (
+                    <div key={goal.id} className="border border-brand/30 rounded-xl p-3 space-y-2 bg-brand-light/20">
+                      <Input
+                        value={goalEdits.title}
+                        onChange={e => setGoalEdits(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Goal title"
+                        className="text-sm h-8"
+                      />
+                      <Textarea
+                        value={goalEdits.description}
+                        onChange={e => setGoalEdits(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Description (optional)"
+                        rows={2}
+                        className="text-sm resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <Input
+                          type="date"
+                          value={goalEdits.target_date}
+                          onChange={e => setGoalEdits(prev => ({ ...prev, target_date: e.target.value }))}
+                          className="text-sm h-8 flex-1"
+                        />
+                        <select
+                          value={goalEdits.status}
+                          onChange={e => setGoalEdits(prev => ({ ...prev, status: e.target.value }))}
+                          className="text-sm h-8 border border-gray-200 rounded-md px-2 flex-1 bg-white"
+                        >
+                          <option value="active">Active</option>
+                          <option value="achieved">Achieved</option>
+                          <option value="paused">Paused</option>
+                          <option value="dropped">Dropped</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            if (!goalEdits.title.trim()) return
+                            setSavingGoal(true)
+                            const result = await updateGoal(goal.id, {
+                              title: goalEdits.title.trim(),
+                              description: goalEdits.description.trim(),
+                              target_date: goalEdits.target_date,
+                              status: goalEdits.status,
+                            })
+                            setSavingGoal(false)
+                            if (result.error) { toast.error(result.error); return }
+                            setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, ...goalEdits, title: goalEdits.title.trim(), description: goalEdits.description.trim() } : g))
+                            setEditingGoalId(null)
+                            toast.success('Goal updated')
+                          }}
+                          disabled={savingGoal || !goalEdits.title.trim()}
+                          className="px-3 py-1 bg-brand text-white text-xs rounded-md disabled:opacity-50"
+                        >
+                          {savingGoal ? 'Saving…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setEditingGoalId(null)}
+                          className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+
                 return (
                   <div key={goal.id} className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{goal.title}</p>
+                      {goal.description && <p className="text-xs text-gray-500 mt-0.5">{goal.description}</p>}
                       {goal.target_date && (
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 mt-0.5">
                           {format(new Date(goal.target_date), 'MMM d, yyyy')}
                           {daysUntil !== null && goal.status === 'active' && (
                             <span className={`ml-2 ${daysUntil < 0 ? 'text-red-500' : daysUntil < 30 ? 'text-orange-500' : ''}`}>
@@ -217,13 +293,29 @@ export function StudentDetailPage() {
                         </p>
                       )}
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-                      goal.status === 'active' ? 'bg-brand-light text-brand-dark' :
-                      goal.status === 'achieved' ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-500'
-                    }`}>
-                      {goal.status}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        goal.status === 'active' ? 'bg-brand-light text-brand-dark' :
+                        goal.status === 'achieved' ? 'bg-green-100 text-green-700' :
+                        'bg-gray-100 text-gray-500'
+                      }`}>
+                        {goal.status}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setEditingGoalId(goal.id)
+                          setGoalEdits({
+                            title: goal.title,
+                            description: goal.description ?? '',
+                            target_date: goal.target_date ?? '',
+                            status: goal.status,
+                          })
+                        }}
+                        className="text-xs text-gray-400 hover:text-brand transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 )
               })}
