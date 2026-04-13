@@ -307,6 +307,7 @@ function DeckEditor({
   const [name, setName] = useState(deck.name)
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
+  const [suggestingCategories, setSuggestingCategories] = useState(false)
 
   // Add form
   const [addSentence, setAddSentence] = useState('')
@@ -411,6 +412,43 @@ function DeckEditor({
     deck.name = name.trim()
     onUpdated()
     setRenamingName(false)
+  }
+
+  async function handleSuggestCategories() {
+    const uncategorized = points.filter(p => !p.category)
+    if (!uncategorized.length) { toast.info('All questions already have categories'); return }
+    setSuggestingCategories(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('grammar-categorize', {
+        body: {
+          questions: uncategorized.map(p => ({
+            id: p.id,
+            sentence_with_blank: p.sentence_with_blank ?? p.point,
+            answer: p.answer ?? p.explanation,
+            hint_ja: p.hint_ja,
+          })),
+        },
+      })
+      if (error) {
+        let msg = error.message
+        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
+        throw new Error(msg)
+      }
+      const categories: { id: string; category: string }[] = data.categories ?? []
+      // Apply to DB and local state
+      await Promise.all(categories.map(({ id, category }) =>
+        supabase.from('grammar_deck_points').update({ category }).eq('id', id)
+      ))
+      setPoints(prev => prev.map(p => {
+        const match = categories.find(c => c.id === p.id)
+        return match ? { ...p, category: match.category } : p
+      }))
+      toast.success(`Categorized ${categories.length} question${categories.length !== 1 ? 's' : ''}`)
+    } catch (e: any) {
+      toast.error(`Failed: ${e?.message ?? String(e)}`)
+    } finally {
+      setSuggestingCategories(false)
+    }
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -669,7 +707,20 @@ function DeckEditor({
                   ))}
                 </div>
               )}
-              <p className="text-xs text-gray-400 mt-3">{points.length} question{points.length !== 1 ? 's' : ''} in this deck</p>
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-xs text-gray-400">{points.length} question{points.length !== 1 ? 's' : ''} in this deck</p>
+                {points.some(p => !p.category) && (
+                  <button
+                    onClick={handleSuggestCategories}
+                    disabled={suggestingCategories}
+                    className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                  >
+                    {suggestingCategories
+                      ? 'Suggesting…'
+                      : `✦ Suggest categories (${points.filter(p => !p.category).length} missing)`}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>
