@@ -74,8 +74,9 @@ Respond ONLY with a valid JSON array, no extra text:
 
     const ai = await res.json()
     const text: string = ai.content?.[0]?.text ?? ''
-    const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-    const questions = JSON.parse(cleaned)
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) throw new Error(`No JSON array in response: ${text.slice(0, 200)}`)
+    const questions = JSON.parse(jsonMatch[0])
 
     return jsonResponse({ questions })
   } catch (err) {
