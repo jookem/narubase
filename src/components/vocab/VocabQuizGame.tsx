@@ -71,7 +71,11 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
             level: deckName,
           },
         })
-        if (fnError) throw fnError
+        if (fnError) {
+          let msg = fnError.message
+          try { const b = await (fnError as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
+          throw new Error(msg)
+        }
         const raw: { word: string; sentence: string; distractors: string[] }[] = data.questions ?? []
 
         // Save generated questions to DB for next time

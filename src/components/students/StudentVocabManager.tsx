@@ -316,17 +316,24 @@ function QuizEditorModal({
 
   useEffect(() => { loadEntries() }, [deck.id, studentId])
 
+  async function invokequiz(body: object) {
+    const { data, error } = await supabase.functions.invoke('vocab-quiz-generate', { body })
+    if (error) {
+      let msg = error.message
+      try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
+      throw new Error(msg)
+    }
+    return data
+  }
+
   async function generateAll(targets: VocabularyBankEntry[]) {
     if (!targets.length) return
     setGenerating(true)
     try {
-      const { data, error } = await supabase.functions.invoke('vocab-quiz-generate', {
-        body: {
-          words: targets.map(w => ({ word: w.word, definition_en: w.definition_en })),
-          level: deck.name,
-        },
+      const data = await invokequiz({
+        words: targets.map(w => ({ word: w.word, definition_en: w.definition_en })),
+        level: deck.name,
       })
-      if (error) throw error
       const raw: { word: string; sentence: string; distractors: string[] }[] = data.questions ?? []
       await Promise.all(raw.map(q => {
         const entry = targets.find(w => w.word === q.word)
@@ -349,13 +356,10 @@ function QuizEditorModal({
   async function regenOne(entry: VocabularyBankEntry) {
     setRegenId(entry.id)
     try {
-      const { data, error } = await supabase.functions.invoke('vocab-quiz-generate', {
-        body: {
-          words: [{ word: entry.word, definition_en: entry.definition_en }],
-          level: deck.name,
-        },
+      const data = await invokequiz({
+        words: [{ word: entry.word, definition_en: entry.definition_en }],
+        level: deck.name,
       })
-      if (error) throw error
       const q = (data.questions ?? [])[0]
       if (!q) throw new Error('No question returned')
       await supabase.from('vocabulary_bank').update({
