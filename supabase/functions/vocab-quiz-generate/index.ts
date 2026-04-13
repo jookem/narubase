@@ -70,7 +70,11 @@ Respond ONLY with a valid JSON array, no extra text:
       }),
     })
 
-    if (!res.ok) return jsonResponse({ error: 'AI service error' }, 502)
+    if (!res.ok) {
+      const errBody = await res.text()
+      console.error('Anthropic error', res.status, errBody)
+      return jsonResponse({ error: `AI error ${res.status}: ${errBody}` }, 502)
+    }
 
     const ai = await res.json()
     const text: string = ai.content?.[0]?.text ?? ''
