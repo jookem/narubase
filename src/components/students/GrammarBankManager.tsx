@@ -441,14 +441,14 @@ function DeckEditor({
     setRenamingName(false)
   }
 
-  async function handleSuggestCategories() {
-    const uncategorized = points.filter(p => !p.category)
-    if (!uncategorized.length) { toast.info('All questions already have categories'); return }
+  async function handleSuggestCategories(force = false) {
+    const targets = force ? points : points.filter(p => !p.category)
+    if (!targets.length) { toast.info('No questions in this deck'); return }
     setSuggestingCategories(true)
     try {
       const { data, error } = await supabase.functions.invoke('grammar-categorize', {
         body: {
-          questions: uncategorized.map(p => ({
+          questions: targets.map(p => ({
             id: p.id,
             sentence_with_blank: p.sentence_with_blank ?? p.point,
             answer: p.answer ?? p.explanation,
@@ -600,13 +600,13 @@ function DeckEditor({
             </button>
           )}
           <div className="flex items-center gap-2 ml-4">
-            {points.some(p => !p.category) && (
+            {points.length > 0 && (
               <button
-                onClick={handleSuggestCategories}
+                onClick={() => handleSuggestCategories(true)}
                 disabled={suggestingCategories}
                 className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 shrink-0"
               >
-                {suggestingCategories ? 'Categorizing…' : `✦ Auto-categorize (${points.filter(p => !p.category).length})`}
+                {suggestingCategories ? 'Categorizing…' : '✦ Auto-categorize all'}
               </button>
             )}
             {points.some(p => p.category) && (
