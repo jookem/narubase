@@ -599,7 +599,25 @@ function DeckEditor({
               {name} <span className="text-xs text-gray-400 font-normal">✏️</span>
             </button>
           )}
-          <div className="flex items-center gap-3 ml-4">
+          <div className="flex items-center gap-2 ml-4">
+            {points.some(p => !p.category) && (
+              <button
+                onClick={handleSuggestCategories}
+                disabled={suggestingCategories}
+                className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 shrink-0"
+              >
+                {suggestingCategories ? 'Categorizing…' : `✦ Auto-categorize (${points.filter(p => !p.category).length})`}
+              </button>
+            )}
+            {points.some(p => p.category) && (
+              <button
+                onClick={handleSyncCategoriesToStudents}
+                disabled={syncingCategories}
+                className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 shrink-0"
+              >
+                {syncingCategories ? 'Syncing…' : 'Sync to students'}
+              </button>
+            )}
             <button onClick={async () => { await onDelete(deck.id, name); onClose() }} className="text-xs text-gray-300 hover:text-red-500 transition-colors">Delete deck</button>
             <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
           </div>
@@ -757,31 +775,7 @@ function DeckEditor({
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-between mt-3">
-                <p className="text-xs text-gray-400">{points.length} question{points.length !== 1 ? 's' : ''} in this deck</p>
-                <div className="flex items-center gap-2">
-                  {points.some(p => p.category) && (
-                    <button
-                      onClick={handleSyncCategoriesToStudents}
-                      disabled={syncingCategories}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-                    >
-                      {syncingCategories ? 'Syncing…' : 'Sync categories to students'}
-                    </button>
-                  )}
-                  {points.some(p => !p.category) && (
-                    <button
-                      onClick={handleSuggestCategories}
-                      disabled={suggestingCategories}
-                      className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-                    >
-                      {suggestingCategories
-                        ? 'Suggesting…'
-                        : `✦ Suggest categories (${points.filter(p => !p.category).length} missing)`}
-                    </button>
-                  )}
-                </div>
-              </div>
+              <p className="text-xs text-gray-400 mt-3">{points.length} question{points.length !== 1 ? 's' : ''} in this deck</p>
             </>
           )}
         </div>
