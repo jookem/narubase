@@ -308,6 +308,7 @@ function DeckEditor({
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
   const [suggestingCategories, setSuggestingCategories] = useState(false)
+  const [syncingCategories, setSyncingCategories] = useState(false)
 
   // Add form
   const [addSentence, setAddSentence] = useState('')
@@ -435,10 +436,17 @@ function DeckEditor({
         throw new Error(msg)
       }
       const categories: { id: string; category: string }[] = data.categories ?? []
-      // Apply to DB and local state
+      // Apply to grammar_deck_points
       await Promise.all(categories.map(({ id, category }) =>
         supabase.from('grammar_deck_points').update({ category }).eq('id', id)
       ))
+      // Propagate to student grammar_bank entries from this deck
+      const pointsById = new Map(points.map(p => [p.id, p]))
+      await Promise.all(categories.map(({ id, category }) => {
+        const p = pointsById.get(id)
+        if (!p) return Promise.resolve()
+        return supabase.from('grammar_bank').update({ category }).eq('deck_id', deck.id).eq('point', p.point)
+      }))
       setPoints(prev => prev.map(p => {
         const match = categories.find(c => c.id === p.id)
         return match ? { ...p, category: match.category } : p
@@ -448,6 +456,22 @@ function DeckEditor({
       toast.error(`Failed: ${e?.message ?? String(e)}`)
     } finally {
       setSuggestingCategories(false)
+    }
+  }
+
+  async function handleSyncCategoriesToStudents() {
+    const categorized = points.filter(p => p.category)
+    if (!categorized.length) { toast.info('No categorized questions to sync'); return }
+    setSyncingCategories(true)
+    try {
+      await Promise.all(categorized.map(p =>
+        supabase.from('grammar_bank').update({ category: p.category }).eq('deck_id', deck.id).eq('point', p.point)
+      ))
+      toast.success(`Synced ${categorized.length} categories to students`)
+    } catch (e: any) {
+      toast.error(`Failed: ${e?.message ?? String(e)}`)
+    } finally {
+      setSyncingCategories(false)
     }
   }
 
@@ -709,17 +733,28 @@ function DeckEditor({
               )}
               <div className="flex items-center justify-between mt-3">
                 <p className="text-xs text-gray-400">{points.length} question{points.length !== 1 ? 's' : ''} in this deck</p>
-                {points.some(p => !p.category) && (
-                  <button
-                    onClick={handleSuggestCategories}
-                    disabled={suggestingCategories}
-                    className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-                  >
-                    {suggestingCategories
-                      ? 'Suggesting…'
-                      : `✦ Suggest categories (${points.filter(p => !p.category).length} missing)`}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {points.some(p => p.category) && (
+                    <button
+                      onClick={handleSyncCategoriesToStudents}
+                      disabled={syncingCategories}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    >
+                      {syncingCategories ? 'Syncing…' : 'Sync categories to students'}
+                    </button>
+                  )}
+                  {points.some(p => !p.category) && (
+                    <button
+                      onClick={handleSuggestCategories}
+                      disabled={suggestingCategories}
+                      className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                    >
+                      {suggestingCategories
+                        ? 'Suggesting…'
+                        : `✦ Suggest categories (${points.filter(p => !p.category).length} missing)`}
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}
