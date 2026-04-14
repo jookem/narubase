@@ -37,26 +37,32 @@ Deno.serve(async (req) => {
       .map(q => `- ${q.sentence_with_blank.replace('_____', `[${q.answer}]`)}`)
       .join('\n')
 
-    const prompt = `You are creating a grammar lesson slide for Japanese students studying English for the Eiken exam.
+    const prompt = `You are writing an English grammar lesson slide for Japanese students preparing for the Eiken exam.
 
-Grammar category: "${category}"
+Grammar point: "${category}"
 
-Sample quiz questions from this category:
+Sample sentences from this grammar category:
 ${sampleList || '(none provided)'}
 
-Generate a lesson slide with exactly this JSON structure — no extra text:
+OUTPUT: Return ONLY a JSON object. No explanation before or after. No markdown. Just the raw JSON.
+
 {
-  "title": "<the grammar category name, e.g. 'Present Simple'>",
-  "explanation": "<2-3 sentences in English explaining HOW to form this grammar: the structure/formula, when to use it, key rules>",
-  "examples": ["<sentence 1>", "<sentence 2>", "<sentence 3>", "<sentence 4>"],
-  "hint_ja": "<clear Japanese explanation of the grammar structure and usage, 2-3 sentences>"
+  "title": "${category}",
+  "explanation": "ENGLISH ONLY. 2-3 sentences explaining: (1) the grammar formula/structure written out (e.g. Subject + verb + object), (2) when and why to use this form, (3) any key rules to remember. Write entirely in English. Do NOT write Japanese here.",
+  "examples": [
+    "A natural English sentence showing this grammar.",
+    "Another natural English sentence showing this grammar.",
+    "A third natural English sentence showing this grammar.",
+    "A fourth natural English sentence showing this grammar."
+  ],
+  "hint_ja": "JAPANESE ONLY. 2-3 sentences in Japanese explaining the grammar structure and usage. Include the formula written in Japanese style (e.g.「主語 ＋ 動詞の原形」の形で使います). Do NOT write English here."
 }
 
-Rules:
-- title: use the exact category name provided
-- explanation: explain the grammar formula/structure (e.g. "Subject + have/has + past participle"), when it's used, and any key rules. Be concise but informative for Eiken level students.
-- examples: write 4 natural English sentences that clearly demonstrate this grammar point. Use simple vocabulary appropriate for Eiken 5–3 level.
-- hint_ja: explain the grammar structure and usage clearly in Japanese. Include the formula in Japanese notation (e.g. 「主語 + have/has + 過去分詞」の形). 2-3 sentences.`
+IMPORTANT:
+- "explanation" must be written entirely in ENGLISH — this is the English grammar rule explanation
+- "examples" must be exactly 4 English sentences — simple vocabulary suitable for Eiken 5 to 3 level students
+- "hint_ja" must be written entirely in JAPANESE — this is the Japanese translation/explanation for students
+- Do not swap these fields`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -90,6 +96,9 @@ Rules:
       console.error('Parse error:', e, 'Raw:', text)
       return jsonResponse({ error: 'Failed to parse slide response' }, 500)
     }
+
+    // Ensure examples is always an array of at least 4
+    if (!Array.isArray(slide.examples)) slide.examples = []
 
     return jsonResponse({ slide })
   } catch (err) {
