@@ -61,7 +61,7 @@ function DeckEditor({
   const [removing, setRemoving] = useState<string | null>(null)
   const [loading, setLoading] = useState(!deck.words)
   const [editingWordId, setEditingWordId] = useState<string | null>(null)
-  const [editFields, setEditFields] = useState({ word: '', reading: '', defJa: '', defEn: '', example: '' })
+  const [editFields, setEditFields] = useState({ word: '', reading: '', defJa: '', defEn: '', example: '', category: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [name, setName] = useState(deck.name)
   const [renamingName, setRenamingName] = useState(false)
@@ -273,6 +273,7 @@ function DeckEditor({
       defJa: w.definition_ja ?? '',
       defEn: w.definition_en ?? '',
       example: w.example ?? '',
+      category: w.category ?? '',
     })
   }
 
@@ -285,16 +286,25 @@ function DeckEditor({
       definition_ja: editFields.defJa.trim() || undefined,
       definition_en: editFields.defEn.trim() || undefined,
       example: editFields.example.trim() || undefined,
+      category: editFields.category.trim() || undefined,
     })
     setSavingEdit(false)
     if (error) { toast.error(error); return }
+    // Sync category change to all students' vocabulary_bank
+    const categoryVal = editFields.category.trim() || null
+    const wordVal = editFields.word.trim()
+    await supabase.from('vocabulary_bank')
+      .update({ category: categoryVal })
+      .eq('deck_id', deck.id)
+      .eq('word', wordVal)
     setWords(prev => prev.map(w => w.id === editingWordId ? {
       ...w,
-      word: editFields.word.trim(),
+      word: wordVal,
       reading: editFields.reading.trim() || null,
       definition_ja: editFields.defJa.trim() || null,
       definition_en: editFields.defEn.trim() || null,
       example: editFields.example.trim() || null,
+      category: categoryVal,
     } : w))
     setEditingWordId(null)
     onUpdated()
@@ -525,6 +535,7 @@ function DeckEditor({
                       <Input value={editFields.defJa} onChange={e => setEditFields(f => ({ ...f, defJa: e.target.value }))} placeholder="意味 (JA)" className="h-7 text-xs" />
                       <Input value={editFields.defEn} onChange={e => setEditFields(f => ({ ...f, defEn: e.target.value }))} placeholder="Definition (EN)" className="h-7 text-xs" />
                       <Input value={editFields.example} onChange={e => setEditFields(f => ({ ...f, example: e.target.value }))} placeholder="Example" className="h-7 text-xs" />
+                      <Input value={editFields.category} onChange={e => setEditFields(f => ({ ...f, category: e.target.value }))} placeholder="Category (e.g. People & Family)" className="h-7 text-xs" />
                       <div className="flex gap-2">
                         <button onClick={handleEditSave} disabled={savingEdit || !editFields.word.trim()} className="px-3 py-1 bg-brand text-white text-xs rounded-md disabled:opacity-50">
                           {savingEdit ? 'Saving…' : 'Save'}
