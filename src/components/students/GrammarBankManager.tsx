@@ -418,7 +418,21 @@ function DeckEditor({
       if (!err) added++
     }
     const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
-    setPoints(refreshed?.points ?? points)
+    const newPoints = refreshed?.points ?? points
+    setPoints(newPoints)
+
+    // Auto-sync all imported questions to existing student grammar_bank copies
+    const toSync = newPoints.filter(p => p.category)
+    if (toSync.length) {
+      await Promise.all(toSync.map(p =>
+        supabase.from('grammar_bank').update({
+          category: p.category ?? null,
+          hint_ja: p.hint_ja ?? null,
+          explanation: p.answer ?? p.explanation,
+        }).eq('deck_id', deck.id).eq('point', p.sentence_with_blank ?? p.point)
+      ))
+    }
+
     setImporting(false)
     setShowImport(false)
     setImportJson('')
@@ -488,14 +502,17 @@ function DeckEditor({
   }
 
   async function handleSyncCategoriesToStudents() {
-    const categorized = points.filter(p => p.category)
-    if (!categorized.length) { toast.info('No categorized questions to sync'); return }
+    if (!points.length) { toast.info('No questions to sync'); return }
     setSyncingCategories(true)
     try {
-      await Promise.all(categorized.map(p =>
-        supabase.from('grammar_bank').update({ category: p.category }).eq('deck_id', deck.id).eq('point', p.point)
+      await Promise.all(points.map(p =>
+        supabase.from('grammar_bank').update({
+          category: p.category ?? null,
+          hint_ja: p.hint_ja ?? null,
+          explanation: p.answer ?? p.explanation,
+        }).eq('deck_id', deck.id).eq('point', p.sentence_with_blank ?? p.point)
       ))
-      toast.success(`Synced ${categorized.length} categories to students`)
+      toast.success(`Synced ${points.length} question${points.length !== 1 ? 's' : ''} to all students`)
     } catch (e: any) {
       toast.error(`Failed: ${e?.message ?? String(e)}`)
     } finally {
@@ -550,6 +567,11 @@ function DeckEditor({
     const distractors = editFields.distractors.split(',').map(s => s.trim()).filter(Boolean)
     const category = editFields.category.trim() || undefined
     setSavingEdit(true)
+
+    // Capture old sentence before updating so we can match grammar_bank rows
+    const oldPoint = points.find(p => p.id === editingId)
+    const oldSentence = oldPoint?.sentence_with_blank ?? oldPoint?.point ?? ''
+
     const { error } = await updateGrammarDeckPoint(editingId, {
       point: sentence,
       explanation: answer,
@@ -561,6 +583,15 @@ function DeckEditor({
     })
     setSavingEdit(false)
     if (error) { toast.error(error); return }
+
+    // Auto-sync changes to all student grammar_bank copies
+    await supabase.from('grammar_bank').update({
+      point: sentence,
+      explanation: answer,
+      category: category ?? null,
+      hint_ja: editFields.hint.trim() || null,
+    }).eq('deck_id', deck.id).eq('point', oldSentence)
+
     setPoints(prev => prev.map(p => p.id === editingId ? {
       ...p,
       point: sentence,
@@ -611,13 +642,13 @@ function DeckEditor({
                 {suggestingCategories ? 'Categorizing…' : '✦ Auto-categorize all'}
               </button>
             )}
-            {points.some(p => p.category) && (
+            {points.length > 0 && (
               <button
                 onClick={handleSyncCategoriesToStudents}
                 disabled={syncingCategories}
                 className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 shrink-0"
               >
-                {syncingCategories ? 'Syncing…' : 'Sync to students'}
+                {syncingCategories ? 'Syncing…' : '↑ Sync to students'}
               </button>
             )}
             <button onClick={async () => { await onDelete(deck.id, name); onClose() }} className="text-xs text-gray-300 hover:text-red-500 transition-colors">Delete deck</button>

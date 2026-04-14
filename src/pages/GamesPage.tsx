@@ -25,6 +25,9 @@ type SpellingDeck = {
   words: VocabularyBankEntry[]
 }
 
+type TrainSession = { deckId: string; deckName: string; puzzleIds: string[]; idx: number }
+type SpellingSession = { deckId: string; deckName: string; wordIds: string[] }
+
 // ── Helpers ───────────────────────────────────────────────────────
 
 function shuffle<T>(arr: T[]): T[] {
@@ -43,6 +46,9 @@ function getSpellingBatch(words: VocabularyBankEntry[]): VocabularyBankEntry[] {
   const shuffled = shuffle(eligible)
   return size === 0 ? shuffled : shuffled.slice(0, size)
 }
+
+const trainKey = (uid: string) => `train_session_${uid}`
+const spellingKey = (uid: string) => `spelling_session_${uid}`
 
 // ── Tab button ─────────────────────────────────────────────────────
 
@@ -72,12 +78,14 @@ export function GamesPage() {
   const [activePuzzles, setActivePuzzles] = useState<Puzzle[] | null>(null)
   const [puzzleIdx, setPuzzleIdx] = useState(0)
   const [trainDone, setTrainDone] = useState(false)
+  const [trainSavedSession, setTrainSavedSession] = useState<TrainSession | null>(null)
 
   // ── Spelling state ─────────────────────────────────────────────
   const [spellingDecks, setSpellingDecks] = useState<SpellingDeck[]>([])
   const [spellingLoading, setSpellingLoading] = useState(true)
   const [activeSpellingWords, setActiveSpellingWords] = useState<VocabularyBankEntry[] | null>(null)
   const [spellingDone, setSpellingDone] = useState(false)
+  const [spellingSavedSession, setSpellingSavedSession] = useState<SpellingSession | null>(null)
 
   // ── Load train data ────────────────────────────────────────────
 
@@ -92,6 +100,22 @@ export function GamesPage() {
     }
     setProgressMap(allProgress)
     setTrainLoading(false)
+
+    // Check for saved session
+    const raw = localStorage.getItem(trainKey(user.id))
+    if (raw) {
+      try {
+        const session: TrainSession = JSON.parse(raw)
+        const deck = (d ?? []).find(dk => dk.id === session.deckId)
+        if (deck && session.idx < session.puzzleIds.length) {
+          setTrainSavedSession(session)
+        } else {
+          localStorage.removeItem(trainKey(user.id))
+        }
+      } catch {
+        localStorage.removeItem(trainKey(user.id))
+      }
+    }
   }
 
   // ── Load spelling data ─────────────────────────────────────────
@@ -99,7 +123,6 @@ export function GamesPage() {
   async function loadSpelling() {
     if (!user) return
 
-    // Join vocabulary_bank with vocabulary_decks to get deck name in one query
     const { data } = await supabase
       .from('vocabulary_bank')
       .select('*, deck:vocabulary_decks!deck_id(name)')
@@ -109,7 +132,6 @@ export function GamesPage() {
 
     const entries = (data ?? []) as (VocabularyBankEntry & { deck?: { name: string } | null })[]
 
-    // Group by deck_id — only words that belong to an assigned deck
     const grouped: Record<string, SpellingDeck> = {}
     for (const entry of entries) {
       const key = entry.deck_id!
@@ -123,13 +145,28 @@ export function GamesPage() {
       grouped[key].words.push(entry)
     }
 
-    // Only show decks that have at least one spellable word (2+ letters)
     const decks = Object.values(grouped).filter(g =>
       g.words.some(w => w.word.trim().length >= 2)
     )
 
     setSpellingDecks(decks)
     setSpellingLoading(false)
+
+    // Check for saved session
+    const raw = localStorage.getItem(spellingKey(user.id))
+    if (raw) {
+      try {
+        const session: SpellingSession = JSON.parse(raw)
+        const deck = decks.find(dk => dk.deckId === session.deckId)
+        if (deck && session.wordIds.length > 0) {
+          setSpellingSavedSession(session)
+        } else {
+          localStorage.removeItem(spellingKey(user.id))
+        }
+      } catch {
+        localStorage.removeItem(spellingKey(user.id))
+      }
+    }
   }
 
   useEffect(() => { loadTrain(); loadSpelling() }, [user])
@@ -140,18 +177,54 @@ export function GamesPage() {
     let puzzles = deck.puzzles
     if (onlyIncomplete) puzzles = puzzles.filter(p => !progressMap[p.id]?.completed)
     if (!puzzles.length) return
-    setActivePuzzles(getStudyBatch(puzzles))
+    const batch = getStudyBatch(puzzles)
+    if (user) {
+      const session: TrainSession = { deckId: deck.id, deckName: deck.name, puzzleIds: batch.map(p => p.id), idx: 0 }
+      localStorage.setItem(trainKey(user.id), JSON.stringify(session))
+    }
+    setTrainSavedSession(null)
+    setActivePuzzles(batch)
     setPuzzleIdx(0)
     setTrainDone(false)
   }
 
+  function resumeTrainSession() {
+    if (!user || !trainSavedSession) return
+    const deck = trainDecks.find(d => d.id === trainSavedSession.deckId)
+    if (!deck) return
+    const puzzleMap: Record<string, Puzzle> = {}
+    for (const p of deck.puzzles) puzzleMap[p.id] = p
+    const puzzles = trainSavedSession.puzzleIds.map(id => puzzleMap[id]).filter(Boolean) as Puzzle[]
+    if (!puzzles.length) return
+    setActivePuzzles(puzzles)
+    setPuzzleIdx(trainSavedSession.idx)
+    setTrainDone(false)
+    setTrainSavedSession(null)
+  }
+
   function handleTrainNext() {
     if (!activePuzzles) return
-    if (puzzleIdx + 1 >= activePuzzles.length) setTrainDone(true)
-    else setPuzzleIdx(i => i + 1)
+    const nextIdx = puzzleIdx + 1
+    if (nextIdx >= activePuzzles.length) {
+      if (user) localStorage.removeItem(trainKey(user.id))
+      setTrainDone(true)
+    } else {
+      setPuzzleIdx(nextIdx)
+      if (user) {
+        const raw = localStorage.getItem(trainKey(user.id))
+        if (raw) {
+          try {
+            const session: TrainSession = JSON.parse(raw)
+            session.idx = nextIdx
+            localStorage.setItem(trainKey(user.id), JSON.stringify(session))
+          } catch {}
+        }
+      }
+    }
   }
 
   function handleTrainClose() {
+    // Keep session in localStorage so user can resume
     setActivePuzzles(null)
     setTrainDone(false)
     loadTrain()
@@ -162,11 +235,35 @@ export function GamesPage() {
   function startSpellingDeck(deck: SpellingDeck) {
     const batch = getSpellingBatch(deck.words)
     if (!batch.length) return
+    if (user) {
+      const session: SpellingSession = { deckId: deck.deckId, deckName: deck.deckName, wordIds: batch.map(w => w.id) }
+      localStorage.setItem(spellingKey(user.id), JSON.stringify(session))
+    }
+    setSpellingSavedSession(null)
     setActiveSpellingWords(batch)
     setSpellingDone(false)
   }
 
+  function resumeSpellingSession() {
+    if (!user || !spellingSavedSession) return
+    const deck = spellingDecks.find(d => d.deckId === spellingSavedSession.deckId)
+    if (!deck) return
+    const wordMap: Record<string, VocabularyBankEntry> = {}
+    for (const w of deck.words) wordMap[w.id] = w
+    const words = spellingSavedSession.wordIds.map(id => wordMap[id]).filter(Boolean) as VocabularyBankEntry[]
+    if (!words.length) return
+    setActiveSpellingWords(words)
+    setSpellingDone(false)
+    setSpellingSavedSession(null)
+  }
+
+  function handleSpellingComplete() {
+    if (user) localStorage.removeItem(spellingKey(user.id))
+    setSpellingDone(true)
+  }
+
   function handleSpellingClose() {
+    // Keep session in localStorage so user can resume
     setActiveSpellingWords(null)
     setSpellingDone(false)
   }
@@ -204,7 +301,7 @@ export function GamesPage() {
       <SpellingGame
         words={activeSpellingWords}
         onClose={handleSpellingClose}
-        onComplete={() => setSpellingDone(true)}
+        onComplete={handleSpellingComplete}
       />
     )
   }
@@ -213,7 +310,7 @@ export function GamesPage() {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
         <CelebrationScreen
-          title="スペリング完了！ 🎉"
+          title="Spelling Bee Complete! 🐝"
           subtitle={`You practiced ${activeSpellingWords.length} word${activeSpellingWords.length !== 1 ? 's' : ''}`}
           onClose={handleSpellingClose}
           closeLabel="Back to Games"
@@ -233,9 +330,9 @@ export function GamesPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-        <Tab label="🚂 Train" active={tab === 'train'} onClick={() => setTab('train')} />
-        <Tab label="🔤 Spelling" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
-        <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
+        <Tab label="🚂 Train Game" active={tab === 'train'} onClick={() => setTab('train')} />
+        <Tab label="🐝 Spelling Bee" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
+        <Tab label="🖼️ Picture This" active={tab === 'picture'} onClick={() => setTab('picture')} />
       </div>
 
       {/* ── Train tab ── */}
@@ -252,6 +349,30 @@ export function GamesPage() {
           </Card>
         ) : (
           <div className="space-y-4">
+            {/* Resume banner */}
+            {trainSavedSession && (
+              <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-amber-800">前回の続きから</p>
+                  <p className="text-xs text-amber-600">{trainSavedSession.deckName} · {trainSavedSession.idx + 1}/{trainSavedSession.puzzleIds.length} 問目</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { if (user) localStorage.removeItem(trainKey(user.id)); setTrainSavedSession(null) }}
+                    className="text-xs text-amber-600 hover:text-amber-800 px-2 py-1"
+                  >
+                    破棄
+                  </button>
+                  <button
+                    onClick={resumeTrainSession}
+                    className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors"
+                  >
+                    再開 →
+                  </button>
+                </div>
+              </div>
+            )}
+
             {trainDecks.map(deck => {
               const total = deck.puzzles.length
               const completed = deck.puzzles.filter(p => progressMap[p.id]?.completed).length
@@ -319,23 +440,47 @@ export function GamesPage() {
         )
       )}
 
-      {/* ── Picture tab ── */}
+      {/* ── Picture This tab ── */}
       {tab === 'picture' && <PictureDescription />}
 
-      {/* ── Spelling tab ── */}
+      {/* ── Spelling Bee tab ── */}
       {tab === 'spelling' && (
         spellingLoading ? (
           <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
         ) : spellingDecks.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-4xl mb-3">🔤</p>
+              <p className="text-4xl mb-3">🐝</p>
               <p className="text-gray-500">単語がまだありません。</p>
               <p className="text-sm text-gray-400 mt-1">Your teacher will assign vocabulary decks here.</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
+            {/* Resume banner */}
+            {spellingSavedSession && (
+              <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-amber-800">前回の続きから</p>
+                  <p className="text-xs text-amber-600">{spellingSavedSession.deckName} · {spellingSavedSession.wordIds.length}語</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { if (user) localStorage.removeItem(spellingKey(user.id)); setSpellingSavedSession(null) }}
+                    className="text-xs text-amber-600 hover:text-amber-800 px-2 py-1"
+                  >
+                    破棄
+                  </button>
+                  <button
+                    onClick={resumeSpellingSession}
+                    className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 transition-colors"
+                  >
+                    再開 →
+                  </button>
+                </div>
+              </div>
+            )}
+
             {spellingDecks.map(deck => {
               const wordCount = deck.words.filter(w => w.word.trim().length >= 2).length
               return (
@@ -349,7 +494,7 @@ export function GamesPage() {
                       onClick={() => startSpellingDeck(deck)}
                       className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors"
                     >
-                      Start Spelling
+                      Start Spelling Bee
                     </button>
                   </CardContent>
                 </Card>
