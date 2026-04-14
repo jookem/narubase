@@ -33,6 +33,7 @@ const EIKEN_OPTIONS = [
   { value: '4', label: '4級 (Grade 4)' },
   { value: '3', label: '3級 (Grade 3)' },
   { value: 'pre-2', label: '準2級 (Pre-2)' },
+  { value: 'pre-2-plus', label: '準2級プラス (Pre-2 Plus)' },
   { value: '2', label: '2級 (Grade 2)' },
   { value: 'pre-1', label: '準1級 (Pre-1)' },
   { value: '1', label: '1級 (Grade 1)' },

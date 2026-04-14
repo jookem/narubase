@@ -51,7 +51,7 @@ const GRADE_LABELS: Record<string, string> = {
   university: 'University Student', adult: 'Adult / Working', other: 'Other',
 }
 const EIKEN_LABELS: Record<string, string> = {
-  '5': '5級', '4': '4級', '3': '3級', 'pre-2': '準2級', '2': '2級', 'pre-1': '準1級', '1': '1級',
+  '5': '5級', '4': '4級', '3': '3級', 'pre-2': '準2級', 'pre-2-plus': '準2級プラス', '2': '2級', 'pre-1': '準1級', '1': '1級',
 }
 
 type Props = {

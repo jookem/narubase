@@ -32,6 +32,7 @@ const EIKEN_OPTIONS = [
   { value: '4', label: '4級 (Grade 4)' },
   { value: '3', label: '3級 (Grade 3)' },
   { value: 'pre-2', label: '準2級 (Pre-2)' },
+  { value: 'pre-2-plus', label: '準2級プラス (Pre-2 Plus)' },
   { value: '2', label: '2級 (Grade 2)' },
   { value: 'pre-1', label: '準1級 (Pre-1)' },
   { value: '1', label: '1級 (Grade 1)' },
@@ -43,7 +44,7 @@ const GRADE_LABELS: Record<string, string> = Object.fromEntries(
   GRADE_OPTIONS.filter(o => o.value).map(o => [o.value, o.label])
 )
 const EIKEN_LABELS: Record<string, string> = {
-  '5': '5級', '4': '4級', '3': '3級', 'pre-2': '準2級', '2': '2級', 'pre-1': '準1級', '1': '1級',
+  '5': '5級', '4': '4級', '3': '3級', 'pre-2': '準2級', 'pre-2-plus': '準2級プラス', '2': '2級', 'pre-1': '準1級', '1': '1級',
 }
 
 type Details = StudentDetailsInput & { student_id?: string }
