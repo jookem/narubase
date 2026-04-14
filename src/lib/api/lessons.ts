@@ -420,6 +420,8 @@ export interface DeckWord {
   definition_en: string | null
   example: string | null
   category: string | null
+  quiz_sentence: string | null
+  quiz_distractors: string[]
   created_at: string
 }
 
@@ -503,7 +505,7 @@ export async function deleteDeck(deckId: string): Promise<{ error?: string }> {
 
 export async function addWordToDeck(
   deckId: string,
-  word: { word: string; reading?: string; definition_ja?: string; definition_en?: string; example?: string },
+  word: { word: string; reading?: string; definition_ja?: string; definition_en?: string; example?: string; category?: string },
 ): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('vocabulary_deck_words')

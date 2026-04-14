@@ -62,29 +62,62 @@ Deno.serve(async (req) => {
       ? `\nVocabulary pool (prefer picking distractors from this list):\n${poolWords.join(', ')}\n`
       : ''
 
-    const prompt = `You are creating fill-in-the-blank vocabulary quiz questions for Japanese ESL students studying for ${level ?? 'Eiken 5'}.
+    // Level-specific guidance
+    const levelName = level ?? 'Eiken 5'
+    const levelGuide = (() => {
+      const l = levelName.toLowerCase()
+      if (l.includes('5') || l.includes('five')) return {
+        label: 'Eiken Grade 5 (CEFR A1)',
+        sentenceRule: 'Sentences must be 5-8 words. Use only: be verb, have, like, go, eat, drink, play + simple nouns. Present simple only. Subject is always I, You, He, She, We, They, or a simple noun.',
+        grammarBan: 'NO past tense. NO modal verbs. NO questions. NO negatives.',
+      }
+      if (l.includes('4') || l.includes('four')) return {
+        label: 'Eiken Grade 4 (CEFR A2)',
+        sentenceRule: 'Sentences must be 6-10 words. Present and past simple. Modal verbs: can, want to, like to. Common vocabulary only.',
+        grammarBan: 'NO present perfect. NO passive voice. NO complex clauses.',
+      }
+      if (l.includes('3') || l.includes('three') || l.includes('pre-2') || l.includes('pre2')) return {
+        label: 'Eiken Grade 3 / Pre-2 (CEFR B1)',
+        sentenceRule: 'Sentences can be 8-12 words. Present/past simple, present perfect, modal verbs (should, must, can). Common everyday topics.',
+        grammarBan: 'NO passive voice. NO complex subordinate clauses.',
+      }
+      if (l.includes('2') || l.includes('two')) return {
+        label: 'Eiken Grade 2 (CEFR B2)',
+        sentenceRule: 'Sentences 8-14 words. Full grammar range including passive, conditionals, relative clauses. Academic and professional topics.',
+        grammarBan: 'Avoid overly obscure vocabulary in the sentence context words.',
+      }
+      return {
+        label: levelName,
+        sentenceRule: 'Sentences 6-10 words. Use simple clear grammar matching the level.',
+        grammarBan: '',
+      }
+    })()
 
-For each target word below, write:
-1. One simple English sentence with exactly "_____" (five underscores) replacing the target word.
+    const prompt = `You are creating fill-in-the-blank vocabulary quiz questions for Japanese ESL students.
+Level: ${levelGuide.label}
+
+For each target word, write:
+1. One English sentence with exactly "_____" (five underscores) replacing the target word.
 2. Exactly 3 distractor words (wrong answers).
 ${poolSection}
 CRITICAL — THE BLANK:
-- The sentence field MUST contain the literal string "_____" (five underscores).
-- The target word must NOT appear anywhere in the sentence — it is replaced by "_____".
-- Wrong example: {"word":"runs","sentence":"She runs to school."} ← WRONG, word appears in sentence
-- Correct example: {"word":"runs","sentence":"She _____ to school every day."} ← CORRECT
+- The sentence field MUST contain "_____" (five underscores). No exceptions.
+- The target word must NOT appear anywhere in the sentence.
+- WRONG: {"word":"runs","sentence":"She runs to school."} — word visible in sentence
+- CORRECT: {"word":"runs","sentence":"She _____ to school every day."} — word replaced by _____
 
 SENTENCE RULES:
-- Keep sentences very short and simple (6-10 words). This is Eiken 5 / elementary level.
-- Use only basic vocabulary and grammar (present simple, past simple).
-- The sentence must make it clear that ONLY the target word fits the blank.
-- Do NOT use apostrophes. Write "does not" not "doesn't", "I am" not "I'm".
-- Topics: school, family, food, weather, sports, daily life.
+- ${levelGuide.sentenceRule}
+- ${levelGuide.grammarBan}
+- The sentence context must make it clear that ONLY the target word fills the blank correctly.
+- Do NOT use apostrophes — write "does not" not "doesn't", "I am" not "I'm".
+- The blank must be grammatically and semantically unambiguous — only one word makes sense.
 
 DISTRACTOR RULES:
-- Pick 2 distractors from the vocabulary pool above when possible (same part of speech as the answer).
-- Add 1 distractor that is semantically related to the correct answer (e.g. a near-synonym or same category word).
-- All 3 distractors must be clearly wrong in the sentence context.
+- All 3 distractors must be the same part of speech as the target word.
+- Prefer distractors from the vocabulary pool (pool words are the same category — good wrong answers).
+- Each distractor must be clearly wrong when placed in the sentence (does not make sense).
+- Do NOT use near-synonyms that could also fit the sentence — they create ambiguous questions.
 
 Target words:
 ${wordList}
