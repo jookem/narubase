@@ -406,7 +406,7 @@ export function VocabularyPage() {
                         </p>
                         <MasteryBar words={words} />
                       </div>
-                      <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+                      <div className="flex flex-col gap-2 shrink-0 items-end">
                         <button
                           onClick={() => setStudyCards(batch)}
                           className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
