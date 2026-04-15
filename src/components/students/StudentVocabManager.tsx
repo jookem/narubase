@@ -209,25 +209,32 @@ function DeckEditor({
       for (let i = 0; i < words.length; i += BATCH_SIZE) {
         const batch = words.slice(i, i + BATCH_SIZE)
 
-        const { data, error } = await supabase.functions.invoke('vocab-categorize', {
-          body: {
-            words: batch.map(w => ({
-              id: w.id,
-              word: w.word,
-              definition_en: w.definition_en,
-              definition_ja: w.definition_ja,
-              example: w.example,
-            })),
-          },
-        })
-
-        if (error) {
+        // Retry once on transient errors (rate limit / 5xx)
+        let data: any = null
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const { data: d, error } = await supabase.functions.invoke('vocab-categorize', {
+            body: {
+              words: batch.map(w => ({
+                id: w.id,
+                word: w.word,
+                definition_en: w.definition_en,
+                definition_ja: w.definition_ja,
+                example: w.example,
+              })),
+            },
+          })
+          if (!error) { data = d; break }
           let msg = error.message
           try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
-          throw new Error(msg)
+          console.error(`vocab-categorize batch ${Math.floor(i / BATCH_SIZE) + 1} attempt ${attempt} failed:`, msg)
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 10000)) // wait 10s then retry
+          } else {
+            throw new Error(msg)
+          }
         }
 
-        const batchCategories: { id: string; category: string }[] = data.categories ?? []
+        const batchCategories: { id: string; category: string }[] = data?.categories ?? []
         allCategories.push(...batchCategories)
 
         // Save this batch to DB immediately so progress isn't lost on late failure
