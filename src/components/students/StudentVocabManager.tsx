@@ -13,7 +13,6 @@ import {
   removeWordFromDeck,
   updateDeckWord,
   assignDeckToStudent,
-  syncDeckToAllStudents,
   removeDeckFromStudent,
   reorderVocabDecks,
   syncVocabCategoriesToStudents,
@@ -894,9 +893,6 @@ export function StudentVocabManager({ studentId }: Props) {
   const [removingImage, setRemovingImage] = useState<string | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const [imageTargetId, setImageTargetId] = useState<string | null>(null)
-  const [deckSyncStatus, setDeckSyncStatus] = useState<Record<string, number>>({}) // deckId → missing word count
-  const [syncing, setSyncing] = useState<string | null>(null)
-  const [syncingAll, setSyncingAll] = useState<string | null>(null)
 
   async function loadVocab() {
     const all: VocabularyBankEntry[] = []
@@ -922,49 +918,8 @@ export function StudentVocabManager({ studentId }: Props) {
     setDecksLoading(false)
   }
 
-  async function checkDeckSync(currentVocab: typeof vocab) {
-    const assignedIds = [...new Set(currentVocab.map(v => v.deck_id).filter(Boolean) as string[])]
-    if (!assignedIds.length) return
-
-    // Count words per deck in vocabulary_deck_words (master deck)
-    const { data: masterCounts } = await supabase
-      .from('vocabulary_deck_words')
-      .select('deck_id, word')
-      .in('deck_id', assignedIds)
-
-    if (!masterCounts) return
-
-    // Count what the student currently has per deck
-    const studentCountByDeck: Record<string, Set<string>> = {}
-    for (const v of currentVocab) {
-      if (!v.deck_id) continue
-      if (!studentCountByDeck[v.deck_id]) studentCountByDeck[v.deck_id] = new Set()
-      studentCountByDeck[v.deck_id].add(v.word)
-    }
-
-    const masterByDeck: Record<string, Set<string>> = {}
-    for (const row of masterCounts) {
-      if (!masterByDeck[row.deck_id]) masterByDeck[row.deck_id] = new Set()
-      masterByDeck[row.deck_id].add(row.word)
-    }
-
-    const status: Record<string, number> = {}
-    for (const deckId of assignedIds) {
-      const master = masterByDeck[deckId] ?? new Set()
-      const student = studentCountByDeck[deckId] ?? new Set()
-      const missing = [...master].filter(w => !student.has(w)).length
-      if (missing > 0) status[deckId] = missing
-    }
-    setDeckSyncStatus(status)
-  }
-
   useEffect(() => { loadVocab() }, [studentId])
   useEffect(() => { loadDecks() }, [])
-
-  // Run sync check whenever vocab loads
-  useEffect(() => {
-    if (!loading) checkDeckSync(vocab)
-  }, [loading, vocab])
 
   const assignedDeckIds = new Set(vocab.map(v => v.deck_id).filter(Boolean) as string[])
 
@@ -999,38 +954,6 @@ export function StudentVocabManager({ studentId }: Props) {
     else {
       toast.success(`${count} word${count !== 1 ? 's' : ''} assigned from deck`)
       loadVocab()
-    }
-  }
-
-  async function handleSync(deckId: string, deckName: string) {
-    setSyncing(deckId)
-    try {
-      const { error } = await assignDeckToStudent(deckId, studentId)
-      if (error) { toast.error(error); return }
-      const added = deckSyncStatus[deckId] ?? 0
-      setDeckSyncStatus(prev => { const n = { ...prev }; delete n[deckId]; return n })
-      toast.success(`Synced "${deckName}" — ${added} word${added !== 1 ? 's' : ''} added`)
-      loadVocab()
-    } catch (e: any) {
-      console.error('[handleSync]', e)
-      toast.error(e?.message ?? 'Sync failed')
-    } finally {
-      setSyncing(null)
-    }
-  }
-
-  async function handleSyncAll(deckId: string, deckName: string) {
-    setSyncingAll(deckId)
-    try {
-      const { synced, error } = await syncDeckToAllStudents(deckId)
-      if (error) { toast.error(error); return }
-      toast.success(`"${deckName}" synced to ${synced} student${synced !== 1 ? 's' : ''}`)
-      loadVocab()
-    } catch (e: any) {
-      console.error('[handleSyncAll]', e)
-      toast.error(e?.message ?? 'Sync failed')
-    } finally {
-      setSyncingAll(null)
     }
   }
 
@@ -1214,30 +1137,9 @@ export function StudentVocabManager({ studentId }: Props) {
                 renderActions={row => {
                   const deck = decks.find(d => d.id === row.id)!
                   const isAssigned = assignedDeckIds.has(row.id)
-                  const missing = deckSyncStatus[row.id]
                   return (
                     <>
                       <button onClick={() => setEditingDeck(deck)} className="text-xs text-gray-400 hover:text-brand transition-colors">Edit</button>
-                      {isAssigned && missing > 0 && (
-                        <button
-                          onClick={() => handleSync(row.id, row.name)}
-                          disabled={syncing === row.id}
-                          className="text-xs text-orange-500 hover:text-orange-700 transition-colors disabled:opacity-50 font-medium"
-                          title={`${missing} word${missing !== 1 ? 's' : ''} in deck not yet assigned to this student`}
-                        >
-                          {syncing === row.id ? 'Syncing…' : `⚠ Sync (${missing})`}
-                        </button>
-                      )}
-                      {isAssigned && (
-                        <button
-                          onClick={() => handleSyncAll(row.id, row.name)}
-                          disabled={syncingAll === row.id}
-                          className="text-xs text-gray-400 hover:text-brand transition-colors disabled:opacity-50"
-                          title="Push latest deck words to all students who have this deck assigned"
-                        >
-                          {syncingAll === row.id ? 'Syncing…' : 'Sync all'}
-                        </button>
-                      )}
                       {isAssigned ? (
                         <button onClick={() => handleRemoveDeck(row.id, row.name)} disabled={removing === row.id} className="text-xs text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50">
                           {removing === row.id ? '…' : 'Remove'}
