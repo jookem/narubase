@@ -679,13 +679,21 @@ export async function syncAllVocabCategoriesToStudents(): Promise<{ synced?: num
 export async function syncVocabCategoriesToStudents(
   deckId: string,
 ): Promise<{ synced?: number; error?: string }> {
-  const { data: words, error: fetchErr } = await supabase
-    .from('vocabulary_deck_words')
-    .select('word, category')
-    .eq('deck_id', deckId)
-    .not('category', 'is', null)
-  if (fetchErr) return { error: fetchErr.message }
-  if (!words?.length) return { synced: 0 }
+  const words: { word: string; category: string }[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error: fetchErr } = await supabase
+      .from('vocabulary_deck_words')
+      .select('word, category')
+      .eq('deck_id', deckId)
+      .not('category', 'is', null)
+      .order('word', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (fetchErr) return { error: fetchErr.message }
+    words.push(...((page ?? []) as { word: string; category: string }[]))
+    if (!page || page.length < PAGE) break
+  }
+  if (!words.length) return { synced: 0 }
 
   const results = await Promise.all(
     words.map(w =>
