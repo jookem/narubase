@@ -649,6 +649,20 @@ export async function assignDeckToStudent(
   return { count: words.length }
 }
 
+/** Push categories from ALL decks' vocabulary_deck_words to vocabulary_bank. */
+export async function syncAllVocabCategoriesToStudents(): Promise<{ synced?: number; error?: string }> {
+  const { decks, error: listErr } = await listDecks()
+  if (listErr) return { error: listErr }
+  if (!decks?.length) return { synced: 0 }
+  let total = 0
+  for (const deck of decks) {
+    const { synced, error } = await syncVocabCategoriesToStudents(deck.id)
+    if (error) return { error }
+    total += synced ?? 0
+  }
+  return { synced: total }
+}
+
 /** Push category field from vocabulary_deck_words to every matching vocabulary_bank row. */
 export async function syncVocabCategoriesToStudents(
   deckId: string,

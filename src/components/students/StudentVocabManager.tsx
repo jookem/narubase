@@ -390,11 +390,11 @@ function DeckEditor({
                 {suggestingCategories ? 'Categorizing…' : '✦ Auto-categorize'}
               </button>
             )}
-            {words.some(w => w.category) && (
+            {words.length > 0 && (
               <button
                 onClick={handleSyncCategories}
                 disabled={syncingCategories || suggestingCategories}
-                className="px-3 py-1.5 bg-purple-100 text-purple-700 text-xs rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 shrink-0"
+                className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 shrink-0"
               >
                 {syncingCategories ? 'Syncing…' : '↑ Sync to students'}
               </button>
