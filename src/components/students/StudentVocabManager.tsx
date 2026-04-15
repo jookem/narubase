@@ -650,14 +650,20 @@ function QuizEditorModal({
   const [edits, setEdits] = useState<Record<string, { sentence: string; d0: string; d1: string; d2: string }>>({})
 
   async function loadEntries() {
-    const { data } = await supabase
-      .from('vocabulary_bank')
-      .select('*')
-      .eq('student_id', studentId)
-      .eq('deck_id', deck.id)
-      .order('word', { ascending: true })
-      .limit(5000)
-    const rows = data ?? []
+    const all: VocabularyBankEntry[] = []
+    const PAGE = 1000
+    for (let from = 0; ; from += PAGE) {
+      const { data } = await supabase
+        .from('vocabulary_bank')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('deck_id', deck.id)
+        .order('word', { ascending: true })
+        .range(from, from + PAGE - 1)
+      all.push(...(data ?? []))
+      if (!data || data.length < PAGE) break
+    }
+    const rows = all
     setEntries(rows)
     const init: typeof edits = {}
     for (const r of rows) {
@@ -873,14 +879,20 @@ export function StudentVocabManager({ studentId }: Props) {
   const [syncingAll, setSyncingAll] = useState<string | null>(null)
 
   async function loadVocab() {
-    const { data, error } = await supabase
-      .from('vocabulary_bank')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: false })
-      .limit(5000)
-    if (error) console.error('VocabManager load error:', error.message)
-    setVocab(data ?? [])
+    const all: VocabularyBankEntry[] = []
+    const PAGE = 1000
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('vocabulary_bank')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1)
+      if (error) { console.error('VocabManager load error:', error.message); break }
+      all.push(...(data ?? []))
+      if (!data || data.length < PAGE) break
+    }
+    setVocab(all)
     setLoading(false)
   }
 

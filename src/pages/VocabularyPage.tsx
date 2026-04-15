@@ -138,15 +138,21 @@ export function VocabularyPage() {
   async function loadVocab() {
     if (!user) return
     try {
-      const { data, error: err } = await supabase
-        .from('vocabulary_bank')
-        .select('*')
-        .eq('student_id', user.id)
-        .order('word', { ascending: true })
-        .limit(5000)
-      if (err) throw err
+      const allEntries: VocabularyBankEntry[] = []
+      const PAGE = 1000
+      for (let from = 0; ; from += PAGE) {
+        const { data, error: err } = await supabase
+          .from('vocabulary_bank')
+          .select('*')
+          .eq('student_id', user.id)
+          .order('word', { ascending: true })
+          .range(from, from + PAGE - 1)
+        if (err) throw err
+        allEntries.push(...(data ?? []))
+        if (!data || data.length < PAGE) break
+      }
 
-      const entries = data ?? []
+      const entries = allEntries
       setVocab(entries)
 
       const deckIds = [...new Set(entries.map(v => v.deck_id).filter(Boolean) as string[])]

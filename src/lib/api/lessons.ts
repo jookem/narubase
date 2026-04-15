@@ -453,13 +453,26 @@ export async function listDecks(): Promise<{ decks?: Deck[]; error?: string }> {
 }
 
 export async function getDeckWithWords(deckId: string): Promise<{ deck?: Deck; error?: string }> {
-  const [{ data: deck, error: deckErr }, { data: words, error: wordsErr }] = await Promise.all([
-    supabase.from('vocabulary_decks').select('*').eq('id', deckId).single(),
-    supabase.from('vocabulary_deck_words').select('*').eq('deck_id', deckId).order('word', { ascending: true }).limit(5000),
-  ])
+  const { data: deck, error: deckErr } = await supabase
+    .from('vocabulary_decks').select('*').eq('id', deckId).single()
   if (deckErr) return { error: deckErr.message }
-  if (wordsErr) return { error: wordsErr.message }
-  return { deck: { ...deck, words: words ?? [] } as Deck }
+
+  // Paginate in chunks of 1000 to bypass PostgREST max_rows cap
+  const allWords: DeckWord[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error: pageErr } = await supabase
+      .from('vocabulary_deck_words')
+      .select('*')
+      .eq('deck_id', deckId)
+      .order('word', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (pageErr) return { error: pageErr.message }
+    allWords.push(...(page ?? []))
+    if (!page || page.length < PAGE) break
+  }
+
+  return { deck: { ...deck, words: allWords } as Deck }
 }
 
 export async function createDeck(name: string): Promise<{ deck?: Deck; error?: string }> {
