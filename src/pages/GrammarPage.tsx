@@ -5,10 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { GrammarSession } from '@/components/grammar/GrammarSession'
 import { GrammarLesson } from '@/components/grammar/GrammarLesson'
 import { GrammarFlashcards } from '@/components/grammar/GrammarFlashcards'
-import { GrammarPractice } from '@/components/grammar/GrammarPractice'
 import { PageError } from '@/components/shared/PageError'
 
-type GrammarStage = 'lesson' | 'flashcards' | 'practice' | 'quiz'
+type GrammarStage = 'lesson' | 'flashcards' | 'quiz'
 type GrammarStudyState = {
   cards: GrammarBankEntry[]
   slides: GrammarLessonSlide[]
@@ -59,7 +58,7 @@ export function GrammarPage() {
 
   useEffect(() => { load() }, [user])
 
-  // Start a full study session: lesson → flashcards → practice → quiz
+  // Start a full study session: lesson → flashcards → quiz
   async function startStudy(cards: GrammarBankEntry[], skipLesson = false) {
     const deckIds = [...new Set(cards.map(c => c.deck_id).filter(Boolean))]
     let slides: GrammarLessonSlide[] = []
@@ -149,14 +148,6 @@ export function GrammarPage() {
 
       {session?.stage === 'flashcards' && (
         <GrammarFlashcards
-          cards={session.cards}
-          onComplete={() => setSession(s => s && { ...s, stage: 'practice' })}
-          onClose={() => setSession(null)}
-        />
-      )}
-
-      {session?.stage === 'practice' && (
-        <GrammarPractice
           cards={session.cards}
           onComplete={() => setSession(s => s && { ...s, stage: 'quiz' })}
           onClose={() => setSession(null)}

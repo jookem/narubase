@@ -34,10 +34,10 @@ export function GrammarFlashcards({ cards, onComplete, onClose }: Props) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
         <CelebrationScreen
-          title="Flashcards done!"
-          subtitle="You've reviewed all the grammar points. Time to practice."
+          title="Pattern review done!"
+          subtitle="You've reviewed all the grammar points. Time for the quiz."
           onClose={onComplete}
-          closeLabel="Start Practice →"
+          closeLabel="Start Quiz →"
         />
       </div>
     )
@@ -48,7 +48,7 @@ export function GrammarFlashcards({ cards, onComplete, onClose }: Props) {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
         <button onClick={onClose} className="text-white/50 hover:text-white text-sm transition-colors">✕</button>
-        <span className="text-white/50 text-xs font-medium tracking-wide uppercase">Flashcards</span>
+        <span className="text-white/50 text-xs font-medium tracking-wide uppercase">Pattern</span>
         <span className="text-white/40 text-xs">{index + 1} / {deck.length}</span>
       </div>
 
@@ -99,6 +99,9 @@ export function GrammarFlashcards({ cards, onComplete, onClose }: Props) {
                   <p className="text-gray-700 text-sm font-medium">
                     {card.sentence_with_blank.replace('_____', `[${card.answer ?? '...'}]`)}
                   </p>
+                  {card.hint_ja && (
+                    <p className="text-gray-500 text-xs mt-1">{card.hint_ja}</p>
+                  )}
                 </div>
               )}
             </div>
