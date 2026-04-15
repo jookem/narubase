@@ -334,32 +334,38 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
             })}
           </div>
 
-          {/* After answer: SRS rating */}
+          {/* After answer: explanation + sentence_ja */}
+          {phase === 'revealed' && (
+            <div className={`rounded-xl px-4 py-3 space-y-2 ${isCorrect ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+              <p className={`text-xs font-semibold uppercase tracking-wide ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                {isCorrect ? '✓ Correct' : `✗ The answer is "${answer}"`}
+              </p>
+              {current.explanation && (
+                <p className="text-white/80 text-sm leading-relaxed">{current.explanation}</p>
+              )}
+              {current.sentence_ja && (
+                <p className="text-white/50 text-xs leading-relaxed">{current.sentence_ja}</p>
+              )}
+            </div>
+          )}
+
+          {/* After answer: simplified SRS */}
           {phase === 'revealed' && (
             <div className="grid grid-cols-2 gap-2">
-              {isCorrect ? (
-                <>
-                  <button onClick={() => handleRate('good')} disabled={rating} className="py-3 rounded-xl bg-green-500/20 text-green-400 hover:bg-green-500/30 text-sm font-medium transition-colors disabled:opacity-50">
-                    <span className="block">Good</span>
-                    <span className="block text-xs opacity-60 mt-0.5">+level</span>
-                  </button>
-                  <button onClick={() => handleRate('easy')} disabled={rating} className="py-3 rounded-xl bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 text-sm font-medium transition-colors disabled:opacity-50">
-                    <span className="block">Easy</span>
-                    <span className="block text-xs opacity-60 mt-0.5">skip ahead</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => handleRate('again')} disabled={rating} className="py-3 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm font-medium transition-colors disabled:opacity-50">
-                    <span className="block">Again</span>
-                    <span className="block text-xs opacity-60 mt-0.5">retry</span>
-                  </button>
-                  <button onClick={() => handleRate('hard')} disabled={rating} className="py-3 rounded-xl bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 text-sm font-medium transition-colors disabled:opacity-50">
-                    <span className="block">Hard</span>
-                    <span className="block text-xs opacity-60 mt-0.5">same interval</span>
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => handleRate('again')}
+                disabled={rating}
+                className="py-3.5 rounded-xl bg-gray-700 text-gray-300 hover:bg-gray-600 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                もう一度
+              </button>
+              <button
+                onClick={() => handleRate(isCorrect ? 'good' : 'hard')}
+                disabled={rating}
+                className="py-3.5 rounded-xl bg-brand text-white hover:bg-brand/90 text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                わかった ✓
+              </button>
             </div>
           )}
 
