@@ -19,6 +19,39 @@ function getStudyBatch<T>(arr: T[]): T[] {
   return size === 0 ? shuffled : shuffled.slice(0, size)
 }
 
+const CATEGORY_SESSION_SIZE = 12
+
+/** Returns up to CATEGORY_SESSION_SIZE words sorted by mastery ascending
+ *  so students always study their least-known words first. */
+function getCategoryBatch(words: VocabularyBankEntry[]): VocabularyBankEntry[] {
+  return [...words]
+    .sort((a, b) =>
+      a.mastery_level !== b.mastery_level
+        ? a.mastery_level - b.mastery_level
+        : a.word.localeCompare(b.word)
+    )
+    .slice(0, CATEGORY_SESSION_SIZE)
+}
+
+function MasteryBar({ words }: { words: VocabularyBankEntry[] }) {
+  const counts = [0, 0, 0, 0]
+  for (const w of words) counts[w.mastery_level]++
+  const colors = ['bg-gray-300', 'bg-yellow-400', 'bg-brand', 'bg-green-400']
+  const labels = ['New', 'Seen', 'Familiar', 'Mastered']
+  return (
+    <div className="flex items-center gap-2 mt-1">
+      <div className="flex h-1.5 rounded-full overflow-hidden w-24 bg-gray-100">
+        {counts.map((c, i) => c > 0 && (
+          <div key={i} className={colors[i]} style={{ width: `${(c / words.length) * 100}%` }} />
+        ))}
+      </div>
+      <span className="text-xs text-gray-400">
+        {counts.map((c, i) => c > 0 ? `${c} ${labels[i]}` : null).filter(Boolean).join(' · ')}
+      </span>
+    </div>
+  )
+}
+
 const MASTERY_COLORS = [
   'bg-gray-100 text-gray-500',
   'bg-yellow-100 text-yellow-700',
@@ -337,26 +370,35 @@ export function VocabularyPage() {
 
           return (
             <div className="space-y-3">
-              {catGroups.map(([category, words]) => (
+              {catGroups.map(([category, words]) => {
+                const batch = getCategoryBatch(words)
+                const isCapped = words.length > CATEGORY_SESSION_SIZE
+                const sessions = Math.ceil(words.length / CATEGORY_SESSION_SIZE)
+                return (
                 <Card key={category}>
                   <CardContent className="py-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h2 className="font-semibold text-gray-900">{category}</h2>
-                        <p className="text-sm text-gray-500">{words.length}語</p>
+                        <p className="text-sm text-gray-500">
+                          {isCapped
+                            ? `${words.length}語 · ${sessions} sessions`
+                            : `${words.length}語`}
+                        </p>
+                        <MasteryBar words={words} />
                       </div>
                       <div className="flex gap-2 shrink-0 flex-wrap justify-end">
                         <button
-                          onClick={() => setStudyCards(getStudyBatch(words))}
+                          onClick={() => setStudyCards(batch)}
                           className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                         >
                           フラッシュカード
                         </button>
                         <button
-                          onClick={() => setLessonDeck({ deckId: null, deckName: category, words: getStudyBatch(words) })}
+                          onClick={() => setLessonDeck({ deckId: null, deckName: category, words: batch })}
                           className="px-3 py-1.5 text-xs font-medium text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
                         >
-                          📖 学習 + クイズ →
+                          {isCapped ? `📖 学習 + クイズ (${batch.length}/${words.length}) →` : '📖 学習 + クイズ →'}
                         </button>
                       </div>
                     </div>
@@ -365,16 +407,26 @@ export function VocabularyPage() {
                         <button
                           key={word.id}
                           onClick={() => speak(word.word)}
-                          className="text-xs px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-full text-gray-700 hover:border-brand hover:text-brand transition-colors"
+                          className={`text-xs px-2.5 py-1 border rounded-full transition-colors ${
+                            batch.includes(word)
+                              ? 'bg-brand/10 border-brand/30 text-brand hover:bg-brand/20'
+                              : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300'
+                          }`}
                           title={word.definition_en ?? word.definition_ja ?? ''}
                         >
                           {word.word}
                         </button>
                       ))}
                     </div>
+                    {isCapped && (
+                      <p className="text-xs text-gray-400 italic">
+                        Highlighted words are in this session · least learned first
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
-              ))}
+              )})}
+
             </div>
           )
         })()}
