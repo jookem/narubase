@@ -37,38 +37,58 @@ Deno.serve(async (req) => {
       .map(q => `- ${q.sentence_with_blank.replace('_____', `[${q.answer}]`)}`)
       .join('\n')
 
-    const prompt = `You are writing a grammar lesson slide for Japanese students studying for the Eiken exam (levels 5, 4, and 3). These are young learners, so keep all English simple and easy to understand.
+    const prompt = `You are writing a detailed grammar lesson slide for Japanese students studying for the Eiken exam (levels 5–3). Students are aged 12–18. Write all English simply and clearly. Use Japanese where it helps understanding.
 
 Grammar point: "${category}"
 
-Sample sentences from this grammar category:
+Sample quiz sentences from this category:
 ${sampleList || '(none provided)'}
+
+---
 
 OUTPUT: Return ONLY a valid JSON object. No text before or after. No markdown fences.
 
-Field instructions:
+FIELDS:
 
-"title": Use exactly "${category}"
+"title": Exactly "${category}"
 
-"explanation": Write in simple English mixed with Japanese where it helps. Show the grammar formula using English + Japanese notation, e.g. "There is + 名詞 (noun)." or "主語 + can + 動詞の原形." Then add 1-2 short simple sentences explaining when to use it. Keep it very easy — imagine explaining to a 12-year-old.
+"explanation": A rich, step-by-step explanation using markdown formatting. Structure it like this:
+
+  **Formula:** Show the grammar pattern clearly.
+  e.g. **Formula:** Subject + *can* + base verb (動詞の原形)
+
+  **意味 / Meaning:** One sentence in English and Japanese explaining what it means.
+
+  **いつ使う？ / When to use:**
+  Write a numbered list of the main uses/situations.
+  1. Use 1 — short English explanation (Japanese in parentheses)
+  2. Use 2 — etc.
+
+  **⚠ 注意 / Watch out:**
+  A bullet list of 2–3 common mistakes or important rules to remember.
+  - Rule 1
+  - Rule 2
+
+  Use **bold** for key terms, *italics* for emphasis or example words.
+  Keep each point short — one clear sentence each. No long paragraphs.
+  If the grammar has multiple forms (e.g. my/your/his/her), address each form in the numbered list.
 
 "examples": An array of strings. Each string is TWO lines separated by \\n:
-  Line 1: A simple English example sentence.
-  Line 2: The Japanese translation of that sentence.
-  Format each string exactly like: "There is a cat on the roof.\\nネコが屋根の上にいます。"
+  Line 1: A natural English example sentence.
+  Line 2: Japanese translation.
+  e.g. "She can speak three languages.\\n彼女は3カ国語を話すことができます。"
 
-  IMPORTANT — you must cover every form and variation of this grammar point.
-  - If the grammar has multiple words/forms (e.g. possessive adjectives: my/your/his/her/its/our/their, or articles: a/an/the, or demonstratives: this/that/these/those), include at least one example sentence per form.
-  - If the grammar has only one form, write 4 varied example sentences.
-  - Do NOT repeat the same form twice. Cover the full set.
+  Cover every major form or use case — minimum 4 examples, maximum 8.
+  Vary the subject, context, and sentence type (positive, negative, question).
+  Do NOT repeat the same form twice.
 
-"hint_ja": 2 sentences in Japanese only. Explain the grammar structure and when to use it. Include the formula in Japanese (e.g.「There is ＋ 名詞」の形で、〜があります・います、という意味を表します。).
+"hint_ja": 2–3 sentences in Japanese only. Summarise the grammar point, its formula, and a key tip for Japanese learners. Include the formula notation, e.g.「主語 + can + 動詞の原形」の形で能力や可能性を表します。
 
 Return this exact structure:
 {
   "title": "${category}",
   "explanation": "...",
-  "examples": ["English 1.\\n日本語1。", "English 2.\\n日本語2。", "...one per form..."],
+  "examples": ["English 1.\\n日本語1。", "English 2.\\n日本語2。"],
   "hint_ja": "..."
 }`
 
@@ -80,8 +100,8 @@ Return this exact structure:
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2048,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
