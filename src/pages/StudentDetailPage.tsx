@@ -52,7 +52,7 @@ export function StudentDetailPage() {
       supabase.from('student_goals').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('created_at', { ascending: false }),
       supabase.from('lessons').select('*, lesson_notes(*), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))').eq('teacher_id', user.id).eq('student_id', studentId).neq('status', 'cancelled').order('scheduled_start', { ascending: false }).limit(10),
       supabase.from('progress_snapshots').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('snapshot_date', { ascending: false }),
-      supabase.from('student_details').select('*').eq('student_id', studentId).single(),
+      supabase.from('student_details').select('*').eq('student_id', studentId).maybeSingle(),
     ])
 
     if (!studentResult.data) {

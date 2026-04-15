@@ -118,15 +118,25 @@ Deno.serve(async (req) => {
 
     if (!words.length) return jsonResponse({ categories: [] })
 
-    const allCategories: { id: string; category: string }[] = []
+    // Split into batches
+    const batches: Word[][] = []
     for (let i = 0; i < words.length; i += BATCH_SIZE) {
-      const batch = words.slice(i, i + BATCH_SIZE)
-      try {
-        const result = await categorizeBatch(batch)
-        allCategories.push(...result)
-      } catch (e) {
-        console.error(`Batch ${i}–${i + batch.length} failed:`, e)
-        return jsonResponse({ error: String(e) }, 500)
+      batches.push(words.slice(i, i + BATCH_SIZE))
+    }
+    console.log(`vocab-categorize: ${batches.length} batches, processing 3 at a time`)
+
+    // Process in parallel groups of 3 to avoid timeout on large decks
+    const CONCURRENCY = 3
+    const allCategories: { id: string; category: string }[] = []
+    for (let i = 0; i < batches.length; i += CONCURRENCY) {
+      const group = batches.slice(i, i + CONCURRENCY)
+      const results = await Promise.allSettled(group.map(batch => categorizeBatch(batch)))
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          console.error('Batch failed:', r.reason)
+          return jsonResponse({ error: String(r.reason) }, 500)
+        }
+        allCategories.push(...r.value)
       }
     }
 
