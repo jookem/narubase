@@ -576,33 +576,43 @@ export async function assignDeckToStudent(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.user) return { error: 'Not authenticated.' }
 
-  const { data: words, error: fetchErr } = await supabase
-    .from('vocabulary_deck_words')
-    .select('*')
-    .eq('deck_id', deckId)
-
-  if (fetchErr) {
-    console.error('[assignDeck] fetch deck words error', fetchErr)
-    return { error: fetchErr.message }
+  const words: DeckWord[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error: fetchErr } = await supabase
+      .from('vocabulary_deck_words')
+      .select('*')
+      .eq('deck_id', deckId)
+      .range(from, from + PAGE - 1)
+    if (fetchErr) {
+      console.error('[assignDeck] fetch deck words error', fetchErr)
+      return { error: fetchErr.message }
+    }
+    words.push(...(page ?? []))
+    if (!page || page.length < PAGE) break
   }
-  if (!words?.length) return { count: 0 }
+  if (!words.length) return { count: 0 }
 
   const wordTexts = words.map(w => w.word)
 
   // Find words already in the student's bank so we can update their deck_id
-  // without touching mastery/progress fields
-  const { data: existing, error: existingErr } = await supabase
-    .from('vocabulary_bank')
-    .select('id, word')
-    .eq('student_id', studentId)
-    .in('word', wordTexts)
-
-  if (existingErr) {
-    console.error('[assignDeck] fetch existing words error', existingErr)
-    return { error: existingErr.message }
+  // without touching mastery/progress fields. Paginate because .in() + range needed.
+  const existing: { id: string; word: string }[] = []
+  for (let i = 0; i < wordTexts.length; i += 500) {
+    const chunk = wordTexts.slice(i, i + 500)
+    const { data: page, error: existingErr } = await supabase
+      .from('vocabulary_bank')
+      .select('id, word')
+      .eq('student_id', studentId)
+      .in('word', chunk)
+    if (existingErr) {
+      console.error('[assignDeck] fetch existing words error', existingErr)
+      return { error: existingErr.message }
+    }
+    existing.push(...(page ?? []))
   }
 
-  const existingByWord = new Map((existing ?? []).map(e => [e.word, e.id]))
+  const existingByWord = new Map(existing.map(e => [e.word, e.id]))
 
   // Update deck_id for words already in bank (preserves mastery/next_review).
   // Batch by word text (shorter than UUIDs) to avoid URL length limits.
@@ -636,10 +646,11 @@ export async function assignDeckToStudent(
       category: w.category ?? null,
     }))
 
-  if (newEntries.length > 0) {
+  for (let i = 0; i < newEntries.length; i += 500) {
+    const batch = newEntries.slice(i, i + 500)
     const { error: insertErr } = await supabase
       .from('vocabulary_bank')
-      .insert(newEntries)
+      .insert(batch)
     if (insertErr) {
       console.error('[assignDeck] insert new words error', insertErr)
       return { error: insertErr.message }
