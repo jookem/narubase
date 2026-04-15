@@ -734,63 +734,94 @@ function DeckEditor({
                 </div>
               </form>
 
-              {/* Point list */}
+              {/* Point list — grouped by category */}
               {loading ? (
                 <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
               ) : points.length === 0 ? (
                 <p className="text-sm text-gray-400">No questions yet. Add some above.</p>
-              ) : (
-                <div className="space-y-1">
-                  {points.map(p => (
-                    <div key={p.id} className="border-b border-gray-100 last:border-0">
-                      {editingId === p.id ? (
-                        <div className="py-2 space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Input ref={editSentenceRef} value={editFields.sentence} onChange={e => setEditFields(f => ({ ...f, sentence: e.target.value }))} placeholder='Sentence with blank *' className="h-7 text-xs flex-1" />
-                            <button type="button" onClick={() => insertBlank(editSentenceRef, editFields.sentence, v => setEditFields(f => ({ ...f, sentence: v })))} title="Insert blank" className="shrink-0 px-2 h-7 text-xs border border-gray-300 rounded hover:bg-gray-100 font-mono text-gray-500 hover:text-brand transition-colors">_____</button>
+              ) : (() => {
+                const catMap = new Map<string, GrammarDeckPoint[]>()
+                for (const p of points) {
+                  const key = p.category ?? 'その他 / Other'
+                  if (!catMap.has(key)) catMap.set(key, [])
+                  catMap.get(key)!.push(p)
+                }
+                const catGroups = [...catMap.entries()].sort(([a], [b]) => {
+                  if (a === 'その他 / Other') return 1
+                  if (b === 'その他 / Other') return -1
+                  return a.localeCompare(b)
+                })
+
+                return (
+                  <div className="space-y-4">
+                    {catGroups.map(([category, groupPoints]) => {
+                      const missing = groupPoints.filter(p => !p.sentence_with_blank)
+                      return (
+                        <div key={category} className="space-y-1">
+                          {/* Category header */}
+                          <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{category}</h3>
+                            <span className="text-xs text-gray-400">{groupPoints.length}</span>
+                            {missing.length > 0 && (
+                              <span className="text-xs text-orange-500">{missing.length} missing sentence</span>
+                            )}
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input value={editFields.answer} onChange={e => setEditFields(f => ({ ...f, answer: e.target.value }))} placeholder="Answer *" className="h-7 text-xs" />
-                            <Input value={editFields.hint} onChange={e => setEditFields(f => ({ ...f, hint: e.target.value }))} placeholder="Japanese hint" className="h-7 text-xs" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input value={editFields.distractors} onChange={e => setEditFields(f => ({ ...f, distractors: e.target.value }))} placeholder="Wrong choices, comma-separated" className="h-7 text-xs" />
-                            <Input value={editFields.category} onChange={e => setEditFields(f => ({ ...f, category: e.target.value }))} placeholder="Category" className="h-7 text-xs" />
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={handleEditSave} disabled={savingEdit} className="px-3 py-1 bg-brand text-white text-xs rounded-md disabled:opacity-50">{savingEdit ? 'Saving…' : 'Save'}</button>
-                            <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-2 py-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-900">
-                              <SentenceWithBlank sentence={p.sentence_with_blank ?? p.point} />
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
-                                ✓ {p.answer ?? p.explanation}
-                              </span>
-                              {p.category && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">{p.category}</span>}
-                              {p.hint_ja && <span className="text-xs text-gray-500">{p.hint_ja}</span>}
-                              {(p.distractors ?? []).length > 0 && (
-                                <span className="text-xs text-gray-400">wrong: {p.distractors!.join(' | ')}</span>
+
+                          {groupPoints.map(p => (
+                            <div key={p.id} className="border-b border-gray-100 last:border-0">
+                              {editingId === p.id ? (
+                                <div className="py-2 space-y-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <Input ref={editSentenceRef} value={editFields.sentence} onChange={e => setEditFields(f => ({ ...f, sentence: e.target.value }))} placeholder='Sentence with blank *' className="h-7 text-xs flex-1" />
+                                    <button type="button" onClick={() => insertBlank(editSentenceRef, editFields.sentence, v => setEditFields(f => ({ ...f, sentence: v })))} title="Insert blank" className="shrink-0 px-2 h-7 text-xs border border-gray-300 rounded hover:bg-gray-100 font-mono text-gray-500 hover:text-brand transition-colors">_____</button>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Input value={editFields.answer} onChange={e => setEditFields(f => ({ ...f, answer: e.target.value }))} placeholder="Answer *" className="h-7 text-xs" />
+                                    <Input value={editFields.hint} onChange={e => setEditFields(f => ({ ...f, hint: e.target.value }))} placeholder="Japanese hint" className="h-7 text-xs" />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Input value={editFields.distractors} onChange={e => setEditFields(f => ({ ...f, distractors: e.target.value }))} placeholder="Wrong choices, comma-separated" className="h-7 text-xs" />
+                                    <Input value={editFields.category} onChange={e => setEditFields(f => ({ ...f, category: e.target.value }))} placeholder="Category" className="h-7 text-xs" />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button onClick={handleEditSave} disabled={savingEdit} className="px-3 py-1 bg-brand text-white text-xs rounded-md disabled:opacity-50">{savingEdit ? 'Saving…' : 'Save'}</button>
+                                    <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className={`flex items-start gap-2 py-2 ${!p.sentence_with_blank ? 'opacity-60' : ''}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-900">
+                                      <SentenceWithBlank sentence={p.sentence_with_blank ?? p.point} />
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                      {p.answer && (
+                                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                                          ✓ {p.answer}
+                                        </span>
+                                      )}
+                                      {p.hint_ja && <span className="text-xs text-gray-500">{p.hint_ja}</span>}
+                                      {(p.distractors ?? []).length > 0 && (
+                                        <span className="text-xs text-gray-400">wrong: {p.distractors!.join(' | ')}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 shrink-0">
+                                    <button onClick={() => startEdit(p)} className="text-xs text-gray-400 hover:text-brand transition-colors">Edit</button>
+                                    <button onClick={() => handleRemove(p.id)} disabled={removing === p.id} className="text-xs text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50">
+                                      {removing === p.id ? '…' : 'Remove'}
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                             </div>
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <button onClick={() => startEdit(p)} className="text-xs text-gray-400 hover:text-brand transition-colors">Edit</button>
-                            <button onClick={() => handleRemove(p.id)} disabled={removing === p.id} className="text-xs text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50">
-                              {removing === p.id ? '…' : 'Remove'}
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )
+              })()}
               <p className="text-xs text-gray-400 mt-3">{points.length} question{points.length !== 1 ? 's' : ''} in this deck</p>
             </>
           )}
