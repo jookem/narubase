@@ -71,7 +71,35 @@ export async function listGrammar(
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
 
-  return error ? { error: error.message } : { entries: data as GrammarBankEntry[] }
+  if (error) return { error: error.message }
+  const allEntries: any[] = data ?? []
+
+  // Merge content from grammar_deck_points for deck-assigned entries
+  const deckIds = [...new Set(allEntries.filter(e => e.deck_id).map(e => e.deck_id as string))]
+  if (deckIds.length > 0) {
+    const { data: points } = await supabase
+      .from('grammar_deck_points')
+      .select('deck_id, point, explanation, examples, sentence_with_blank, answer, hint_ja, distractors, category')
+      .in('deck_id', deckIds)
+
+    const templateMap = new Map<string, any>()
+    for (const p of points ?? []) templateMap.set(`${p.deck_id}:${p.point}`, p)
+
+    for (const entry of allEntries) {
+      if (!entry.deck_id) continue
+      const t = templateMap.get(`${entry.deck_id}:${entry.point}`)
+      if (!t) continue
+      entry.explanation = t.explanation
+      entry.examples = t.examples ?? []
+      entry.sentence_with_blank = t.sentence_with_blank
+      entry.answer = t.answer
+      entry.hint_ja = t.hint_ja
+      entry.distractors = t.distractors ?? []
+      entry.category = t.category
+    }
+  }
+
+  return { entries: allEntries as GrammarBankEntry[] }
 }
 
 export async function deleteGrammarEntry(
@@ -288,23 +316,17 @@ export async function assignGrammarDeckToStudent(
   }
   if (!points.length) return { count: 0 }
 
+  // Insert only progress rows — content is always read live from grammar_deck_points
   const entries = points.map((p: GrammarDeckPoint) => ({
     student_id: studentId,
     teacher_id: session.user.id,
     deck_id: deckId,
     point: p.point,
-    explanation: p.explanation,
-    examples: p.examples,
-    sentence_with_blank: p.sentence_with_blank,
-    answer: p.answer,
-    hint_ja: p.hint_ja,
-    distractors: p.distractors ?? [],
-    category: p.category ?? null,
   }))
 
   const { error } = await supabase
     .from('grammar_bank')
-    .upsert(entries, { onConflict: 'student_id,point', ignoreDuplicates: false })
+    .upsert(entries, { onConflict: 'student_id,point', ignoreDuplicates: true })
 
   if (error) return { error: error.message }
   return { count: entries.length }

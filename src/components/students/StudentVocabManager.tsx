@@ -15,7 +15,7 @@ import {
   assignDeckToStudent,
   removeDeckFromStudent,
   reorderVocabDecks,
-  syncVocabCategoriesToStudents,
+  getStudentVocab,
   type Deck,
   type DeckWord,
 } from '@/lib/api/lessons'
@@ -68,8 +68,6 @@ function DeckEditor({
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'words' | 'quiz'>('words')
   const [suggestingCategories, setSuggestingCategories] = useState(false)
-  const [syncingCategories, setSyncingCategories] = useState(false)
-
   // ── Quiz tab state — keyed by vocabulary_deck_words.id ───────
   const [generating, setGenerating] = useState(false)
   const [savingQuizId, setSavingQuizId] = useState<string | null>(null)
@@ -270,14 +268,6 @@ function DeckEditor({
     }
   }
 
-  async function handleSyncCategories() {
-    setSyncingCategories(true)
-    const { synced, error } = await syncVocabCategoriesToStudents(deck.id)
-    setSyncingCategories(false)
-    if (error) toast.error(`Sync failed: ${error}`)
-    else toast.success(`Synced ${synced} categories to students`)
-  }
-
   async function handleAddWord(e: React.FormEvent) {
     e.preventDefault()
     if (!word.trim() || !defJa.trim()) return
@@ -383,19 +373,10 @@ function DeckEditor({
             {words.length > 0 && (
               <button
                 onClick={handleSuggestCategories}
-                disabled={suggestingCategories || syncingCategories}
+                disabled={suggestingCategories}
                 className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 shrink-0"
               >
                 {suggestingCategories ? 'Categorizing…' : '✦ Auto-categorize'}
-              </button>
-            )}
-            {words.length > 0 && (
-              <button
-                onClick={handleSyncCategories}
-                disabled={syncingCategories || suggestingCategories}
-                className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 shrink-0"
-              >
-                {syncingCategories ? 'Syncing…' : '↑ Sync to students'}
               </button>
             )}
             <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
@@ -888,20 +869,9 @@ export function StudentVocabManager({ studentId }: Props) {
   const [imageTargetId, setImageTargetId] = useState<string | null>(null)
 
   async function loadVocab() {
-    const all: VocabularyBankEntry[] = []
-    const PAGE = 1000
-    for (let from = 0; ; from += PAGE) {
-      const { data, error } = await supabase
-        .from('vocabulary_bank')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('created_at', { ascending: false })
-        .range(from, from + PAGE - 1)
-      if (error) { console.error('VocabManager load error:', error.message); break }
-      all.push(...(data ?? []))
-      if (!data || data.length < PAGE) break
-    }
-    setVocab(all)
+    const { entries, error } = await getStudentVocab(studentId)
+    if (error) console.error('VocabManager load error:', error)
+    setVocab(entries)
     setLoading(false)
   }
 
@@ -916,12 +886,16 @@ export function StudentVocabManager({ studentId }: Props) {
 
   const assignedDeckIds = new Set(vocab.map(v => v.deck_id).filter(Boolean) as string[])
 
+  const [savingDeck, setSavingDeck] = useState(false)
+
   async function handleCreateDeck(e: React.FormEvent) {
     e.preventDefault()
-    if (!newDeckName.trim()) return
+    if (!newDeckName.trim() || savingDeck) return
+    setSavingDeck(true)
     const { deck, error } = await createDeck(newDeckName.trim())
+    setSavingDeck(false)
     if (error) { toast.error(error); return }
-    setDecks(prev => [deck!, ...prev])
+    await loadDecks()
     setNewDeckName('')
     setCreatingDeck(false)
     toast.success(`Deck "${deck!.name}" created`)
@@ -1099,8 +1073,8 @@ export function StudentVocabManager({ studentId }: Props) {
                   placeholder="Deck name…"
                   className="flex-1 text-sm h-8"
                 />
-                <button type="submit" disabled={!newDeckName.trim()} className="px-3 py-1 bg-brand text-white text-sm rounded-md disabled:opacity-50">
-                  Create
+                <button type="submit" disabled={!newDeckName.trim() || savingDeck} className="px-3 py-1 bg-brand text-white text-sm rounded-md disabled:opacity-50">
+                  {savingDeck ? 'Creating…' : 'Create'}
                 </button>
                 <button type="button" onClick={() => { setCreatingDeck(false); setNewDeckName('') }} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700">
                   Cancel

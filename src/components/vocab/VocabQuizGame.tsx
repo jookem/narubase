@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase' // still needed for auth.getUser
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
@@ -96,37 +96,16 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
   async function loadQuestions(uid: string | null = userId) {
     setGenerating(true)
 
-    // Fetch quiz data from vocabulary_deck_words (canonical source).
-    // vocabulary_bank rows may not have been synced yet, so always go to the template.
-    const deckIds = [...new Set(words.map(w => w.deck_id).filter(Boolean) as string[])]
-    const wordTexts = words.map(w => w.word)
-
-    let quizByWord = new Map<string, { quiz_sentence: string; quiz_distractors: string[] }>()
-
-    if (deckIds.length > 0) {
-      const { data: deckWords } = await supabase
-        .from('vocabulary_deck_words')
-        .select('word, quiz_sentence, quiz_distractors')
-        .in('deck_id', deckIds)
-        .in('word', wordTexts)
-        .not('quiz_sentence', 'is', null)
-      for (const dw of deckWords ?? []) {
-        if (dw.quiz_sentence?.includes('_____') && dw.quiz_distractors?.length >= 1) {
-          quizByWord.set(dw.word, { quiz_sentence: dw.quiz_sentence, quiz_distractors: dw.quiz_distractors })
-        }
-      }
-    }
-
+    // Content is already merged onto word objects via getStudentVocab — no extra fetch needed.
     const allQuestions: QuizQuestion[] = shuffle(
       words
         .map(w => {
-          const q = quizByWord.get(w.word)
-          if (!q) return null
+          if (!w.quiz_sentence?.includes('_____') || !w.quiz_distractors?.length) return null
           return {
             word: w.word,
-            sentence: q.quiz_sentence,
+            sentence: w.quiz_sentence,
             answer: w.word,
-            choices: shuffle([w.word, ...q.quiz_distractors.slice(0, 3)]),
+            choices: shuffle([w.word, ...w.quiz_distractors.slice(0, 3)]),
           }
         })
         .filter(Boolean) as QuizQuestion[]

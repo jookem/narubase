@@ -334,8 +334,6 @@ function DeckEditor({
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
   const [suggestingCategories, setSuggestingCategories] = useState(false)
-  const [syncingCategories, setSyncingCategories] = useState(false)
-
   // Add form
   const [addSentence, setAddSentence] = useState('')
   const [addAnswer, setAddAnswer] = useState('')
@@ -519,31 +517,6 @@ function DeckEditor({
     }
   }
 
-  async function handleSyncCategoriesToStudents() {
-    if (!points.length) { toast.info('No questions to sync'); return }
-    setSyncingCategories(true)
-    try {
-      // Batch in groups of 50 to avoid connection limits
-      for (let i = 0; i < points.length; i += 50) {
-        await Promise.all(points.slice(i, i + 50).map(p =>
-          supabase.from('grammar_bank').update({
-            explanation: p.explanation,
-            examples: p.examples ?? [],
-            sentence_with_blank: p.sentence_with_blank ?? null,
-            answer: p.answer ?? null,
-            hint_ja: p.hint_ja ?? null,
-            distractors: p.distractors ?? [],
-            category: p.category ?? null,
-          }).eq('deck_id', deck.id).eq('point', p.point)
-        ))
-      }
-      toast.success(`Synced ${points.length} point${points.length !== 1 ? 's' : ''} to all students`)
-    } catch (e: any) {
-      toast.error(`Failed: ${e?.message ?? String(e)}`)
-    } finally {
-      setSyncingCategories(false)
-    }
-  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -665,15 +638,6 @@ function DeckEditor({
                 className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 shrink-0"
               >
                 {suggestingCategories ? 'Categorizing…' : '✦ Auto-categorize all'}
-              </button>
-            )}
-            {points.length > 0 && (
-              <button
-                onClick={handleSyncCategoriesToStudents}
-                disabled={syncingCategories}
-                className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 shrink-0"
-              >
-                {syncingCategories ? 'Syncing…' : '↑ Sync to students'}
               </button>
             )}
             <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
@@ -879,12 +843,16 @@ export function GrammarBankManager({ studentId }: { studentId: string }) {
 
   const assignedDeckIds = new Set(entries.map(e => e.deck_id).filter(Boolean) as string[])
 
+  const [savingDeck, setSavingDeck] = useState(false)
+
   async function handleCreateDeck(ev: React.FormEvent) {
     ev.preventDefault()
-    if (!newDeckName.trim()) return
+    if (!newDeckName.trim() || savingDeck) return
+    setSavingDeck(true)
     const { deck, error } = await createGrammarDeck(newDeckName.trim())
+    setSavingDeck(false)
     if (error) { toast.error(error); return }
-    setDecks(prev => [deck!, ...prev])
+    await loadDecks()
     setNewDeckName('')
     setCreatingDeck(false)
     toast.success(`Deck "${deck!.name}" created`)
@@ -978,7 +946,7 @@ export function GrammarBankManager({ studentId }: { studentId: string }) {
             {creatingDeck && (
               <form onSubmit={handleCreateDeck} className="flex gap-2">
                 <Input autoFocus value={newDeckName} onChange={e => setNewDeckName(e.target.value)} placeholder="Deck name…" className="flex-1 text-sm h-8" />
-                <button type="submit" disabled={!newDeckName.trim()} className="px-3 py-1 bg-brand text-white text-sm rounded-md disabled:opacity-50">Create</button>
+                <button type="submit" disabled={!newDeckName.trim() || savingDeck} className="px-3 py-1 bg-brand text-white text-sm rounded-md disabled:opacity-50">{savingDeck ? 'Creating…' : 'Create'}</button>
                 <button type="button" onClick={() => { setCreatingDeck(false); setNewDeckName('') }} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
               </form>
             )}

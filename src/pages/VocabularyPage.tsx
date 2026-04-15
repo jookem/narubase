@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { VocabularyFlashcard } from '@/components/lesson/VocabularyFlashcard'
 import { StudySession } from '@/components/lesson/StudySession'
 import { speak } from '@/lib/tts'
-import { updateVocabMastery } from '@/lib/api/lessons'
+import { updateVocabMastery, getStudentVocab } from '@/lib/api/lessons'
 import type { VocabularyBankEntry, MasteryLevel } from '@/lib/types/database'
 import { PageError } from '@/components/shared/PageError'
 import { VocabQuizGame } from '@/components/vocab/VocabQuizGame'
@@ -141,21 +140,9 @@ export function VocabularyPage() {
   async function loadVocab() {
     if (!user) return
     try {
-      const allEntries: VocabularyBankEntry[] = []
-      const PAGE = 1000
-      for (let from = 0; ; from += PAGE) {
-        const { data, error: err } = await supabase
-          .from('vocabulary_bank')
-          .select('*')
-          .eq('student_id', user.id)
-          .order('word', { ascending: true })
-          .range(from, from + PAGE - 1)
-        if (err) throw err
-        allEntries.push(...(data ?? []))
-        if (!data || data.length < PAGE) break
-      }
-
-      setVocab(allEntries)
+      const { entries, error: err } = await getStudentVocab(user.id)
+      if (err) throw new Error(err)
+      setVocab(entries)
       setError(null)
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load vocabulary')

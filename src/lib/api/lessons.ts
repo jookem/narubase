@@ -576,168 +576,125 @@ export async function assignDeckToStudent(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.user) return { error: 'Not authenticated.' }
 
-  const words: DeckWord[] = []
+  // Fetch word list from template (canonical source)
+  const wordTexts: string[] = []
   const PAGE = 1000
   for (let from = 0; ; from += PAGE) {
     const { data: page, error: fetchErr } = await supabase
       .from('vocabulary_deck_words')
-      .select('*')
+      .select('word')
       .eq('deck_id', deckId)
       .order('word', { ascending: true })
       .range(from, from + PAGE - 1)
-    if (fetchErr) {
-      console.error('[assignDeck] fetch deck words error', fetchErr)
-      return { error: fetchErr.message }
-    }
-    words.push(...(page ?? []))
+    if (fetchErr) return { error: fetchErr.message }
+    wordTexts.push(...(page ?? []).map((w: any) => w.word))
     if (!page || page.length < PAGE) break
   }
-  if (!words.length) return { count: 0 }
+  if (!wordTexts.length) return { count: 0 }
 
-  const wordTexts = words.map(w => w.word)
-
-  // Find words already in the student's bank so we can update their deck_id
-  // without touching mastery/progress fields. Paginate because .in() + range needed.
+  // Find words already in the student's bank (preserve mastery/progress)
   const existing: { id: string; word: string }[] = []
   for (let i = 0; i < wordTexts.length; i += 500) {
     const chunk = wordTexts.slice(i, i + 500)
-    const { data: page, error: existingErr } = await supabase
+    const { data: page } = await supabase
       .from('vocabulary_bank')
       .select('id, word')
       .eq('student_id', studentId)
       .in('word', chunk)
-    if (existingErr) {
-      console.error('[assignDeck] fetch existing words error', existingErr)
-      return { error: existingErr.message }
-    }
     existing.push(...(page ?? []))
   }
 
   const existingByWord = new Map(existing.map(e => [e.word, e.id]))
 
-  // Update deck_id for words already in bank (preserves mastery/next_review).
-  // Batch by word text (shorter than UUIDs) to avoid URL length limits.
+  // Update deck_id for words already in bank (preserves mastery/next_review)
   const existingWords = [...existingByWord.keys()]
-  const BATCH = 50
-  for (let i = 0; i < existingWords.length; i += BATCH) {
-    const batch = existingWords.slice(i, i + BATCH)
-    const { error: updateErr } = await supabase
+  for (let i = 0; i < existingWords.length; i += 50) {
+    await supabase
       .from('vocabulary_bank')
       .update({ deck_id: deckId })
       .eq('student_id', studentId)
-      .in('word', batch)
-    if (updateErr) {
-      console.error('[assignDeck] update deck_id error', updateErr)
-      return { error: updateErr.message }
-    }
+      .in('word', existingWords.slice(i, i + 50))
   }
 
-  // Insert only words not yet in the bank
-  const newEntries = words
-    .filter(w => !existingByWord.has(w.word))
+  // Insert only progress rows for words not yet in the bank (no content — read from template)
+  const newEntries = wordTexts
+    .filter(w => !existingByWord.has(w))
     .map(w => ({
       student_id: studentId,
       teacher_id: session.user.id,
       deck_id: deckId,
-      word: w.word,
-      reading: w.reading ?? null,
-      definition_ja: w.definition_ja ?? null,
-      definition_en: w.definition_en ?? null,
-      example: w.example ?? null,
-      category: w.category ?? null,
+      word: w,
     }))
 
   for (let i = 0; i < newEntries.length; i += 500) {
-    const batch = newEntries.slice(i, i + 500)
     const { error: insertErr } = await supabase
       .from('vocabulary_bank')
-      .insert(batch)
-    if (insertErr) {
-      console.error('[assignDeck] insert new words error', insertErr)
-      return { error: insertErr.message }
+      .insert(newEntries.slice(i, i + 500))
+    if (insertErr) return { error: insertErr.message }
+  }
+
+  return { count: wordTexts.length }
+}
+
+/**
+ * Fetch student vocabulary bank and merge content from vocabulary_deck_words.
+ * Words assigned from a deck always show live template content.
+ * Words added from lesson notes retain their own stored content.
+ */
+export async function getStudentVocab(
+  studentId: string,
+): Promise<{ entries: import('@/lib/types/database').VocabularyBankEntry[]; error?: string }> {
+  const allEntries: any[] = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('vocabulary_bank')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('word', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) return { entries: [], error: error.message }
+    allEntries.push(...(data ?? []))
+    if (!data || data.length < PAGE) break
+  }
+
+  // Collect distinct deck IDs for deck-assigned words
+  const deckIds = [...new Set(allEntries.filter(e => e.deck_id).map(e => e.deck_id as string))]
+
+  if (deckIds.length > 0) {
+    // Fetch template content for all relevant decks
+    const deckWords: any[] = []
+    for (let from = 0; ; from += PAGE) {
+      const { data } = await supabase
+        .from('vocabulary_deck_words')
+        .select('deck_id, word, reading, definition_en, definition_ja, example, category, quiz_sentence, quiz_distractors')
+        .in('deck_id', deckIds)
+        .order('word', { ascending: true })
+        .range(from, from + PAGE - 1)
+      deckWords.push(...(data ?? []))
+      if (!data || data.length < PAGE) break
+    }
+
+    // Build lookup map
+    const templateMap = new Map<string, any>()
+    for (const dw of deckWords) templateMap.set(`${dw.deck_id}:${dw.word}`, dw)
+
+    // Overlay template content on bank entries
+    for (const entry of allEntries) {
+      if (!entry.deck_id) continue
+      const t = templateMap.get(`${entry.deck_id}:${entry.word}`)
+      if (!t) continue
+      entry.reading = t.reading
+      entry.definition_en = t.definition_en
+      entry.definition_ja = t.definition_ja
+      entry.example = t.example
+      entry.category = t.category
+      entry.quiz_sentence = t.quiz_sentence
+      entry.quiz_distractors = t.quiz_distractors ?? []
     }
   }
 
-  return { count: words.length }
-}
-
-/** Push categories from ALL decks' vocabulary_deck_words to vocabulary_bank. */
-export async function syncAllVocabCategoriesToStudents(): Promise<{ synced?: number; error?: string }> {
-  const { decks, error: listErr } = await listDecks()
-  if (listErr) return { error: listErr }
-  if (!decks?.length) return { synced: 0 }
-  let total = 0
-  for (const deck of decks) {
-    const { synced, error } = await syncVocabCategoriesToStudents(deck.id)
-    if (error) return { error }
-    total += synced ?? 0
-  }
-  return { synced: total }
-}
-
-/** Push category + quiz data from vocabulary_deck_words to every matching vocabulary_bank row. */
-export async function syncVocabCategoriesToStudents(
-  deckId: string,
-): Promise<{ synced?: number; error?: string }> {
-  const words: { word: string; category: string | null; quiz_sentence: string | null; quiz_distractors: string[] | null }[] = []
-  const PAGE = 1000
-  for (let from = 0; ; from += PAGE) {
-    const { data: page, error: fetchErr } = await supabase
-      .from('vocabulary_deck_words')
-      .select('word, category, quiz_sentence, quiz_distractors')
-      .eq('deck_id', deckId)
-      .order('word', { ascending: true })
-      .range(from, from + PAGE - 1)
-    if (fetchErr) return { error: fetchErr.message }
-    words.push(...((page ?? []) as typeof words))
-    if (!page || page.length < PAGE) break
-  }
-  if (!words.length) return { synced: 0 }
-
-  // Update each word's category + quiz data in vocabulary_bank
-  // Batch into 500-word chunks per update to stay under URL limits
-  for (let i = 0; i < words.length; i += 500) {
-    const chunk = words.slice(i, i + 500)
-    // Group by identical (category, quiz_sentence, quiz_distractors) to minimise queries
-    // Simpler: just update each word individually in parallel batches of 50
-    await Promise.all(chunk.map(w =>
-      supabase.from('vocabulary_bank')
-        .update({
-          category: w.category ?? null,
-          quiz_sentence: w.quiz_sentence ?? null,
-          quiz_distractors: w.quiz_distractors ?? [],
-        })
-        .eq('deck_id', deckId)
-        .eq('word', w.word)
-    ))
-  }
-
-  return { synced: words.length }
-}
-
-export async function syncDeckToAllStudents(
-  deckId: string,
-): Promise<{ synced?: number; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return { error: 'Not authenticated.' }
-
-  // Find all students who have this deck assigned
-  const { data: rows, error: fetchErr } = await supabase
-    .from('vocabulary_bank')
-    .select('student_id')
-    .eq('deck_id', deckId)
-    .eq('teacher_id', session.user.id)
-
-  if (fetchErr) return { error: fetchErr.message }
-
-  const studentIds = [...new Set((rows ?? []).map(r => r.student_id))]
-  if (!studentIds.length) return { synced: 0 }
-
-  const results = await Promise.all(studentIds.map(sid => assignDeckToStudent(deckId, sid)))
-  const err = results.find(r => r.error)
-  if (err?.error) return { error: err.error }
-
-  return { synced: studentIds.length }
+  return { entries: allEntries }
 }
 
 export async function removeDeckFromStudent(
