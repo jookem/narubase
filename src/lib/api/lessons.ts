@@ -695,16 +695,26 @@ export async function syncVocabCategoriesToStudents(
   }
   if (!words.length) return { synced: 0 }
 
-  const results = await Promise.all(
-    words.map(w =>
-      supabase.from('vocabulary_bank')
-        .update({ category: w.category })
+  // Group by category so we can update all words in one query per category
+  const byCat = new Map<string, string[]>()
+  for (const w of words) {
+    if (!byCat.has(w.category)) byCat.set(w.category, [])
+    byCat.get(w.category)!.push(w.word)
+  }
+
+  for (const [category, wordList] of byCat) {
+    // Batch .in() calls at 500 words to stay under URL length limits
+    for (let i = 0; i < wordList.length; i += 500) {
+      const chunk = wordList.slice(i, i + 500)
+      const { error } = await supabase
+        .from('vocabulary_bank')
+        .update({ category })
         .eq('deck_id', deckId)
-        .eq('word', w.word)
-    )
-  )
-  const err = results.find(r => r.error)
-  if (err?.error) return { error: err.error.message }
+        .in('word', chunk)
+      if (error) return { error: error.message }
+    }
+  }
+
   return { synced: words.length }
 }
 
