@@ -74,7 +74,17 @@ export async function listGrammar(
     .order('created_at', { ascending: false })
 
   if (error) return { error: error.message }
-  const allEntries: any[] = data ?? []
+  const allEntries: any[] = (data ?? []).map((e: any) => ({
+    ...e,
+    explanation: e.explanation ?? '',
+    examples: e.examples ?? [],
+    sentence_with_blank: e.sentence_with_blank ?? null,
+    sentence_ja: e.sentence_ja ?? null,
+    answer: e.answer ?? null,
+    hint_ja: e.hint_ja ?? null,
+    distractors: e.distractors ?? [],
+    category: e.category ?? null,
+  }))
 
   // Merge content from grammar_deck_points for deck-assigned entries
   const deckIds = [...new Set(allEntries.filter(e => e.deck_id).map(e => e.deck_id as string))]
