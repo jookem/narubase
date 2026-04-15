@@ -72,10 +72,26 @@ function sessionKey(userId: string) {
   return `narubase_session_grammar_${userId}`
 }
 
+function buildQueue(cards: GrammarBankEntry[]): GrammarBankEntry[] {
+  // Group by category, shuffle within each group, then concatenate groups
+  const groups = new Map<string, GrammarBankEntry[]>()
+  for (const c of cards) {
+    const key = c.category ?? ''
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(c)
+  }
+  const result: GrammarBankEntry[] = []
+  for (const group of groups.values()) {
+    result.push(...shuffle(group))
+  }
+  return result
+}
+
 export function GrammarSession({ cards, onClose, onComplete }: Props) {
-  const [queue, setQueue] = useState<GrammarBankEntry[]>([...cards])
+  const [queue, setQueue] = useState<GrammarBankEntry[]>(() => buildQueue(cards))
   const [againQueue, setAgainQueue] = useState<GrammarBankEntry[]>([])
-  const [current, setCurrent] = useState<GrammarBankEntry | null>(cards[0] ?? null)
+  const initialQueue = buildQueue(cards)
+  const [current, setCurrent] = useState<GrammarBankEntry | null>(initialQueue[0] ?? null)
   const [choices, setChoices] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('question')
@@ -273,6 +289,15 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
         />
       ) : current ? (
         <div className="w-full max-w-lg space-y-4">
+          {/* Category label */}
+          {current.category && (
+            <div className="text-center">
+              <span className="inline-block px-3 py-1 text-xs font-semibold text-purple-300 bg-purple-500/20 rounded-full tracking-wide uppercase">
+                {current.category}
+              </span>
+            </div>
+          )}
+
           {/* Question card */}
           <div className="bg-white rounded-2xl p-8 shadow-2xl text-center space-y-4">
             <div className="text-sm text-gray-800 leading-relaxed">

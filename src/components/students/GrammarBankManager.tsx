@@ -443,21 +443,6 @@ function DeckEditor({
     const newPoints = refreshed?.points ?? points
     setPoints(newPoints)
 
-    // Auto-sync all imported points to existing student grammar_bank copies
-    for (let i = 0; i < newPoints.length; i += 50) {
-      await Promise.all(newPoints.slice(i, i + 50).map(p =>
-        supabase.from('grammar_bank').update({
-          explanation: p.explanation,
-          examples: p.examples ?? [],
-          sentence_with_blank: p.sentence_with_blank ?? null,
-          answer: p.answer ?? null,
-          hint_ja: p.hint_ja ?? null,
-          distractors: p.distractors ?? [],
-          category: p.category ?? null,
-        }).eq('deck_id', deck.id).eq('point', p.point)
-      ))
-    }
-
     setImporting(false)
     setShowImport(false)
     setImportJson('')
@@ -508,12 +493,6 @@ function DeckEditor({
         supabase.from('grammar_deck_points').update({ category }).eq('id', id)
       ))
       // Propagate to student grammar_bank entries from this deck
-      const pointsById = new Map(points.map(p => [p.id, p]))
-      await Promise.all(categories.map(({ id, category }) => {
-        const p = pointsById.get(id)
-        if (!p) return Promise.resolve()
-        return supabase.from('grammar_bank').update({ category }).eq('deck_id', deck.id).eq('point', p.point)
-      }))
       setPoints(prev => prev.map(p => {
         const match = categories.find(c => c.id === p.id)
         return match ? { ...p, category: match.category } : p

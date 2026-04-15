@@ -69,7 +69,7 @@ export async function listGrammar(
 ): Promise<{ entries?: GrammarBankEntry[]; error?: string }> {
   const { data, error } = await supabase
     .from('grammar_bank')
-    .select('*')
+    .select('id, student_id, teacher_id, lesson_id, deck_id, point, mastery_level, next_review, created_at, updated_at')
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
 
