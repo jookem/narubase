@@ -76,9 +76,14 @@ Deno.serve(async (req) => {
         sentenceRule: 'Sentences must be 6-10 words. Present and past simple. Modal verbs: can, want to, like to. Common vocabulary only.',
         grammarBan: 'NO present perfect. NO passive voice. NO complex clauses.',
       }
+      if (l.includes('pre-2 plus') || l.includes('pre2plus') || l.includes('pre 2 plus')) return {
+        label: 'Eiken Pre-2 Plus (CEFR B1+)',
+        sentenceRule: 'Sentences 10-14 words. Present/past simple, present perfect, passive voice, modal verbs (should, must, might, could). Topics: social issues, technology, environment, opinions.',
+        grammarBan: 'NO overly complex relative clauses. Keep sentence structure clear and unambiguous.',
+      }
       if (l.includes('3') || l.includes('three') || l.includes('pre-2') || l.includes('pre2')) return {
         label: 'Eiken Grade 3 / Pre-2 (CEFR B1)',
-        sentenceRule: 'Sentences can be 8-12 words. Present/past simple, present perfect, modal verbs (should, must, can). Common everyday topics.',
+        sentenceRule: 'Sentences 8-12 words. Present/past simple, present perfect, modal verbs (should, must, can). Common everyday topics.',
         grammarBan: 'NO passive voice. NO complex subordinate clauses.',
       }
       if (l.includes('2') || l.includes('two')) return {
