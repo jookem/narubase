@@ -291,12 +291,20 @@ export function GrammarPage() {
                       const all = categoryMap.get(cat)!
                       const isCapped = sessionLimit > 0 && all.length > sessionLimit
                       return (
-                        <button
-                          onClick={() => startStudy(getCategoryBatch(all))}
-                          className="text-xs text-gray-400 hover:text-brand transition-colors"
-                        >
-                          {isCapped ? `Study (${sessionLimit}/${all.length}) →` : 'Study this topic →'}
-                        </button>
+                        <div className="flex gap-2 items-center">
+                          <button
+                            onClick={() => startStudy(getCategoryBatch(all), true)}
+                            className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            フラッシュカード
+                          </button>
+                          <button
+                            onClick={() => startStudy(getCategoryBatch(all))}
+                            className="px-3 py-1.5 text-xs font-medium text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
+                          >
+                            {isCapped ? `📖 学習 (${sessionLimit}/${all.length}) →` : '📖 学習 →'}
+                          </button>
+                        </div>
                       )
                     })()}
                   </div>
@@ -321,12 +329,20 @@ export function GrammarPage() {
                     {(() => {
                       const isCapped = sessionLimit > 0 && uncategorized.length > sessionLimit
                       return (
-                        <button
-                          onClick={() => startStudy(getCategoryBatch(uncategorized))}
-                          className="text-xs text-gray-400 hover:text-brand transition-colors"
-                        >
-                          {isCapped ? `Study (${sessionLimit}/${uncategorized.length}) →` : 'Study this topic →'}
-                        </button>
+                        <div className="flex gap-2 items-center">
+                          <button
+                            onClick={() => startStudy(getCategoryBatch(uncategorized), true)}
+                            className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            フラッシュカード
+                          </button>
+                          <button
+                            onClick={() => startStudy(getCategoryBatch(uncategorized))}
+                            className="px-3 py-1.5 text-xs font-medium text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
+                          >
+                            {isCapped ? `📖 学習 (${sessionLimit}/${uncategorized.length}) →` : '📖 学習 →'}
+                          </button>
+                        </div>
                       )
                     })()}
                   </div>

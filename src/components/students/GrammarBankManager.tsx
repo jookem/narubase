@@ -371,6 +371,7 @@ function DeckEditor({
   const [addSentence, setAddSentence] = useState('')
   const [addAnswer, setAddAnswer] = useState('')
   const [addHint, setAddHint] = useState('')
+  const [addAnswerJa, setAddAnswerJa] = useState('')
   const [addDistractors, setAddDistractors] = useState('')
   const [addCategory, setAddCategory] = useState('')
   const [saving, setSaving] = useState(false)
@@ -396,7 +397,7 @@ function DeckEditor({
 
   // Inline edit
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editFields, setEditFields] = useState({ sentence: '', answer: '', hint: '', distractors: '', category: '' })
+  const [editFields, setEditFields] = useState({ sentence: '', answer: '', hint: '', answer_ja: '', distractors: '', category: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
 
@@ -550,6 +551,7 @@ function DeckEditor({
       sentence_with_blank: sentence,
       answer,
       hint_ja: addHint.trim() || undefined,
+      answer_ja: addAnswerJa.trim() || undefined,
       distractors,
       category: addCategory.trim() || undefined,
     })
@@ -557,7 +559,7 @@ function DeckEditor({
     if (error) { toast.error(error); return }
     const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
     setPoints(refreshed?.points ?? points)
-    setAddSentence(''); setAddAnswer(''); setAddHint(''); setAddDistractors(''); setAddCategory('')
+    setAddSentence(''); setAddAnswer(''); setAddHint(''); setAddAnswerJa(''); setAddDistractors(''); setAddCategory('')
     onUpdated()
   }
 
@@ -567,6 +569,7 @@ function DeckEditor({
       sentence: p.sentence_with_blank ?? p.point,
       answer: p.answer ?? p.explanation,
       hint: p.hint_ja ?? '',
+      answer_ja: p.answer_ja ?? '',
       distractors: (p.distractors ?? []).join(', '),
       category: p.category ?? '',
     })
@@ -591,6 +594,7 @@ function DeckEditor({
       sentence_with_blank: sentence,
       answer,
       hint_ja: editFields.hint.trim() || undefined,
+      answer_ja: editFields.answer_ja.trim() || undefined,
       distractors,
       category,
     })
@@ -612,6 +616,7 @@ function DeckEditor({
       sentence_with_blank: sentence,
       answer,
       hint_ja: editFields.hint.trim() || null,
+      answer_ja: editFields.answer_ja.trim() || null,
       distractors,
       category: category ?? null,
     } : p))
@@ -747,6 +752,7 @@ function DeckEditor({
                   <Input value={addAnswer} onChange={e => setAddAnswer(e.target.value)} placeholder="Answer * e.g. is" required />
                   <Input value={addHint} onChange={e => setAddHint(e.target.value)} placeholder="Japanese hint e.g. 「単数」です" />
                 </div>
+                <Input value={addAnswerJa} onChange={e => setAddAnswerJa(e.target.value)} placeholder="Japanese answer e.g. もっと大きい (shown in blank on Pattern card)" />
                 <div className="grid grid-cols-2 gap-2">
                   <Input value={addDistractors} onChange={e => setAddDistractors(e.target.value)} placeholder="Wrong choices (comma-separated)" />
                   <Input value={addCategory} onChange={e => setAddCategory(e.target.value)} placeholder="Category e.g. Present Continuous" />
@@ -806,6 +812,7 @@ function DeckEditor({
                                     <Input value={editFields.answer} onChange={e => setEditFields(f => ({ ...f, answer: e.target.value }))} placeholder="Answer *" className="h-7 text-xs" />
                                     <Input value={editFields.hint} onChange={e => setEditFields(f => ({ ...f, hint: e.target.value }))} placeholder="Japanese hint" className="h-7 text-xs" />
                                   </div>
+                                  <Input value={editFields.answer_ja} onChange={e => setEditFields(f => ({ ...f, answer_ja: e.target.value }))} placeholder="Japanese answer e.g. もっと大きい" className="h-7 text-xs" />
                                   <div className="grid grid-cols-2 gap-2">
                                     <Input value={editFields.distractors} onChange={e => setEditFields(f => ({ ...f, distractors: e.target.value }))} placeholder="Wrong choices, comma-separated" className="h-7 text-xs" />
                                     <Input value={editFields.category} onChange={e => setEditFields(f => ({ ...f, category: e.target.value }))} placeholder="Category" className="h-7 text-xs" />

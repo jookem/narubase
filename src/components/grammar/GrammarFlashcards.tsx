@@ -12,6 +12,20 @@ function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5)
 }
 
+function PointDisplay({ point, answerJa }: { point: string; answerJa?: string | null }) {
+  if (!answerJa || !point.includes('_____')) {
+    return <h2 className="text-2xl font-bold text-white">{point}</h2>
+  }
+  const parts = point.split('_____')
+  return (
+    <h2 className="text-2xl font-bold text-white">
+      {parts[0]}
+      <span className="text-yellow-300 font-bold">[{answerJa}]</span>
+      {parts[1]}
+    </h2>
+  )
+}
+
 export function GrammarFlashcards({ cards, onComplete, onClose }: Props) {
   const [deck] = useState(() => shuffle(cards))
   const [index, setIndex] = useState(0)
@@ -63,7 +77,7 @@ export function GrammarFlashcards({ cards, onComplete, onClose }: Props) {
         {/* Front — always visible */}
         <div className="w-full max-w-lg bg-white/10 rounded-2xl p-6 text-center space-y-3">
           <p className="text-white/40 text-xs font-semibold uppercase tracking-widest">Grammar Point</p>
-          <h2 className="text-2xl font-bold text-white">{card.point}</h2>
+          <PointDisplay point={card.point} answerJa={card.answer_ja} />
           {card.hint_ja && (
             <p className="text-brand-light text-sm">{card.hint_ja}</p>
           )}

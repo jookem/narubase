@@ -16,6 +16,7 @@ export interface GrammarBankEntry {
   sentence_ja: string | null
   answer: string | null
   hint_ja: string | null
+  answer_ja: string | null
   distractors: string[]
   category: string | null
   mastery_level: MasteryLevel
@@ -34,6 +35,7 @@ export interface GrammarDeckPoint {
   sentence_ja: string | null
   answer: string | null
   hint_ja: string | null
+  answer_ja: string | null
   distractors: string[]
   category: string | null
   created_at: string
@@ -82,6 +84,7 @@ export async function listGrammar(
     sentence_ja: e.sentence_ja ?? null,
     answer: e.answer ?? null,
     hint_ja: e.hint_ja ?? null,
+    answer_ja: e.answer_ja ?? null,
     distractors: e.distractors ?? [],
     category: e.category ?? null,
   }))
@@ -91,7 +94,7 @@ export async function listGrammar(
   if (deckIds.length > 0) {
     const { data: points, error: pointsError } = await supabase
       .from('grammar_deck_points')
-      .select('deck_id, point, explanation, examples, sentence_with_blank, sentence_ja, answer, hint_ja, distractors, category')
+      .select('deck_id, point, explanation, examples, sentence_with_blank, sentence_ja, answer, hint_ja, answer_ja, distractors, category')
       .in('deck_id', deckIds)
 
     if (pointsError) {
@@ -111,6 +114,7 @@ export async function listGrammar(
         entry.sentence_with_blank = t.sentence_with_blank
         entry.answer = t.answer
         entry.hint_ja = t.hint_ja
+        entry.answer_ja = t.answer_ja ?? null
         entry.distractors = t.distractors ?? []
         entry.category = t.category
       }
@@ -130,6 +134,7 @@ export async function listGrammar(
       entry.sentence_ja = t.sentence_ja
       entry.answer = t.answer
       entry.hint_ja = t.hint_ja
+      entry.answer_ja = t.answer_ja ?? null
       entry.distractors = t.distractors ?? []
       entry.category = t.category
     }
@@ -281,6 +286,7 @@ export type GrammarPointFields = {
   sentence_ja?: string
   answer?: string
   hint_ja?: string
+  answer_ja?: string
   distractors?: string[]
   category?: string
 }
