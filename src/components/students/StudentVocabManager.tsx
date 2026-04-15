@@ -198,16 +198,17 @@ function DeckEditor({
 
   async function handleSuggestCategories() {
     if (!words.length) { toast.info('No words to categorize'); return }
+    const uncategorized = words.filter(w => !w.category)
+    if (!uncategorized.length) { toast.info('All words already have a category'); return }
     setSuggestingCategories(true)
 
     const BATCH_SIZE = 15
     const BATCH_DELAY_MS = 4000  // 4s between calls — keeps tokens under 10k/min
     const allCategories: { id: string; category: string }[] = []
-    const wordsById = new Map(words.map(w => [w.id, w]))
 
     try {
-      for (let i = 0; i < words.length; i += BATCH_SIZE) {
-        const batch = words.slice(i, i + BATCH_SIZE)
+      for (let i = 0; i < uncategorized.length; i += BATCH_SIZE) {
+        const batch = uncategorized.slice(i, i + BATCH_SIZE)
 
         // Retry once on transient errors (rate limit / 5xx)
         let data: any = null
@@ -255,7 +256,7 @@ function DeckEditor({
         }))
 
         // Rate-limit delay between batches (skip after last batch)
-        if (i + BATCH_SIZE < words.length) {
+        if (i + BATCH_SIZE < uncategorized.length) {
           await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
         }
       }
