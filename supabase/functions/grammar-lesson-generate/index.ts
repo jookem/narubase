@@ -1,4 +1,4 @@
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +27,10 @@ interface SlideResult {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  if (!ANTHROPIC_API_KEY) {
+    return jsonResponse({ error: 'ANTHROPIC_API_KEY secret is not set on this function.' }, 500)
+  }
 
   try {
     const { category, samples }: { category: string; samples: SampleQuestion[] } = await req.json()

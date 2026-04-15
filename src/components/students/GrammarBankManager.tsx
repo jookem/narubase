@@ -81,6 +81,8 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
     }
     setAutoGenerating(true)
     let created = 0
+    let skipped = 0
+    let failed = 0
 
     // Re-fetch slides from DB to get accurate existing titles (state may be stale)
     const { slides: freshSlides } = await listLessonSlides(deckId)
@@ -95,12 +97,20 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
       groups.get(key)!.push(p)
     }
 
+    if (groups.size === 0) {
+      toast.error('No categories found — run Auto-categorize on the questions first.')
+      setAutoGenerating(false)
+      return
+    }
+
     const existingTitles = new Set(currentSlides.map(s => s.title.toLowerCase()))
 
     for (const [category, groupPoints] of groups) {
-      if (existingTitles.has(category.toLowerCase())) continue
+      if (existingTitles.has(category.toLowerCase())) {
+        skipped++
+        continue
+      }
 
-      // Call AI to generate a proper lesson slide for this category
       const { data, error } = await supabase.functions.invoke('grammar-lesson-generate', {
         body: {
           category,
@@ -113,7 +123,8 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
       })
 
       if (error || !data?.slide) {
-        console.error('Failed to generate slide for', category, error)
+        console.error('Failed to generate slide for', category, error, data)
+        failed++
         continue
       }
 
@@ -124,14 +135,25 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
         examples: slide.examples,
         hint_ja: slide.hint_ja || undefined,
       })
-      if (!addErr) created++
+      if (addErr) {
+        console.error('Failed to save slide for', category, addErr)
+        failed++
+      } else {
+        created++
+      }
     }
 
     const { slides: updated } = await listLessonSlides(deckId)
     setSlides(updated ?? [])
     setAutoGenerating(false)
-    if (created > 0) toast.success(`Generated ${created} slide${created !== 1 ? 's' : ''}`)
-    else toast.info('Slides already exist for all categories')
+
+    if (created > 0) {
+      toast.success(`Generated ${created} slide${created !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} already existed` : ''}`)
+    } else if (skipped > 0 && failed === 0) {
+      toast.info('All slides already exist — delete existing slides first to regenerate.')
+    } else if (failed > 0) {
+      toast.error(`Generation failed for ${failed} categor${failed !== 1 ? 'ies' : 'y'} — check console for details.`)
+    }
   }
 
   function parseExamples(text: string) {
