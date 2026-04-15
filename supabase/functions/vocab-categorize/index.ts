@@ -22,6 +22,42 @@ interface Word {
 
 const BATCH_SIZE = 20
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+async function callAnthropic(prompt: string, retries = 1): Promise<string> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+
+    if (res.status === 429) {
+      const err = await res.text()
+      console.warn(`Rate limited (attempt ${attempt + 1}/${retries + 1}), waiting 10s…`, err.slice(0, 100))
+      if (attempt < retries) { await sleep(10000); continue }
+      throw new Error(`Anthropic rate limit after ${retries + 1} attempts`)
+    }
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Anthropic API error ${res.status}: ${err.slice(0, 200)}`)
+    }
+
+    const data = await res.json()
+    return data.content?.[0]?.text?.trim() ?? ''
+  }
+  throw new Error('callAnthropic: exhausted retries')
+}
+
 async function categorizeBatch(batch: Word[]): Promise<{ id: string; category: string }[]> {
   const list = batch
     .map(w => {
@@ -69,28 +105,7 @@ Return ONLY a JSON array with exactly ${batch.length} entries — no extra text:
 Words:
 ${list}`
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    console.error('Anthropic error:', res.status, err)
-    throw new Error(`Anthropic API error ${res.status}: ${err.slice(0, 200)}`)
-  }
-
-  const data = await res.json()
-  const text: string = data.content?.[0]?.text?.trim() ?? ''
+  const text = await callAnthropic(prompt)
   console.log('AI response preview:', text.slice(0, 100))
 
   const match = text.match(/\[[\s\S]*\]/)
@@ -131,9 +146,9 @@ Deno.serve(async (req) => {
         console.error(`Batch ${i}–${i + batch.length} failed:`, e)
         return jsonResponse({ error: String(e) }, 500)
       }
-      // 400ms gap between batches — keeps output tokens well under 10k/min
+      // 3.5s gap — keeps output tokens under 10k/min (500 tokens/batch × 60/3.5 ≈ 8,600/min)
       if (i + BATCH_SIZE < words.length) {
-        await new Promise(resolve => setTimeout(resolve, 400))
+        await sleep(3500)
       }
     }
 
