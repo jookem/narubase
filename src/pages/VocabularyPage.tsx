@@ -151,7 +151,12 @@ export function VocabularyPage() {
     }
   }
 
-  useEffect(() => { loadVocab() }, [user])
+  useEffect(() => {
+    loadVocab()
+    const onVisible = () => { if (document.visibilityState === 'visible') loadVocab() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [user])
 
   if (error) return <PageError message={error} onRetry={loadVocab} />
   if (loading) return <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />

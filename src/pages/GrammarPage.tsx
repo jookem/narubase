@@ -59,7 +59,12 @@ export function GrammarPage() {
     }
   }
 
-  useEffect(() => { load() }, [user])
+  useEffect(() => {
+    load()
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [user])
 
   // Start a full study session: lesson → flashcards → quiz
   async function startStudy(cards: GrammarBankEntry[], skipLesson = false) {
