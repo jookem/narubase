@@ -81,7 +81,7 @@ export function LessonNotesEditor({
       setSaving(false)
       setSavedAt(new Date())
     }, 2000)
-  }, [lessonId, summary, vocabulary, grammarPoints, homework, strengths, areasToFocus, teacherNotes, selectedGoalIds, isVisible])
+  }, [lessonId, noteStudentId, summary, vocabulary, grammarPoints, homework, strengths, areasToFocus, teacherNotes, selectedGoalIds, isVisible])
 
   async function addVocabItem() {
     if (!newWord.trim() || !newDefinitionJa.trim()) return
@@ -178,6 +178,7 @@ export function LessonNotesEditor({
     setSaving(true)
     await saveLessonNotes({
       lesson_id: lessonId,
+      student_id: noteStudentId,
       summary,
       vocabulary,
       grammar_points: grammarPoints,

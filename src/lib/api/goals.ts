@@ -88,6 +88,18 @@ export async function toggleMilestone(milestoneId: string, completed: boolean): 
 }
 
 export async function deleteMilestone(milestoneId: string): Promise<{ error?: string }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // Verify ownership through the parent goal's teacher_id
+  const { data: milestone } = await supabase
+    .from('goal_milestones').select('goal_id').eq('id', milestoneId).single()
+  if (!milestone) return { error: 'Milestone not found.' }
+
+  const { data: goal } = await supabase
+    .from('student_goals').select('teacher_id').eq('id', milestone.goal_id).single()
+  if (goal?.teacher_id !== user.id) return { error: 'Unauthorized.' }
+
   const { error } = await supabase.from('goal_milestones').delete().eq('id', milestoneId)
   return error ? { error: error.message } : {}
 }

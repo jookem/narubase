@@ -22,15 +22,17 @@ interface SavedVocabSession {
 
 interface Props {
   cards: VocabularyBankEntry[]
+  sessionName?: string
   onClose: () => void
   onComplete: () => void
 }
 
-function sessionKey(userId: string) {
-  return `narubase_session_vocab_${userId}`
+function sessionKey(userId: string, name?: string) {
+  const suffix = name ? `_${name.replace(/[^a-z0-9]/gi, '_')}` : ''
+  return `narubase_session_vocab_${userId}${suffix}`
 }
 
-export function StudySession({ cards, onClose, onComplete }: Props) {
+export function StudySession({ cards, sessionName, onClose, onComplete }: Props) {
   const [queue, setQueue] = useState<VocabularyBankEntry[]>([...cards])
   const [againQueue, setAgainQueue] = useState<VocabularyBankEntry[]>([])
   const [current, setCurrent] = useState<VocabularyBankEntry | null>(cards[0] ?? null)
@@ -55,7 +57,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) return
       setUserId(data.user.id)
-      const saved = localStorage.getItem(sessionKey(data.user.id))
+      const saved = localStorage.getItem(sessionKey(data.user.id, sessionName))
       if (saved) {
         try {
           const parsed: SavedVocabSession = JSON.parse(saved)
@@ -82,7 +84,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
   }
 
   function handleStartFresh() {
-    if (userId) localStorage.removeItem(sessionKey(userId))
+    if (userId) localStorage.removeItem(sessionKey(userId, sessionName))
     setShowResumePrompt(false)
   }
 
@@ -107,7 +109,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
       setCurrent(nextQueue[0])
       setFlipped(false)
       if (userId) {
-        localStorage.setItem(sessionKey(userId), JSON.stringify({
+        localStorage.setItem(sessionKey(userId, sessionName), JSON.stringify({
           queueIds: nextQueue.map(c => c.id),
           againQueueIds: newAgainQueue.map(c => c.id),
           stats: newStats,
@@ -119,7 +121,7 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
       setCurrent(newAgainQueue[0])
       setFlipped(false)
       if (userId) {
-        localStorage.setItem(sessionKey(userId), JSON.stringify({
+        localStorage.setItem(sessionKey(userId, sessionName), JSON.stringify({
           queueIds: newAgainQueue.map(c => c.id),
           againQueueIds: [],
           stats: newStats,
@@ -127,7 +129,13 @@ export function StudySession({ cards, onClose, onComplete }: Props) {
       }
     } else {
       setDone(true)
-      if (userId) localStorage.removeItem(sessionKey(userId))
+      if (userId) {
+        localStorage.removeItem(sessionKey(userId, sessionName))
+        supabase.from('study_logs').upsert(
+          { student_id: userId, studied_date: new Date().toISOString().split('T')[0] },
+          { onConflict: 'student_id,studied_date', ignoreDuplicates: true },
+        ).then(() => {})
+      }
     }
 
     setRating(false)

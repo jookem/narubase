@@ -963,7 +963,7 @@ export function StudentVocabManager({ studentId }: Props) {
 
   async function handleDeleteVocab(id: string) {
     setDeletingVocab(id)
-    const { error } = await deleteVocabEntry(id)
+    const { error } = await deleteVocabEntry(id, studentId)
     setDeletingVocab(null)
     if (error) toast.error(error)
     else setVocab(prev => prev.filter(v => v.id !== id))

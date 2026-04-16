@@ -197,6 +197,18 @@ export async function updateStudentName(
   studentId: string,
   fullName: string,
 ): Promise<{ error?: string }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  const { data: rel } = await supabase
+    .from('teacher_student_relationships')
+    .select('id')
+    .eq('teacher_id', user.id)
+    .eq('student_id', studentId)
+    .eq('status', 'active')
+    .single()
+  if (!rel) return { error: 'Unauthorized.' }
+
   const { error } = await supabase
     .from('profiles')
     .update({ full_name: fullName })

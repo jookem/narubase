@@ -194,6 +194,7 @@ export async function rateGrammarCard(
       next_review: nextReview.toISOString().split('T')[0],
     })
     .eq('id', id)
+    .eq('student_id', session.user.id)
 
   return error ? { error: error.message } : {}
 }

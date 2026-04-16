@@ -5,6 +5,7 @@ import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 
 interface Props {
   cards: GrammarBankEntry[]
+  sessionName?: string
   onClose: () => void
   onComplete: () => void
 }
@@ -72,8 +73,9 @@ function SentenceDisplay({
   )
 }
 
-function sessionKey(userId: string) {
-  return `narubase_session_grammar_${userId}`
+function sessionKey(userId: string, name?: string) {
+  const suffix = name ? `_${name.replace(/[^a-z0-9]/gi, '_')}` : ''
+  return `narubase_session_grammar_${userId}${suffix}`
 }
 
 function buildQueue(cards: GrammarBankEntry[]): GrammarBankEntry[] {
@@ -91,7 +93,7 @@ function buildQueue(cards: GrammarBankEntry[]): GrammarBankEntry[] {
   return result
 }
 
-export function GrammarSession({ cards, onClose, onComplete }: Props) {
+export function GrammarSession({ cards, sessionName, onClose, onComplete }: Props) {
   const [queue, setQueue] = useState<GrammarBankEntry[]>(() => buildQueue(cards))
   const [againQueue, setAgainQueue] = useState<GrammarBankEntry[]>([])
   const initialQueue = buildQueue(cards)
@@ -120,7 +122,7 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) return
       setUserId(data.user.id)
-      const saved = localStorage.getItem(sessionKey(data.user.id))
+      const saved = localStorage.getItem(sessionKey(data.user.id, sessionName))
       if (saved) {
         try {
           const parsed: SavedGrammarSession = JSON.parse(saved)
@@ -147,7 +149,7 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
   }
 
   function handleStartFresh() {
-    if (userId) localStorage.removeItem(sessionKey(userId))
+    if (userId) localStorage.removeItem(sessionKey(userId, sessionName))
     setShowResumePrompt(false)
   }
 
@@ -185,7 +187,7 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
       if (userId) {
         // stats state may not have updated yet, so use functional update reference
         setStats(s => {
-          localStorage.setItem(sessionKey(userId), JSON.stringify({
+          localStorage.setItem(sessionKey(userId, sessionName), JSON.stringify({
             queueIds: nextQueue.map(c => c.id),
             againQueueIds: newAgainQueue.map(c => c.id),
             stats: s,
@@ -199,7 +201,7 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
       setCurrent(newAgainQueue[0])
       if (userId) {
         setStats(s => {
-          localStorage.setItem(sessionKey(userId), JSON.stringify({
+          localStorage.setItem(sessionKey(userId, sessionName), JSON.stringify({
             queueIds: newAgainQueue.map(c => c.id),
             againQueueIds: [],
             stats: s,
@@ -210,7 +212,7 @@ export function GrammarSession({ cards, onClose, onComplete }: Props) {
     } else {
       setDone(true)
       if (userId) {
-        localStorage.removeItem(sessionKey(userId))
+        localStorage.removeItem(sessionKey(userId, sessionName))
         // Log study activity for streak tracking
         supabase.from('study_logs').upsert({ student_id: userId, studied_date: new Date().toISOString().split('T')[0] }, { onConflict: 'student_id,studied_date', ignoreDuplicates: true }).then(() => {})
       }

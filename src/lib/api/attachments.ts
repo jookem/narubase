@@ -68,6 +68,9 @@ export async function deleteAttachment(
   attachmentId: string,
   storagePath: string,
 ): Promise<{ error?: string }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
   const { error: storageError } = await supabase.storage
     .from('lesson-attachments')
     .remove([storagePath])
@@ -78,6 +81,7 @@ export async function deleteAttachment(
     .from('lesson_attachments')
     .delete()
     .eq('id', attachmentId)
+    .eq('uploader_id', user.id)
 
   if (dbError) return { error: dbError.message }
   return {}

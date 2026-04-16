@@ -197,6 +197,7 @@ export function GrammarPage() {
       {session?.stage === 'quiz' && (
         <GrammarSession
           cards={session.cards}
+          sessionName={session.deckName}
           onClose={() => setSession(null)}
           onComplete={() => { setSession(null); load() }}
         />

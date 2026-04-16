@@ -329,11 +329,13 @@ export async function rateVocabCard(
 
 export async function deleteVocabEntry(
   vocabId: string,
+  studentId: string,
 ): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('vocabulary_bank')
     .delete()
     .eq('id', vocabId)
+    .eq('student_id', studentId)
 
   return error ? { error: error.message } : {}
 }

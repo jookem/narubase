@@ -203,6 +203,7 @@ export function VocabularyPage() {
       {studyCards && (
         <StudySession
           cards={studyCards}
+          sessionName="flashcard"
           onClose={() => setStudyCards(null)}
           onComplete={() => { setStudyCards(null); loadVocab() }}
         />
@@ -218,6 +219,7 @@ export function VocabularyPage() {
       {session?.stage === 'flashcards' && (
         <StudySession
           cards={session.words}
+          sessionName={session.name}
           onClose={() => setSession(null)}
           onComplete={() => setSession(s => s && { ...s, stage: 'quiz' })}
         />
