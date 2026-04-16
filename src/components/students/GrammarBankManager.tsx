@@ -37,15 +37,20 @@ const MASTERY_COLORS = [
 ]
 const MASTERY_LABELS = ['New', 'Seen', 'Familiar', 'Mastered']
 
-// Render a sentence with _____ highlighted
+// Render a sentence with _____ highlighted (supports multiple blanks)
 function SentenceWithBlank({ sentence }: { sentence: string }) {
   const parts = sentence.split('_____')
   if (parts.length === 1) return <span>{sentence}</span>
   return (
     <span>
-      {parts[0]}
-      <span className="inline-block bg-brand-light text-brand-dark font-semibold px-1 rounded mx-0.5">_____</span>
-      {parts[1]}
+      {parts.map((part, i) => (
+        <span key={i}>
+          {part}
+          {i < parts.length - 1 && (
+            <span className="inline-block bg-brand-light text-brand-dark font-semibold px-1 rounded mx-0.5">_____</span>
+          )}
+        </span>
+      ))}
     </span>
   )
 }
