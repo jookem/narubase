@@ -592,56 +592,39 @@ export async function assignDeckToStudent(
   }
   if (!wordTexts.length) return { count: 0 }
 
-  // Find words already assigned to THIS specific deck — nothing to do for these
-  const alreadyAssigned: string[] = []
+  // Fetch ALL existing bank rows for this student+deck (active or inactive)
+  const existingRows: { id: string; word: string; is_active: boolean }[] = []
   for (let i = 0; i < wordTexts.length; i += 500) {
     const chunk = wordTexts.slice(i, i + 500)
     const { data: page } = await supabase
       .from('vocabulary_bank')
-      .select('word')
+      .select('id, word, is_active')
       .eq('student_id', studentId)
       .eq('deck_id', deckId)
       .in('word', chunk)
-    alreadyAssigned.push(...(page ?? []).map((r: any) => r.word))
+    existingRows.push(...(page ?? []))
   }
-  const alreadyAssignedSet = new Set(alreadyAssigned)
-  const wordsToProcess = wordTexts.filter(w => !alreadyAssignedSet.has(w))
 
-  if (!wordsToProcess.length) return { count: wordTexts.length }
+  const existingWordSet = new Set(existingRows.map(r => r.word))
+  const inactiveIds = existingRows.filter(r => !r.is_active).map(r => r.id)
 
-  // Find detached words (deck_id IS NULL) — previously unassigned, mastery preserved
-  // IMPORTANT: only match by ID when re-attaching to avoid touching other decks' words
-  const detachedRows: { id: string; word: string }[] = []
-  for (let i = 0; i < wordsToProcess.length; i += 500) {
-    const chunk = wordsToProcess.slice(i, i + 500)
-    const { data: page } = await supabase
-      .from('vocabulary_bank')
-      .select('id, word')
-      .eq('student_id', studentId)
-      .is('deck_id', null)
-      .in('word', chunk)
-    detachedRows.push(...(page ?? []))
-  }
-  const detachedByWord = new Map(detachedRows.map(r => [r.word, r.id]))
-
-  // Re-attach detached rows by ID (preserves mastery/next_review, never touches other decks)
-  const detachedIds = detachedRows.map(r => r.id)
-  for (let i = 0; i < detachedIds.length; i += 50) {
+  // Re-activate any previously unassigned rows (preserves mastery/next_review)
+  for (let i = 0; i < inactiveIds.length; i += 50) {
     await supabase
       .from('vocabulary_bank')
-      .update({ deck_id: deckId })
-      .eq('student_id', studentId)
-      .in('id', detachedIds.slice(i, i + 50))
+      .update({ is_active: true })
+      .in('id', inactiveIds.slice(i, i + 50))
   }
 
-  // Insert only rows for words genuinely not in the bank at all
-  const newEntries = wordsToProcess
-    .filter(w => !detachedByWord.has(w))
+  // Insert rows for words not yet in the bank at all
+  const newEntries = wordTexts
+    .filter(w => !existingWordSet.has(w))
     .map(w => ({
       student_id: studentId,
       teacher_id: session.user.id,
       deck_id: deckId,
       word: w,
+      is_active: true,
     }))
 
   for (let i = 0; i < newEntries.length; i += 500) {
@@ -669,6 +652,7 @@ export async function getStudentVocab(
       .from('vocabulary_bank')
       .select('*')
       .eq('student_id', studentId)
+      .eq('is_active', true)
       .order('word', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) return { entries: [], error: error.message }
@@ -719,49 +703,16 @@ export async function removeDeckFromStudent(
   deckId: string,
   studentId: string,
 ): Promise<{ error?: string }> {
-  // Fetch the deck's word content so we can bake it into the bank rows before
-  // detaching them — otherwise the student's rows would lose all content since
-  // deck-assigned words rely on the template overlay in getStudentVocab.
-  const { data: deckWords, error: fetchErr } = await supabase
-    .from('vocabulary_deck_words')
-    .select('word, reading, definition_en, definition_ja, example, category, quiz_sentence, quiz_distractors')
-    .eq('deck_id', deckId)
-  if (fetchErr) return { error: fetchErr.message }
-
-  const contentByWord = new Map(
-    (deckWords ?? []).map((dw: any) => [dw.word, dw])
-  )
-
-  // Null out deck_id (detach) while preserving mastery/progress.
-  // Also copy the word content so the row is self-contained after detachment.
-  const { data: bankRows, error: selectErr } = await supabase
+  // Mark rows as inactive so they disappear from the student's view.
+  // deck_id is intentionally kept so assignDeckToStudent can find and
+  // re-activate them later, restoring mastery/next_review intact.
+  const { error } = await supabase
     .from('vocabulary_bank')
-    .select('id, word')
+    .update({ is_active: false })
     .eq('deck_id', deckId)
     .eq('student_id', studentId)
-  if (selectErr) return { error: selectErr.message }
 
-  for (let i = 0; i < (bankRows ?? []).length; i += 100) {
-    const chunk = (bankRows ?? []).slice(i, i + 100)
-    await Promise.all(chunk.map((row: any) => {
-      const content = contentByWord.get(row.word) ?? {}
-      return supabase
-        .from('vocabulary_bank')
-        .update({
-          deck_id: null,
-          reading: content.reading ?? null,
-          definition_en: content.definition_en ?? null,
-          definition_ja: content.definition_ja ?? null,
-          example: content.example ?? null,
-          category: content.category ?? null,
-          quiz_sentence: content.quiz_sentence ?? null,
-          quiz_distractors: content.quiz_distractors ?? [],
-        })
-        .eq('id', row.id)
-    }))
-  }
-
-  return {}
+  return error ? { error: error.message } : {}
 }
 
 export async function reorderVocabDecks(
