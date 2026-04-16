@@ -701,6 +701,7 @@ export async function getStudentVocab(
       entry.example = t.example
       entry.category = t.category ?? entry.category
       entry.quiz_sentence = t.quiz_sentence
+      entry.quiz_answer = t.quiz_answer ?? null
       entry.quiz_distractors = t.quiz_distractors ?? []
     }
   }

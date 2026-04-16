@@ -161,6 +161,7 @@ export interface VocabularyBankEntry {
   mastery_level: MasteryLevel
   next_review: string | null
   quiz_sentence: string | null
+  quiz_answer: string | null
   quiz_distractors: string[]
   category: string | null
   created_at: string

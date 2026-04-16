@@ -101,12 +101,12 @@ function DeckEditor({
   }
 
   /** Save quiz data to vocabulary_deck_words, then sync to all students' vocabulary_bank */
-  async function persistQuiz(deckWordId: string, wordText: string, sentence: string, distractors: string[]) {
+  async function persistQuiz(deckWordId: string, wordText: string, sentence: string, quizAnswer: string | null, distractors: string[]) {
     await supabase.from('vocabulary_deck_words')
-      .update({ quiz_sentence: sentence, quiz_distractors: distractors })
+      .update({ quiz_sentence: sentence, quiz_answer: quizAnswer, quiz_distractors: distractors })
       .eq('id', deckWordId)
     await supabase.from('vocabulary_bank')
-      .update({ quiz_sentence: sentence, quiz_distractors: distractors })
+      .update({ quiz_sentence: sentence, quiz_answer: quizAnswer, quiz_distractors: distractors })
       .eq('deck_id', deck.id)
       .eq('word', wordText)
   }
@@ -121,16 +121,15 @@ function DeckEditor({
         level: deck.name,
         wordPool: pool.map(w => ({ word: w.word })),
       })
-      const raw: { word: string; sentence: string; distractors: string[] }[] = data.questions ?? []
+      const raw: { word: string; sentence: string; quiz_answer?: string; distractors: string[] }[] = data.questions ?? []
       await Promise.all(raw.map(q => {
         const target = targets.find(w => w.word === q.word)
         if (!target) return
-        return persistQuiz(target.id, target.word, q.sentence, q.distractors)
+        return persistQuiz(target.id, target.word, q.sentence, q.quiz_answer ?? null, q.distractors)
       }))
-      // Update local words state
       setWords(prev => prev.map(w => {
         const q = raw.find(r => r.word === w.word)
-        return q ? { ...w, quiz_sentence: q.sentence, quiz_distractors: q.distractors } : w
+        return q ? { ...w, quiz_sentence: q.sentence, quiz_answer: q.quiz_answer ?? null, quiz_distractors: q.distractors } : w
       }))
       setQuizEdits(prev => {
         const next = { ...prev }
@@ -157,8 +156,8 @@ function DeckEditor({
       })
       const q = (data.questions ?? [])[0]
       if (!q) throw new Error('No question returned')
-      await persistQuiz(w.id, w.word, q.sentence, q.distractors)
-      setWords(prev => prev.map(x => x.id === w.id ? { ...x, quiz_sentence: q.sentence, quiz_distractors: q.distractors } : x))
+      await persistQuiz(w.id, w.word, q.sentence, q.quiz_answer ?? null, q.distractors)
+      setWords(prev => prev.map(x => x.id === w.id ? { ...x, quiz_sentence: q.sentence, quiz_answer: q.quiz_answer ?? null, quiz_distractors: q.distractors } : x))
       setQuizEdits(prev => ({ ...prev, [w.id]: { sentence: q.sentence, d0: q.distractors[0] ?? '', d1: q.distractors[1] ?? '', d2: q.distractors[2] ?? '' } }))
     } catch (e: any) {
       toast.error(`Regeneration failed: ${e?.message ?? String(e)}`)
@@ -172,8 +171,8 @@ function DeckEditor({
     if (!e) return
     setSavingQuizId(w.id)
     const distractors = [e.d0, e.d1, e.d2].filter(Boolean)
-    await persistQuiz(w.id, w.word, e.sentence || '', distractors)
-    setWords(prev => prev.map(x => x.id === w.id ? { ...x, quiz_sentence: e.sentence || null, quiz_distractors: distractors } : x))
+    await persistQuiz(w.id, w.word, e.sentence || '', null, distractors)
+    setWords(prev => prev.map(x => x.id === w.id ? { ...x, quiz_sentence: e.sentence || null, quiz_answer: null, quiz_distractors: distractors } : x))
     setSavingQuizId(null)
     toast.success('Saved')
   }
@@ -692,12 +691,13 @@ function QuizEditorModal({
         level: deck.name,
         wordPool: entries.map(w => ({ word: w.word })),
       })
-      const raw: { word: string; sentence: string; distractors: string[] }[] = data.questions ?? []
+      const raw: { word: string; sentence: string; quiz_answer?: string; distractors: string[] }[] = data.questions ?? []
       await Promise.all(raw.map(q => {
         const entry = targets.find(w => w.word === q.word)
         if (!entry) return
         return supabase.from('vocabulary_bank').update({
           quiz_sentence: q.sentence,
+          quiz_answer: q.quiz_answer ?? null,
           quiz_distractors: q.distractors,
         }).eq('id', entry.id)
       }))
@@ -723,6 +723,7 @@ function QuizEditorModal({
       if (!q) throw new Error('No question returned')
       await supabase.from('vocabulary_bank').update({
         quiz_sentence: q.sentence,
+        quiz_answer: q.quiz_answer ?? null,
         quiz_distractors: q.distractors,
       }).eq('id', entry.id)
       setEdits(prev => ({

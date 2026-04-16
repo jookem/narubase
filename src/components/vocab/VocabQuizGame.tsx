@@ -101,11 +101,12 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
       words
         .map(w => {
           if (!w.quiz_sentence?.includes('_____') || !w.quiz_distractors?.length) return null
+          const answer = w.quiz_answer ?? w.word
           return {
             word: w.word,
             sentence: w.quiz_sentence,
-            answer: w.word,
-            choices: shuffle([w.word, ...w.quiz_distractors.slice(0, 3)]),
+            answer,
+            choices: shuffle([answer, ...w.quiz_distractors.slice(0, 3)]),
           }
         })
         .filter(Boolean) as QuizQuestion[]
