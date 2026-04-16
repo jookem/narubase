@@ -701,13 +701,49 @@ export async function removeDeckFromStudent(
   deckId: string,
   studentId: string,
 ): Promise<{ error?: string }> {
-  const { error } = await supabase
+  // Fetch the deck's word content so we can bake it into the bank rows before
+  // detaching them — otherwise the student's rows would lose all content since
+  // deck-assigned words rely on the template overlay in getStudentVocab.
+  const { data: deckWords, error: fetchErr } = await supabase
+    .from('vocabulary_deck_words')
+    .select('word, reading, definition_en, definition_ja, example, category, quiz_sentence, quiz_distractors')
+    .eq('deck_id', deckId)
+  if (fetchErr) return { error: fetchErr.message }
+
+  const contentByWord = new Map(
+    (deckWords ?? []).map((dw: any) => [dw.word, dw])
+  )
+
+  // Null out deck_id (detach) while preserving mastery/progress.
+  // Also copy the word content so the row is self-contained after detachment.
+  const { data: bankRows, error: selectErr } = await supabase
     .from('vocabulary_bank')
-    .delete()
+    .select('id, word')
     .eq('deck_id', deckId)
     .eq('student_id', studentId)
+  if (selectErr) return { error: selectErr.message }
 
-  return error ? { error: error.message } : {}
+  for (let i = 0; i < (bankRows ?? []).length; i += 100) {
+    const chunk = (bankRows ?? []).slice(i, i + 100)
+    await Promise.all(chunk.map((row: any) => {
+      const content = contentByWord.get(row.word) ?? {}
+      return supabase
+        .from('vocabulary_bank')
+        .update({
+          deck_id: null,
+          reading: content.reading ?? null,
+          definition_en: content.definition_en ?? null,
+          definition_ja: content.definition_ja ?? null,
+          example: content.example ?? null,
+          category: content.category ?? null,
+          quiz_sentence: content.quiz_sentence ?? null,
+          quiz_distractors: content.quiz_distractors ?? [],
+        })
+        .eq('id', row.id)
+    }))
+  }
+
+  return {}
 }
 
 export async function reorderVocabDecks(
