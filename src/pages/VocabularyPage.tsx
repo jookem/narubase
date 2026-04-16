@@ -20,16 +20,13 @@ function getStudyBatch<T>(arr: T[]): T[] {
 
 const CATEGORY_SESSION_SIZE = 12
 
-/** Returns up to CATEGORY_SESSION_SIZE words sorted by mastery ascending
- *  so students always study their least-known words first. */
+/** Returns up to CATEGORY_SESSION_SIZE words prioritising lowest mastery,
+ *  then shuffled so the order gives no alphabetical hints during the quiz. */
 function getCategoryBatch(words: VocabularyBankEntry[]): VocabularyBankEntry[] {
   return [...words]
-    .sort((a, b) =>
-      a.mastery_level !== b.mastery_level
-        ? a.mastery_level - b.mastery_level
-        : a.word.localeCompare(b.word)
-    )
+    .sort((a, b) => a.mastery_level - b.mastery_level)
     .slice(0, CATEGORY_SESSION_SIZE)
+    .sort(() => Math.random() - 0.5)
 }
 
 function MasteryBar({ words }: { words: VocabularyBankEntry[] }) {
