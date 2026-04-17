@@ -373,6 +373,7 @@ function DeckEditor({
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
   const [suggestingCategories, setSuggestingCategories] = useState(false)
   const [fillingJa, setFillingJa] = useState(false)
+  const [enriching, setEnriching] = useState(false)
   // Add form
   const [addSentence, setAddSentence] = useState('')
   const [addAnswer, setAddAnswer] = useState('')
@@ -539,6 +540,45 @@ function DeckEditor({
     }
   }
 
+  async function handleEnrichPoints(force = false) {
+    const targets = force ? points : points.filter(p => !p.explanation || p.examples.length === 0)
+    if (!targets.length) {
+      toast.info(force ? 'No questions found' : 'All questions already have explanations and examples')
+      return
+    }
+    setEnriching(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('grammar-enrich-points', {
+        body: {
+          points: targets.map(p => ({
+            id: p.id,
+            sentence_with_blank: p.sentence_with_blank ?? p.point,
+            answer: p.answer ?? p.explanation,
+            category: p.category,
+          })),
+        },
+      })
+      if (error) {
+        let msg = error.message
+        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
+        throw new Error(msg)
+      }
+      const results: { id: string; explanation: string; examples: string[] }[] = data.results ?? []
+      await Promise.all(results.map(({ id, explanation, examples }) =>
+        supabase.from('grammar_deck_points').update({ explanation, examples }).eq('id', id)
+      ))
+      setPoints(prev => prev.map(p => {
+        const match = results.find(r => r.id === p.id)
+        return match ? { ...p, explanation: match.explanation, examples: match.examples } : p
+      }))
+      toast.success(`Filled explanations for ${results.length} question${results.length !== 1 ? 's' : ''}`)
+    } catch (e: any) {
+      toast.error(`Failed: ${e?.message ?? String(e)}`)
+    } finally {
+      setEnriching(false)
+    }
+  }
+
   async function handleAutoFillJa(force = false) {
     const targets = force
       ? points.filter(p => p.answer)
@@ -692,6 +732,14 @@ function DeckEditor({
           <div className="flex items-center gap-2 ml-4">
             {points.length > 0 && (
               <>
+                <button
+                  onClick={() => handleEnrichPoints(true)}
+                  disabled={enriching}
+                  title="Re-generate explanation and examples for every question so they match the specific grammar pattern"
+                  className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {enriching ? 'Enriching…' : '✦ Auto-fill explanations'}
+                </button>
                 <button
                   onClick={() => handleAutoFillJa(false)}
                   disabled={fillingJa}
