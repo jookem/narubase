@@ -560,7 +560,11 @@ function DeckEditor({
       })
       if (error) {
         let msg = error.message
-        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
+        try {
+          const text = await (error as any).context?.text?.()
+          const b = JSON.parse(text)
+          if (b?.error) msg = b.error
+        } catch {}
         throw new Error(msg)
       }
       const results: { id: string; explanation: string; examples: string[] }[] = data.results ?? []
@@ -568,8 +572,8 @@ function DeckEditor({
         supabase.from('grammar_deck_points').update({ explanation, examples }).eq('id', id)
       ))
       setPoints(prev => prev.map(p => {
-        const match = results.find(r => r.id === p.id)
-        return match ? { ...p, explanation: match.explanation, examples: match.examples } : p
+        const r = results.find(r => r.id === p.id)
+        return r ? { ...p, explanation: r.explanation, examples: r.examples } : p
       }))
       toast.success(`Filled explanations for ${results.length} question${results.length !== 1 ? 's' : ''}`)
     } catch (e: any) {
