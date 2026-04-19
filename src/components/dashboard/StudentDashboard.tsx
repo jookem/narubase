@@ -5,8 +5,96 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatInTimeZone } from 'date-fns-tz'
 import { useTimezone } from '@/lib/hooks/useTimezone'
-import { format, differenceInDays } from 'date-fns'
+import { format, differenceInDays, subDays } from 'date-fns'
 import { listMilestones, getStudyStreak } from '@/lib/api/goals'
+import { useDueCounts } from '@/lib/hooks/useDueCounts'
+
+const MASTERY_LABELS = ['New', 'Seen', 'Familiar', 'Mastered']
+const MASTERY_BAR_COLORS = ['bg-gray-300', 'bg-yellow-400', 'bg-brand', 'bg-green-400']
+
+function MasteryProgress({ counts, total, label, href }: {
+  counts: number[]
+  total: number
+  label: string
+  href: string
+}) {
+  if (total === 0) return null
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Link to={href} className="text-sm font-medium text-gray-700 hover:text-brand transition-colors">
+          {label}
+        </Link>
+        <span className="text-xs text-gray-400">{total}語</span>
+      </div>
+      <div className="flex h-2 rounded-full overflow-hidden bg-gray-100">
+        {counts.map((c, i) => c > 0 && (
+          <div
+            key={i}
+            className={MASTERY_BAR_COLORS[i]}
+            style={{ width: `${(c / total) * 100}%` }}
+            title={`${MASTERY_LABELS[i]}: ${c}`}
+          />
+        ))}
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        {counts.map((c, i) => c > 0 && (
+          <span key={i} className="text-[10px] text-gray-400">
+            {MASTERY_LABELS[i]} {c}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ActivityCalendar({ studiedDates }: { studiedDates: Set<string> }) {
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = subDays(new Date(), 29 - i)
+    const key = format(d, 'yyyy-MM-dd')
+    return { key, day: format(d, 'd'), isToday: i === 29, studied: studiedDates.has(key) }
+  })
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Past 30 Days</p>
+      <div className="flex gap-1 flex-wrap">
+        {days.map(({ key, day, isToday, studied }) => (
+          <div
+            key={key}
+            title={key}
+            className={`w-6 h-6 rounded text-[9px] font-medium flex items-center justify-center transition-colors ${
+              studied
+                ? 'bg-brand text-white'
+                : isToday
+                ? 'bg-gray-100 text-gray-500 ring-1 ring-brand/40'
+                : 'bg-gray-100 text-gray-300'
+            }`}
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SkillBar({ label, score }: { label: string; score: number }) {
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-gray-600">{label}</span>
+        <span className="font-medium text-gray-800">{score}/10</span>
+      </div>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-brand rounded-full transition-all"
+          style={{ width: `${(score / 10) * 100}%` }}
+        />
+      </div>
+    </div>
+  )
+}
 
 export function StudentDashboard() {
   const { user } = useAuth()
@@ -19,11 +107,23 @@ export function StudentDashboard() {
   const [recentNotes, setRecentNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Progress data
+  const [grammarCounts, setGrammarCounts] = useState([0, 0, 0, 0])
+  const [vocabCounts, setVocabCounts] = useState([0, 0, 0, 0])
+  const [studiedDates, setStudiedDates] = useState<Set<string>>(new Set())
+  const [latestSnapshot, setLatestSnapshot] = useState<any | null>(null)
+  const [completedLessons, setCompletedLessons] = useState(0)
+
   useEffect(() => {
     if (!user) return
 
     async function load() {
-      const [lessonsResult, goalsResult, recentNotesResult, streakResult] = await Promise.all([
+      const thirtyDaysAgo = subDays(new Date(), 30).toISOString().split('T')[0]
+
+      const [
+        lessonsResult, goalsResult, recentNotesResult, streakResult,
+        grammarResult, vocabResult, studyLogsResult, snapshotResult, completedResult,
+      ] = await Promise.all([
         supabase
           .from('lessons')
           .select('*, teacher:profiles!lessons_teacher_id_fkey(id, full_name, display_name)')
@@ -49,12 +149,31 @@ export function StudentDashboard() {
           .limit(3),
 
         getStudyStreak(user!.id),
+
+        supabase.from('grammar_bank').select('mastery_level').eq('student_id', user!.id),
+        supabase.from('vocabulary_bank').select('mastery_level').eq('student_id', user!.id).eq('is_active', true),
+        supabase.from('study_logs').select('studied_date').eq('student_id', user!.id).gte('studied_date', thirtyDaysAgo),
+        supabase.from('progress_snapshots').select('*').eq('student_id', user!.id).order('snapshot_date', { ascending: false }).limit(1),
+        supabase.from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', user!.id).eq('status', 'completed'),
       ])
 
       setUpcomingLessons(lessonsResult.data ?? [])
       setGoals(goalsResult.data ?? [])
       setRecentNotes(recentNotesResult.data ?? [])
       setStreak(streakResult)
+      setCompletedLessons(completedResult.count ?? 0)
+
+      // Mastery counts
+      const gc = [0, 0, 0, 0]
+      for (const r of grammarResult.data ?? []) gc[r.mastery_level]++
+      setGrammarCounts(gc)
+
+      const vc = [0, 0, 0, 0]
+      for (const r of vocabResult.data ?? []) vc[r.mastery_level]++
+      setVocabCounts(vc)
+
+      setStudiedDates(new Set((studyLogsResult.data ?? []).map((r: any) => r.studied_date)))
+      setLatestSnapshot(snapshotResult.data?.[0] ?? null)
 
       // Featured goal = soonest target date (or first active if no dates)
       const activeGoals: any[] = goalsResult.data ?? []
@@ -72,6 +191,7 @@ export function StudentDashboard() {
     load()
   }, [user])
 
+  const { counts: due } = useDueCounts()
   const nextLesson = upcomingLessons[0]
 
   if (loading) {
@@ -94,6 +214,16 @@ export function StudentDashboard() {
   const totalMilestones = featuredMilestones.length
   const milestonePct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : null
 
+  const grammarTotal = grammarCounts.reduce((a, b) => a + b, 0)
+  const vocabTotal = vocabCounts.reduce((a, b) => a + b, 0)
+  const grammarMastered = grammarCounts[3]
+  const vocabMastered = vocabCounts[3]
+
+  const hasSkills = latestSnapshot && (
+    latestSnapshot.speaking_score || latestSnapshot.listening_score ||
+    latestSnapshot.reading_score || latestSnapshot.writing_score
+  )
+
   return (
     <div className="space-y-6">
       <div>
@@ -104,6 +234,50 @@ export function StudentDashboard() {
           {format(new Date(), 'yyyy年M月d日')} ({format(new Date(), 'EEEE')})
         </p>
       </div>
+
+      {due.total > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
+                今日の復習 / Due Today
+              </p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {due.grammar > 0 && (
+                  <span className="inline-flex items-center gap-1.5 bg-white border border-amber-200 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">
+                    <span className="text-base">📝</span>
+                    {due.grammar} grammar card{due.grammar !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {due.vocab > 0 && (
+                  <span className="inline-flex items-center gap-1.5 bg-white border border-amber-200 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">
+                    <span className="text-base">📚</span>
+                    {due.vocab} vocab word{due.vocab !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {due.grammar > 0 && (
+                <Link
+                  to="/grammar?review=true"
+                  className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand/90 transition-colors"
+                >
+                  文法を復習 →
+                </Link>
+              )}
+              {due.vocab > 0 && (
+                <Link
+                  to="/vocabulary?review=true"
+                  className="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors"
+                >
+                  単語を復習 →
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {nextLesson && (
         <Card className="bg-brand-light border-brand/30">
@@ -258,6 +432,72 @@ export function StudentDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Progress section */}
+      {(grammarTotal > 0 || vocabTotal > 0) && (
+        <div className="space-y-4">
+          <h2 className="text-base font-semibold text-gray-700">学習の進捗 / Study Progress</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Quick stats */}
+            <div className="grid grid-cols-3 gap-3 lg:col-span-1 lg:grid-cols-1">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-gray-900">{completedLessons}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Lessons done</p>
+              </div>
+              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{grammarMastered}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Grammar mastered</p>
+              </div>
+              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{vocabMastered}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Words mastered</p>
+              </div>
+            </div>
+
+            {/* Mastery bars + activity */}
+            <Card className="lg:col-span-2">
+              <CardContent className="pt-5 space-y-5">
+                <MasteryProgress counts={grammarCounts} total={grammarTotal} label="文法 Grammar" href="/grammar" />
+                <MasteryProgress counts={vocabCounts} total={vocabTotal} label="単語 Vocabulary" href="/vocabulary" />
+                <ActivityCalendar studiedDates={studiedDates} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Skills from latest teacher snapshot */}
+          {hasSkills && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">スキル評価 / Skill Assessment</CardTitle>
+                  <div className="text-right">
+                    {latestSnapshot.cefr_level && (
+                      <span className="text-xs font-bold bg-brand text-white px-2 py-0.5 rounded-full">{latestSnapshot.cefr_level}</span>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {latestSnapshot.snapshot_date
+                        ? format(new Date(latestSnapshot.snapshot_date), 'yyyy年M月d日')
+                        : 'Latest assessment'}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {latestSnapshot.speaking_score && <SkillBar label="Speaking / スピーキング" score={latestSnapshot.speaking_score} />}
+                  {latestSnapshot.listening_score && <SkillBar label="Listening / リスニング" score={latestSnapshot.listening_score} />}
+                  {latestSnapshot.reading_score && <SkillBar label="Reading / リーディング" score={latestSnapshot.reading_score} />}
+                  {latestSnapshot.writing_score && <SkillBar label="Writing / ライティング" score={latestSnapshot.writing_score} />}
+                </div>
+                {latestSnapshot.notes && (
+                  <p className="text-sm text-gray-600 italic border-t pt-3">"{latestSnapshot.notes}"</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       <Card className="bg-gray-900 text-white border-0">
         <CardContent className="pt-6 flex items-center justify-between">
