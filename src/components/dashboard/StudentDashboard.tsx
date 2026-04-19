@@ -96,6 +96,13 @@ function SkillBar({ label, score }: { label: string; score: number }) {
   )
 }
 
+function isTodayBirthday(birthday: string | null | undefined): boolean {
+  if (!birthday) return false
+  const b = new Date(birthday)
+  const t = new Date()
+  return b.getMonth() === t.getMonth() && b.getDate() === t.getDate()
+}
+
 export function StudentDashboard() {
   const { user } = useAuth()
   const tz = useTimezone()
@@ -106,6 +113,7 @@ export function StudentDashboard() {
   const [streak, setStreak] = useState(0)
   const [recentNotes, setRecentNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [myBirthday, setMyBirthday] = useState<string | null>(null)
 
   // Progress data
   const [grammarCounts, setGrammarCounts] = useState([0, 0, 0, 0])
@@ -122,7 +130,7 @@ export function StudentDashboard() {
 
       const [
         lessonsResult, goalsResult, recentNotesResult, streakResult,
-        grammarResult, vocabResult, studyLogsResult, snapshotResult, completedResult,
+        grammarResult, vocabResult, studyLogsResult, snapshotResult, completedResult, birthdayResult,
       ] = await Promise.all([
         supabase
           .from('lessons')
@@ -155,6 +163,7 @@ export function StudentDashboard() {
         supabase.from('study_logs').select('studied_date').eq('student_id', user!.id).gte('studied_date', thirtyDaysAgo),
         supabase.from('progress_snapshots').select('*').eq('student_id', user!.id).order('snapshot_date', { ascending: false }).limit(1),
         supabase.from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', user!.id).eq('status', 'completed'),
+        supabase.from('student_details').select('birthday').eq('student_id', user!.id).maybeSingle(),
       ])
 
       setUpcomingLessons(lessonsResult.data ?? [])
@@ -174,6 +183,7 @@ export function StudentDashboard() {
 
       setStudiedDates(new Set((studyLogsResult.data ?? []).map((r: any) => r.studied_date)))
       setLatestSnapshot(snapshotResult.data?.[0] ?? null)
+      setMyBirthday(birthdayResult.data?.birthday ?? null)
 
       // Featured goal = soonest target date (or first active if no dates)
       const activeGoals: any[] = goalsResult.data ?? []
@@ -224,6 +234,8 @@ export function StudentDashboard() {
     latestSnapshot.reading_score || latestSnapshot.writing_score
   )
 
+  const isMyBirthday = isTodayBirthday(myBirthday)
+
   return (
     <div className="space-y-6">
       <div>
@@ -234,6 +246,15 @@ export function StudentDashboard() {
           {format(new Date(), 'yyyy年M月d日')} ({format(new Date(), 'EEEE')})
         </p>
       </div>
+
+      {/* Birthday celebration */}
+      {isMyBirthday && (
+        <div className="bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border border-pink-200 rounded-2xl p-6 text-center space-y-2">
+          <p className="text-5xl">🎂🎉🎈</p>
+          <p className="text-2xl font-bold text-pink-700">お誕生日おめでとう！</p>
+          <p className="text-base text-pink-600">Happy Birthday! Have an amazing day ✨</p>
+        </div>
+      )}
 
       {due.total > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">

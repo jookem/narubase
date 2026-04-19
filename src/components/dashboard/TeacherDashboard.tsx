@@ -9,6 +9,13 @@ import { useTimezone } from '@/lib/hooks/useTimezone'
 import { format, subWeeks, startOfWeek, endOfWeek } from 'date-fns'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
+function isTodayBirthday(birthday: string | null | undefined): boolean {
+  if (!birthday) return false
+  const b = new Date(birthday)
+  const t = new Date()
+  return b.getMonth() === t.getMonth() && b.getDate() === t.getDate()
+}
+
 function buildWeeklyData(lessons: { scheduled_start: string }[]) {
   const weeks = Array.from({ length: 8 }, (_, i) => {
     const ref = subWeeks(new Date(), 7 - i)
@@ -34,12 +41,13 @@ function buildWeeklyData(lessons: { scheduled_start: string }[]) {
 }
 
 export function TeacherDashboard() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const tz = useTimezone()
   const [upcomingLessons, setUpcomingLessons] = useState<any[]>([])
   const [pendingBookings, setPendingBookings] = useState<any[]>([])
   const [studentCount, setStudentCount] = useState(0)
   const [weeklyData, setWeeklyData] = useState<{ label: string; count: number }[]>([])
+  const [birthdayStudents, setBirthdayStudents] = useState<{ id: string; full_name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,7 +56,7 @@ export function TeacherDashboard() {
 
     async function load() {
       try {
-      const [lessonsResult, pendingBookingsResult, studentsResult, completedResult] = await Promise.all([
+      const [lessonsResult, pendingBookingsResult, studentsResult, completedResult, bdayResult] = await Promise.all([
         supabase
           .from('lessons')
           .select('*, student:profiles!lessons_student_id_fkey(id, full_name, display_name, avatar_url)')
@@ -77,12 +85,24 @@ export function TeacherDashboard() {
           .eq('teacher_id', user!.id)
           .eq('status', 'completed')
           .gte('scheduled_start', subWeeks(new Date(), 8).toISOString()),
+
+        // Students with their birthdays (to check today's birthdays client-side)
+        supabase
+          .from('teacher_student_relationships')
+          .select('student:profiles!teacher_student_relationships_student_id_fkey(id, full_name), detail:student_details(birthday)')
+          .eq('teacher_id', user!.id)
+          .eq('status', 'active'),
       ])
 
       setUpcomingLessons(lessonsResult.data ?? [])
       setPendingBookings(pendingBookingsResult.data ?? [])
       setStudentCount(studentsResult.data?.length ?? 0)
       setWeeklyData(buildWeeklyData(completedResult.data ?? []))
+
+      const bdayList = (bdayResult.data ?? [])
+        .filter((r: any) => r.student && isTodayBirthday(r.detail?.[0]?.birthday ?? r.detail?.birthday))
+        .map((r: any) => r.student)
+      setBirthdayStudents(bdayList)
       } catch (e: any) {
         setError(e?.message ?? 'Failed to load dashboard')
       } finally {
@@ -108,6 +128,8 @@ export function TeacherDashboard() {
     )
   }
 
+  const isMyBirthday = isTodayBirthday(profile?.birthday)
+
   return (
     <div className="space-y-6">
       <div>
@@ -116,6 +138,28 @@ export function TeacherDashboard() {
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
       </div>
+
+      {/* Teacher's own birthday */}
+      {isMyBirthday && (
+        <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-5 text-center">
+          <p className="text-4xl mb-2">🎂</p>
+          <p className="text-xl font-bold text-pink-700">Happy Birthday!</p>
+          <p className="text-sm text-pink-500 mt-1">Wishing you a wonderful day</p>
+        </div>
+      )}
+
+      {/* Students with birthdays today */}
+      {birthdayStudents.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-5 py-4 flex items-center gap-4 flex-wrap">
+          <span className="text-3xl">🎉</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-yellow-800">Student birthday{birthdayStudents.length > 1 ? 's' : ''} today!</p>
+            <p className="text-sm text-yellow-700 mt-0.5">
+              {birthdayStudents.map(s => s.full_name).join(', ')}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>

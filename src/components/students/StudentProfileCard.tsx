@@ -270,8 +270,11 @@ export function StudentProfileCard({
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Background</p>
                     <dl className="grid gap-x-6 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content auto' }}>
-                      {d.birthday && <><dt className="text-gray-500">Birthday</dt><dd>{format(new Date(d.birthday), 'MMMM d, yyyy')}</dd></>}
-                      {d.age && <><dt className="text-gray-500">Age</dt><dd>{d.age}</dd></>}
+                      {d.birthday && <><dt className="text-gray-500">Birthday</dt><dd>{format(new Date(d.birthday), 'MMMM d')}{(() => { const today = new Date(); const bday = new Date(d.birthday!); const isBday = bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate(); return isBday ? ' 🎂' : '' })()}</dd></>}
+                      {d.birthday
+                        ? <><dt className="text-gray-500">Age</dt><dd>{(() => { const b = new Date(d.birthday!); const t = new Date(); let age = t.getFullYear() - b.getFullYear(); if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) age--; return age })()} years old</dd></>
+                        : d.age ? <><dt className="text-gray-500">Age</dt><dd>{d.age}</dd></> : null
+                      }
                       {d.grade && <><dt className="text-gray-500">Grade / Level</dt><dd>{GRADE_LABELS[d.grade] ?? d.grade}</dd></>}
                       {!isAdult && d.school_name && <><dt className="text-gray-500">School</dt><dd>{d.school_name}</dd></>}
                       {isAdult && d.occupation && <><dt className="text-gray-500">Occupation</dt><dd>{d.occupation}</dd></>}

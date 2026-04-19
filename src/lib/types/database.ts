@@ -22,6 +22,7 @@ export interface Profile {
   is_placeholder: boolean
   notifications_email: boolean
   default_lesson_mins: number
+  birthday: string | null
   created_at: string
   updated_at: string
 }
