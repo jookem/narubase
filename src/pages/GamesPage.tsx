@@ -13,6 +13,7 @@ import { TrainPuzzle } from '@/components/puzzle/TrainPuzzle'
 import { SpellingGame } from '@/components/spelling/SpellingGame'
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 import { PictureDescription } from '@/components/eiken/PictureDescription'
+import { KaraokeGame } from '@/components/karaoke/KaraokeGame'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 export function GamesPage() {
   const { user } = useAuth()
-  const [tab, setTab] = useState<'train' | 'spelling' | 'picture'>('train')
+  const [tab, setTab] = useState<'train' | 'spelling' | 'picture' | 'karaoke'>('train')
 
   // ── Train state ────────────────────────────────────────────────
   const [trainDecks, setTrainDecks] = useState<DeckWithPuzzles[]>([])
@@ -86,6 +87,11 @@ export function GamesPage() {
   const [activeSpellingWords, setActiveSpellingWords] = useState<VocabularyBankEntry[] | null>(null)
   const [spellingDone, setSpellingDone] = useState(false)
   const [spellingSavedSession, setSpellingSavedSession] = useState<SpellingSession | null>(null)
+
+  // ── Karaoke state ──────────────────────────────────────────────
+  const [karaokeSentences, setKaraokeSentences] = useState<string[]>([])
+  const [karaokeLoading, setKaraokeLoading] = useState(true)
+  const [activeKaraoke, setActiveKaraoke] = useState(false)
 
   // ── Load train data ────────────────────────────────────────────
 
@@ -169,7 +175,28 @@ export function GamesPage() {
     }
   }
 
-  useEffect(() => { loadTrain(); loadSpelling() }, [user])
+  async function loadKaraoke() {
+    if (!user) return
+    const { data } = await supabase
+      .from('grammar_bank')
+      .select('examples')
+      .eq('student_id', user.id)
+
+    const all: string[] = []
+    for (const row of data ?? []) {
+      for (const ex of row.examples ?? []) {
+        const s = ex?.trim()
+        if (s && s.split(/\s+/).length >= 3) all.push(s)
+      }
+    }
+    const seen = new Set<string>()
+    const unique = all.filter(s => { if (seen.has(s)) return false; seen.add(s); return true })
+    const shuffled = [...unique].sort(() => Math.random() - 0.5)
+    setKaraokeSentences(shuffled)
+    setKaraokeLoading(false)
+  }
+
+  useEffect(() => { loadTrain(); loadSpelling(); loadKaraoke() }, [user])
 
   // ── Train handlers ─────────────────────────────────────────────
 
@@ -319,6 +346,16 @@ export function GamesPage() {
     )
   }
 
+  if (activeKaraoke) {
+    return (
+      <KaraokeGame
+        sentences={karaokeSentences}
+        onClose={() => setActiveKaraoke(false)}
+        onComplete={() => setActiveKaraoke(false)}
+      />
+    )
+  }
+
   // ── Hub UI ─────────────────────────────────────────────────────
 
   return (
@@ -329,10 +366,11 @@ export function GamesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-4">
         <Tab label="🚂 Train Game" active={tab === 'train'} onClick={() => setTab('train')} />
         <Tab label="🐝 Spelling Bee" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
         <Tab label="🖼️ Picture This" active={tab === 'picture'} onClick={() => setTab('picture')} />
+        <Tab label="🎤 Karaoke" active={tab === 'karaoke'} onClick={() => setTab('karaoke')} />
       </div>
 
       {/* ── Train tab ── */}
@@ -442,6 +480,57 @@ export function GamesPage() {
 
       {/* ── Picture This tab ── */}
       {tab === 'picture' && <PictureDescription />}
+
+      {/* ── Karaoke tab ── */}
+      {tab === 'karaoke' && (
+        karaokeLoading ? (
+          <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
+        ) : karaokeSentences.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-4xl mb-3">🎤</p>
+              <p className="text-gray-500">例文がまだありません。</p>
+              <p className="text-sm text-gray-400 mt-1">Grammar examples will appear here once your teacher adds them.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="py-5 space-y-3">
+                <div>
+                  <h2 className="font-semibold text-gray-900">カラオケ 音読練習</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {karaokeSentences.length} sentence{karaokeSentences.length !== 1 ? 's' : ''} from your grammar bank · Read aloud and words light up as you speak
+                  </p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-amber-700">
+                    Works best on <strong>Chrome or Edge</strong> (desktop or Android). Not supported on iOS Safari.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveKaraoke(true)}
+                  className="px-5 py-2.5 bg-brand text-white font-medium rounded-xl hover:bg-brand/90 transition-colors"
+                >
+                  🎤 Start Karaoke
+                </button>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-1.5">
+              <p className="text-xs text-gray-400 uppercase tracking-wide font-medium px-1">Preview sentences</p>
+              {karaokeSentences.slice(0, 8).map((s, i) => (
+                <div key={i} className="bg-white border border-gray-100 rounded-lg px-4 py-2.5 text-sm text-gray-700">
+                  {s}
+                </div>
+              ))}
+              {karaokeSentences.length > 8 && (
+                <p className="text-xs text-gray-400 text-center pt-1">+{karaokeSentences.length - 8} more sentences</p>
+              )}
+            </div>
+          </div>
+        )
+      )}
 
       {/* ── Spelling Bee tab ── */}
       {tab === 'spelling' && (

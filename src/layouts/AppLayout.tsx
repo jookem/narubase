@@ -6,6 +6,7 @@ import {
 import { AvatarMenu } from '@/components/shared/AvatarMenu'
 import { useAuth } from '@/contexts/AuthContext'
 import { NotificationBell } from '@/components/shared/NotificationBell'
+import { useDueCounts } from '@/lib/hooks/useDueCounts'
 
 const teacherNav = [
   { href: '/dashboard', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard },
@@ -35,6 +36,11 @@ export function AppLayout() {
 
   const isTeacher = profile.role === 'teacher'
   const nav = isTeacher ? teacherNav : studentNav
+  const { counts: due } = useDueCounts()
+  const dueBadge: Record<string, number> = {
+    '/grammar': due.grammar,
+    '/vocabulary': due.vocab,
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -50,24 +56,32 @@ export function AppLayout() {
                 </span>
               </Link>
               <nav aria-label="Main navigation" className="hidden md:flex items-center gap-1">
-                {nav.map(item => (
-                  <NavLink
-                    key={item.href}
-                    to={item.href}
-                    className={({ isActive }: { isActive: boolean }) =>
-                      `px-3 py-1.5 text-sm rounded-md transition-colors ${
-                        isActive
-                          ? 'text-brand font-medium bg-brand-light'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`
-                    }
-                  >
-                    {item.label}
-                    {'sub' in item && typeof item.sub === 'string' && (
-                      <span className="ml-1 text-xs text-gray-400">{item.sub}</span>
-                    )}
-                  </NavLink>
-                ))}
+                {nav.map(item => {
+                  const badge = dueBadge[item.href] ?? 0
+                  return (
+                    <NavLink
+                      key={item.href}
+                      to={item.href}
+                      className={({ isActive }: { isActive: boolean }) =>
+                        `relative px-3 py-1.5 text-sm rounded-md transition-colors ${
+                          isActive
+                            ? 'text-brand font-medium bg-brand-light'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`
+                      }
+                    >
+                      {item.label}
+                      {'sub' in item && typeof item.sub === 'string' && (
+                        <span className="ml-1 text-xs text-gray-400">{item.sub}</span>
+                      )}
+                      {badge > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                          {badge > 99 ? '99+' : badge}
+                        </span>
+                      )}
+                    </NavLink>
+                  )
+                })}
               </nav>
             </div>
             <div className="flex items-center gap-2">
@@ -84,24 +98,34 @@ export function AppLayout() {
 
       <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
         <div className={`grid h-16 ${isTeacher ? 'grid-cols-5' : 'grid-cols-7'}`}>
-          {nav.map(item => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              className={({ isActive }: { isActive: boolean }) =>
-                `flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                  isActive ? 'text-brand' : 'text-gray-500 hover:text-brand'
-                }`
-              }
-            >
-              <item.icon size={isTeacher ? 20 : 18} />
-              <span className="text-[9px] leading-tight text-center">
-                {isTeacher
-                  ? ('shortLabel' in item ? item.shortLabel : item.label)
-                  : ('sub' in item ? item.sub : item.label)}
-              </span>
-            </NavLink>
-          ))}
+          {nav.map(item => {
+            const badge = dueBadge[item.href] ?? 0
+            return (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                className={({ isActive }: { isActive: boolean }) =>
+                  `flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                    isActive ? 'text-brand' : 'text-gray-500 hover:text-brand'
+                  }`
+                }
+              >
+                <span className="relative">
+                  <item.icon size={isTeacher ? 20 : 18} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[9px] leading-tight text-center">
+                  {isTeacher
+                    ? ('shortLabel' in item ? item.shortLabel : item.label)
+                    : ('sub' in item ? item.sub : item.label)}
+                </span>
+              </NavLink>
+            )
+          })}
         </div>
       </nav>
     </div>
