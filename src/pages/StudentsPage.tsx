@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { supabase } from '@/lib/supabase'
@@ -10,13 +10,20 @@ import { createPlaceholderStudent, linkPlaceholderToStudent, setStudentPassword 
 import { toast } from 'sonner'
 import { PageError } from '@/components/shared/PageError'
 
+type TeacherGroup = {
+  teacherId: string
+  teacherName: string
+  relationships: any[]
+}
+
 export function StudentsPage() {
   const { user, profile } = useAuth()
-  const [students, setStudents] = useState<any[]>([])
+  const [teacherGroups, setTeacherGroups] = useState<TeacherGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [search, setSearch] = useState('')
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   const [addingName, setAddingName] = useState('')
   const [addingPassword, setAddingPassword] = useState('')
@@ -35,12 +42,28 @@ export function StudentsPage() {
     try {
       const { data, error: err } = await supabase
         .from('teacher_student_relationships')
-        .select('*, student:profiles!teacher_student_relationships_student_id_fkey(*)')
-        .eq('teacher_id', user.id)
+        .select('*, student:profiles!teacher_student_relationships_student_id_fkey(*), teacher:profiles!teacher_student_relationships_teacher_id_fkey(id, full_name)')
         .eq('status', 'active')
         .order('started_at', { ascending: false })
       if (err) throw err
-      setStudents(data ?? [])
+
+      // Group by teacher, current teacher first
+      const map = new Map<string, TeacherGroup>()
+      for (const rel of data ?? []) {
+        const tid = rel.teacher?.id ?? rel.teacher_id
+        if (!map.has(tid)) {
+          map.set(tid, { teacherId: tid, teacherName: rel.teacher?.full_name ?? 'Unknown Teacher', relationships: [] })
+        }
+        map.get(tid)!.relationships.push(rel)
+      }
+
+      const groups = [...map.values()].sort((a, b) => {
+        if (a.teacherId === user.id) return -1
+        if (b.teacherId === user.id) return 1
+        return a.teacherName.localeCompare(b.teacherName)
+      })
+
+      setTeacherGroups(groups)
       setError(null)
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load students')
@@ -64,10 +87,20 @@ export function StudentsPage() {
       setAddingName('')
       setAddingPassword('')
       setShowAddForm(false)
-      toast.success(`${addingName} added. They can now log in with class code + their name.`)
+      toast.success(`${addingName} added.`)
       loadStudents()
     }
   }
+
+  function toggleCollapse(tid: string) {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      next.has(tid) ? next.delete(tid) : next.add(tid)
+      return next
+    })
+  }
+
+  const totalStudents = teacherGroups.reduce((a, g) => a + g.relationships.length, 0)
 
   if (error) return <PageError message={error} onRetry={loadStudents} />
 
@@ -87,7 +120,7 @@ export function StudentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Students</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{students.length} active</p>
+          <p className="text-sm text-gray-500 mt-0.5">{totalStudents} active across {teacherGroups.length} teacher{teacherGroups.length !== 1 ? 's' : ''}</p>
         </div>
         <button
           onClick={() => setShowAddForm(s => !s)}
@@ -103,8 +136,7 @@ export function StudentsPage() {
           <CardContent className="pt-4 pb-4">
             <p className="text-sm font-medium text-brand-dark mb-1">Add a student</p>
             <p className="text-xs text-gray-500 mb-3">
-              Set a name and initial password. The student logs in by entering your class code,
-              selecting their name, and entering this password.
+              Set a name and initial password. The student logs in by entering your class code, selecting their name, and entering this password.
             </p>
             <form onSubmit={handleAddStudent} className="space-y-2">
               <div className="flex gap-2">
@@ -147,7 +179,7 @@ export function StudentsPage() {
         </Card>
       )}
 
-      {/* Invite code — for adult students who sign up themselves */}
+      {/* Invite code */}
       {profile?.invite_code && (
         <div className="flex items-center gap-4 bg-brand-light border border-brand/20 rounded-xl px-5 py-4">
           <div className="flex-1">
@@ -167,7 +199,7 @@ export function StudentsPage() {
         </div>
       )}
 
-      {students.length > 0 && (
+      {totalStudents > 0 && (
         <input
           type="search"
           value={search}
@@ -177,41 +209,79 @@ export function StudentsPage() {
         />
       )}
 
-      {students.length === 0 ? (
+      {teacherGroups.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-500">
             <p>No students yet.</p>
             <p className="text-sm mt-1">Click "+ Add Student" to add your first student.</p>
           </CardContent>
         </Card>
-      ) : (() => {
-        const q = search.trim().toLowerCase()
-        const filtered = q
-          ? students.filter((rel: any) =>
-              rel.student.full_name.toLowerCase().includes(q) ||
-              rel.student.email?.toLowerCase().includes(q)
+      ) : (
+        <div className="space-y-6">
+          {teacherGroups.map(group => {
+            const q = search.trim().toLowerCase()
+            const filtered = q
+              ? group.relationships.filter((rel: any) =>
+                  rel.student.full_name.toLowerCase().includes(q) ||
+                  rel.student.email?.toLowerCase().includes(q)
+                )
+              : group.relationships
+
+            if (q && filtered.length === 0) return null
+
+            const isMe = group.teacherId === user?.id
+            const isCollapsed = collapsed.has(group.teacherId)
+
+            return (
+              <div key={group.teacherId} className="space-y-3">
+                {/* Teacher section header */}
+                <button
+                  onClick={() => toggleCollapse(group.teacherId)}
+                  className="flex items-center gap-2 w-full text-left group"
+                >
+                  {isCollapsed
+                    ? <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                    : <ChevronDown size={16} className="text-gray-400 shrink-0" />
+                  }
+                  <span className={`text-sm font-semibold ${isMe ? 'text-brand' : 'text-gray-700'}`}>
+                    {isMe ? `${group.teacherName} (you)` : group.teacherName}
+                  </span>
+                  <span className="text-xs text-gray-400 font-normal">
+                    {filtered.length} student{filtered.length !== 1 ? 's' : ''}
+                  </span>
+                  <div className="flex-1 h-px bg-gray-100 ml-1" />
+                </button>
+
+                {!isCollapsed && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map((rel: any) => (
+                      <StudentCard
+                        key={rel.id}
+                        relationship={rel}
+                        canManage={isMe}
+                        onRemoved={loadStudents}
+                        onLinked={loadStudents}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             )
-          : students
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-gray-500 col-span-full">No students match "{search}"</p>
-            ) : filtered.map((rel: any) => (
-              <StudentCard key={rel.id} relationship={rel} onRemoved={loadStudents} onLinked={loadStudents} />
-            ))}
-          </div>
-        )
-      })()}
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 function StudentCard({
   relationship,
+  canManage,
   onRemoved,
   onLinked,
 }: {
   relationship: any
+  canManage: boolean
   onRemoved: () => void
   onLinked: () => void
 }) {
@@ -280,11 +350,12 @@ function StudentCard({
               </p>
             </div>
           </Link>
-          <RemoveStudentButton studentId={student.id} studentName={student.full_name} onRemoved={onRemoved} />
+          {canManage && (
+            <RemoveStudentButton studentId={student.id} studentName={student.full_name} onRemoved={onRemoved} />
+          )}
         </div>
 
-        {/* Action buttons */}
-        {!showLinkForm && !showPasswordForm && (
+        {canManage && !showLinkForm && !showPasswordForm && (
           <div className="flex gap-2">
             <button
               onClick={() => setShowPasswordForm(true)}
@@ -303,8 +374,7 @@ function StudentCard({
           </div>
         )}
 
-        {/* Set password form */}
-        {showPasswordForm && (
+        {canManage && showPasswordForm && (
           <form onSubmit={handleSetPassword} className="space-y-2">
             <input
               type="text"
@@ -334,8 +404,7 @@ function StudentCard({
           </form>
         )}
 
-        {/* Link email form */}
-        {showLinkForm && (
+        {canManage && showLinkForm && (
           <form onSubmit={handleLink} className="space-y-2">
             <p className="text-xs text-gray-500">Enter the email the student used to sign up:</p>
             <input

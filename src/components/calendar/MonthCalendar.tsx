@@ -10,6 +10,7 @@ import { useTimezone } from '@/lib/hooks/useTimezone'
 
 type Lesson = {
   id: string
+  teacher_id?: string
   scheduled_start: string
   scheduled_end: string
   status: string
@@ -28,10 +29,13 @@ type BookingRequest = {
   teacher?: { full_name: string } | null
 }
 
+type TeacherColor = { bg: string; text: string }
+
 type Props = {
   lessons: Lesson[]
   pendingRequests: BookingRequest[]
   role: 'teacher' | 'student'
+  teacherColorMap?: Record<string, TeacherColor>
   onRequestHandled?: () => void
 }
 
@@ -50,7 +54,7 @@ function lessonLabel(l: Lesson): string {
   return l.student?.full_name?.split(' ')[0] ?? ''
 }
 
-export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
+export function MonthCalendar({ lessons, pendingRequests, role, teacherColorMap }: Props) {
   const [current, setCurrent] = useState(() => new Date())
   const [selected, setSelected] = useState<Date | null>(null)
   const TZ = useTimezone()
@@ -116,20 +120,23 @@ export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
               </span>
 
               <div className="mt-0.5 space-y-0.5">
-                {dayLessons.slice(0, 2).map(l => (
+                {dayLessons.slice(0, 2).map(l => {
+                  const tc = l.teacher_id && teacherColorMap ? teacherColorMap[l.teacher_id] : null
+                  return (
                   <div
                     key={l.id}
                     className={`text-xs px-1 py-0.5 rounded truncate ${
                       l.status === 'completed' ? 'bg-green-100 text-green-700' :
                       l.status === 'cancelled' ? 'bg-gray-100 text-gray-400 line-through' :
-                      'bg-brand-light text-brand-dark'
+                      tc ? `${tc.bg} ${tc.text}` : 'bg-brand-light text-brand-dark'
                     }`}
                   >
                     {formatInTimeZone(new Date(l.scheduled_start), TZ, 'h:mm')}
                     {' '}
                     {role === 'teacher' ? lessonLabel(l) : l.teacher?.full_name?.split(' ')[0]}
                   </div>
-                ))}
+                  )
+                })}
                 {dayRequests.slice(0, 1).map(r => (
                   <div key={r.id} className="text-xs px-1 py-0.5 rounded truncate bg-orange-100 text-orange-700">
                     {formatInTimeZone(new Date(r.requested_start), TZ, 'h:mm')} req
@@ -150,15 +157,20 @@ export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
         <div className="border border-gray-200 rounded-lg p-4 space-y-3">
           <h3 className="font-medium text-sm">{format(selected, 'EEEE, MMMM d')}</h3>
 
-          {selectedLessons.map(l => (
+          {selectedLessons.map(l => {
+            const tc = l.teacher_id && teacherColorMap ? teacherColorMap[l.teacher_id] : null
+            return (
             <div key={l.id} className="flex items-center justify-between gap-3 text-sm">
               <div>
-                <p className="font-medium">
+                <p className="font-medium flex items-center gap-1.5">
                   {role === 'teacher'
-                    ? l.is_group
-                      ? (l.group_name ?? 'Group')
-                      : l.student?.full_name
+                    ? l.is_group ? (l.group_name ?? 'Group') : l.student?.full_name
                     : l.teacher?.full_name}
+                  {tc && role === 'teacher' && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-normal ${tc.bg} ${tc.text}`}>
+                      {l.teacher?.full_name?.split(' ')[0]}
+                    </span>
+                  )}
                 </p>
                 {role === 'teacher' && l.is_group && (
                   <p className="text-xs text-gray-400">{lessonStudentNames(l).map(n => n.split(' ')[0]).join(', ')}</p>
@@ -173,14 +185,15 @@ export function MonthCalendar({ lessons, pendingRequests, role }: Props) {
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                   l.status === 'completed' ? 'bg-green-100 text-green-700' :
                   l.status === 'cancelled' ? 'bg-gray-100 text-gray-500' :
-                  'bg-brand-light text-brand-dark'
+                  tc ? `${tc.bg} ${tc.text}` : 'bg-brand-light text-brand-dark'
                 }`}>
                   {l.status}
                 </span>
                 <Link to={`/lessons/${l.id}`} className="text-xs text-brand hover:underline">View</Link>
               </div>
             </div>
-          ))}
+            )
+          })}
 
           {selectedRequests.map(r => (
             <div key={r.id} className="flex items-center justify-between gap-3 text-sm">
