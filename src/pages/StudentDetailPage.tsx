@@ -89,7 +89,7 @@ export function StudentDetailPage() {
     return (
       <div className="space-y-6">
         <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           {[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse" />)}
         </div>
       </div>
@@ -104,8 +104,8 @@ export function StudentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="flex-1 min-w-0">
           <div className="text-sm text-gray-500 mb-1">
             <Link to="/students" className="hover:text-gray-700">Students</Link>
             <span className="mx-2">/</span>
@@ -152,7 +152,7 @@ export function StudentDetailPage() {
           )}
           <p className="text-gray-500 text-sm">{student.email}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {latestSnapshot?.cefr_level && (
             <Badge className="text-sm px-3 py-1 bg-brand-light text-brand-dark border-brand/30">
               {latestSnapshot.cefr_level}
@@ -174,7 +174,7 @@ export function StudentDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="pt-4">
             <div className="text-2xl font-bold">{completedLessons}</div>

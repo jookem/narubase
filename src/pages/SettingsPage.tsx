@@ -311,20 +311,20 @@ export function SettingsPage() {
                   <p className="text-sm text-gray-500">
                     Enter the 6-character code your teacher gave you.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       value={inviteInput}
                       onChange={e => setInviteInput(e.target.value.toUpperCase())}
                       placeholder="e.g. AB3K9X"
                       maxLength={6}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                      className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                       required
                     />
                     <button
                       type="submit"
                       disabled={joiningCode || inviteInput.length < 6}
-                      className="px-4 py-2 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      className="w-full sm:w-auto px-4 py-2 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {joiningCode ? 'Joining…' : 'Join Class'}
                     </button>

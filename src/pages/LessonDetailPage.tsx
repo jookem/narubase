@@ -227,8 +227,8 @@ export function LessonDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Link to="/lessons" className="hover:text-gray-700">Lessons</Link>
             <span>/</span>
@@ -279,7 +279,7 @@ export function LessonDetailPage() {
             {formatInTimeZone(new Date(lesson.scheduled_end), tz, 'h:mm a')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Badge variant="outline" className="capitalize">{lesson.lesson_type}</Badge>
           <span className={`text-sm px-2 py-0.5 rounded-full font-medium capitalize ${
             lesson.status === 'scheduled' ? 'bg-brand-light text-brand-dark' :
@@ -329,21 +329,23 @@ export function LessonDetailPage() {
           )}
           {isTeacher && lesson.status === 'scheduled' && (
             confirmCancel ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-1.5">
                 <span className="text-sm text-gray-600">Cancel this lesson?</span>
-                <button
-                  onClick={handleCancelLesson}
-                  disabled={cancelling}
-                  className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {cancelling ? 'Cancelling…' : 'Yes, cancel'}
-                </button>
-                <button
-                  onClick={() => setConfirmCancel(false)}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-2"
-                >
-                  No
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCancelLesson}
+                    disabled={cancelling}
+                    className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmCancel(false)}
+                    className="text-sm text-gray-500 hover:text-gray-700 px-2"
+                  >
+                    No
+                  </button>
+                </div>
               </div>
             ) : (
               <button

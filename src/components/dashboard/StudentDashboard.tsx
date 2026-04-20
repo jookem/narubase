@@ -461,18 +461,18 @@ export function StudentDashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Quick stats */}
-            <div className="grid grid-cols-3 gap-3 lg:col-span-1 lg:grid-cols-1">
-              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{completedLessons}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Lessons done</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:col-span-1 lg:grid-cols-1">
+              <div className="bg-white border border-gray-100 rounded-xl p-2 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{completedLessons}</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 leading-tight">Lessons done</p>
               </div>
-              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-green-600">{grammarMastered}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Grammar mastered</p>
+              <div className="bg-white border border-gray-100 rounded-xl p-2 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{grammarMastered}</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 leading-tight">Grammar mastered</p>
               </div>
-              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-green-600">{vocabMastered}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Words mastered</p>
+              <div className="bg-white border border-gray-100 rounded-xl p-2 sm:p-4 text-center">
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{vocabMastered}</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 leading-tight">Words mastered</p>
               </div>
             </div>
 

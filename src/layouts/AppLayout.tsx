@@ -113,7 +113,7 @@ export function AppLayout() {
                 }
               >
                 <span className="relative">
-                  <item.icon size={isTeacher ? 20 : 18} />
+                  <item.icon size={isTeacher ? 20 : 17} />
                   {badge > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
                       {badge > 9 ? '9+' : badge}
