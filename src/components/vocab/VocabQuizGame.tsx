@@ -57,6 +57,7 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
   const [resumeData, setResumeData] = useState<SavedQuizSession | null>(null)
 
   useEffect(() => {
+    const currentWordSet = new Set(words.map(w => w.word))
     supabase.auth.getUser().then(({ data }) => {
       const uid = data.user?.id ?? null
       setUserId(uid)
@@ -65,13 +66,15 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
         if (saved) {
           try {
             const parsed: SavedQuizSession = JSON.parse(saved)
-            if (parsed.questions?.length > 0 && typeof parsed.index === 'number') {
+            const allInCurrentSession = parsed.questions?.every(q => currentWordSet.has(q.word))
+            if (parsed.questions?.length > 0 && typeof parsed.index === 'number' && allInCurrentSession) {
               setResumeData(parsed)
               setShowResumePrompt(true)
               setGenerating(false)
               return
             }
           } catch {}
+          localStorage.removeItem(quizSessionKey(uid, deckName))
         }
       }
       loadQuestions(uid)
