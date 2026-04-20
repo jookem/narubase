@@ -22,11 +22,16 @@ import { SpellingPage } from '@/pages/SpellingPage'
 import { GamesPage } from '@/pages/GamesPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+import { PendingApprovalPage } from '@/pages/PendingApprovalPage'
+import { AdminTeachersPage } from '@/pages/AdminTeachersPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
   if (!user) return <Navigate to="/login" replace />
+  if (profile?.role === 'teacher' && profile?.approval_status === 'pending') {
+    return <PendingApprovalPage />
+  }
   return <>{children}</>
 }
 
@@ -60,6 +65,7 @@ function AppRoutes() {
         <Route path="/spelling" element={<SpellingPage />} />
         <Route path="/games" element={<GamesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/admin/teachers" element={<AdminTeachersPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

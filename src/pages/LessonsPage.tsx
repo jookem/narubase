@@ -129,7 +129,7 @@ export function LessonsPage() {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Upcoming</h2>
             <div className="space-y-2">
               {upcoming.map((lesson: any) => (
-                <LessonCard key={lesson.id} lesson={lesson} notes={lesson.lesson_notes ?? null} />
+                <LessonCard key={lesson.id} lesson={lesson} notes={lesson.lesson_notes ?? null} readOnly={!isTeacher} />
               ))}
             </div>
           </section>
@@ -139,7 +139,7 @@ export function LessonsPage() {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Past Lessons</h2>
             <div className="space-y-2">
               {past.map((lesson: any) => (
-                <LessonCard key={lesson.id} lesson={lesson} notes={lesson.lesson_notes ?? null} />
+                <LessonCard key={lesson.id} lesson={lesson} notes={lesson.lesson_notes ?? null} readOnly={!isTeacher} />
               ))}
             </div>
           </section>
@@ -227,7 +227,7 @@ export function LessonsPage() {
             ) : (
               <div className="space-y-2">
                 {lessons.map((lesson: any) => (
-                  <LessonCard key={lesson.id} lesson={lesson} notes={lesson.lesson_notes ?? null} />
+                  <LessonCard key={lesson.id} lesson={lesson} notes={lesson.lesson_notes ?? null} readOnly={!isTeacher} />
                 ))}
               </div>
             )}

@@ -27,9 +27,10 @@ type Props = {
     areas_to_focus?: string | null
     homework?: string | null
   } | null
+  readOnly?: boolean
 }
 
-export function LessonCard({ lesson, notes }: Props) {
+export function LessonCard({ lesson, notes, readOnly = false }: Props) {
   const [open, setOpen] = useState(false)
   const tz = useTimezone()
 
@@ -76,16 +77,18 @@ export function LessonCard({ lesson, notes }: Props) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => setOpen(o => !o)}
-            className={`text-xs px-3 py-1 rounded border transition-colors ${
-              open
-                ? 'border-brand text-brand bg-brand-light'
-                : 'border-gray-200 text-gray-600 hover:border-brand/50 hover:text-brand'
-            }`}
-          >
-            {open ? 'Close' : hasNotes ? 'Edit Notes' : 'Add Notes'}
-          </button>
+          {(hasNotes || !readOnly) && (
+            <button
+              onClick={() => setOpen(o => !o)}
+              className={`text-xs px-3 py-1 rounded border transition-colors ${
+                open
+                  ? 'border-brand text-brand bg-brand-light'
+                  : 'border-gray-200 text-gray-600 hover:border-brand/50 hover:text-brand'
+              }`}
+            >
+              {open ? 'Close' : readOnly ? 'View Notes' : hasNotes ? 'Edit Notes' : 'Add Notes'}
+            </button>
+          )}
           <Link
             to={`/lessons/${lesson.id}`}
             className="text-xs text-gray-400 hover:text-brand"
@@ -96,13 +99,38 @@ export function LessonCard({ lesson, notes }: Props) {
         </div>
       </div>
 
-      {open && (
+      {open && !readOnly && (
         <QuickNotesForm
           lessonId={lesson.id}
           initialSummary={notes?.summary}
           initialAreasToFocus={notes?.areas_to_focus}
           initialHomework={notes?.homework}
         />
+      )}
+      {open && readOnly && (
+        <div className="space-y-3 pt-3 border-t text-sm">
+          {notes?.summary && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">What we covered</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{notes.summary}</p>
+            </div>
+          )}
+          {notes?.areas_to_focus && (
+            <div>
+              <p className="text-xs font-medium text-orange-600 uppercase tracking-wide mb-1">Next session focus</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{notes.areas_to_focus}</p>
+            </div>
+          )}
+          {notes?.homework && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Homework</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{notes.homework}</p>
+            </div>
+          )}
+          {!notes?.summary && !notes?.areas_to_focus && !notes?.homework && (
+            <p className="text-gray-400 italic">No notes yet.</p>
+          )}
+        </div>
       )}
     </div>
   )

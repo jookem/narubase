@@ -29,6 +29,7 @@ export async function signup(
     role,
     full_name: full_name.trim(),
     email: email.trim().toLowerCase(),
+    approval_status: role === 'teacher' ? 'pending' : 'approved',
   }, { onConflict: 'id' })
 
   if (profileError) {

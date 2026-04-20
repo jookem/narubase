@@ -1,4 +1,5 @@
 export type UserRole = 'teacher' | 'student'
+export type TeacherApprovalStatus = 'pending' | 'approved' | 'rejected'
 export type Locale = 'ja' | 'en'
 export type RelationshipStatus = 'active' | 'paused' | 'ended'
 export type GoalStatus = 'active' | 'achieved' | 'paused' | 'dropped'
@@ -23,6 +24,7 @@ export interface Profile {
   notifications_email: boolean
   default_lesson_mins: number
   birthday: string | null
+  approval_status: TeacherApprovalStatus
   created_at: string
   updated_at: string
 }
