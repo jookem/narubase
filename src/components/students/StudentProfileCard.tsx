@@ -246,7 +246,10 @@ export function StudentProfileCard({
                 <Textarea placeholder="What does this student want to achieve?" value={f.learning_goals} onChange={e => set('learning_goals', e.target.value)} rows={3} className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs">Additional Notes</Label>
+                <Label className="text-xs">
+                  Additional Notes
+                  <span className="ml-2 text-[10px] font-normal text-gray-400 normal-case tracking-normal">🔒 Not visible to student</span>
+                </Label>
                 <Textarea placeholder="Anything else worth noting..." value={f.notes} onChange={e => set('notes', e.target.value)} rows={2} className="mt-1" />
               </div>
             </section>
@@ -311,7 +314,10 @@ export function StudentProfileCard({
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Goals &amp; Notes</p>
                     <dl className="space-y-1.5 text-sm">
                       {d.learning_goals && <><dt className="text-gray-500">Dreams</dt><dd className="whitespace-pre-wrap">{d.learning_goals}</dd></>}
-                      {d.notes && <><dt className="text-gray-500">Notes</dt><dd className="whitespace-pre-wrap">{d.notes}</dd></>}
+                      {d.notes && <>
+                        <dt className="text-gray-500 flex items-center gap-1.5">Notes <span className="text-[10px] text-gray-400">🔒 Not visible to student</span></dt>
+                        <dd className="whitespace-pre-wrap">{d.notes}</dd>
+                      </>}
                     </dl>
                   </div>
                 )}
