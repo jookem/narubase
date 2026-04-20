@@ -279,47 +279,27 @@ export async function addVocabularyToBank(
   return { success: true }
 }
 
-const INTERVALS = [1, 3, 7, 14] // days per mastery level
-
 export async function rateVocabCard(
   vocabId: string,
   currentMastery: 0 | 1 | 2 | 3,
   rating: 'again' | 'hard' | 'good' | 'easy',
+  intervalDays: number | null = null,
+  easeFactor: number | null = null,
 ): Promise<{ error?: string }> {
   const { data: { session } } = await supabase.auth.getSession()
   const user = session?.user
   if (!user) return { error: 'Not authenticated.' }
 
-  let newMastery: number
-  let intervalDays: number
-
-  switch (rating) {
-    case 'again':
-      newMastery = Math.max(0, currentMastery - 1)
-      intervalDays = 1
-      break
-    case 'hard':
-      newMastery = currentMastery
-      intervalDays = INTERVALS[currentMastery]
-      break
-    case 'good':
-      newMastery = Math.min(3, currentMastery + 1)
-      intervalDays = INTERVALS[newMastery]
-      break
-    case 'easy':
-      newMastery = Math.min(3, currentMastery + 2)
-      intervalDays = INTERVALS[newMastery] * 2
-      break
-  }
-
-  const nextReview = new Date()
-  nextReview.setDate(nextReview.getDate() + intervalDays)
+  const { computeSRS } = await import('@/lib/srs')
+  const result = computeSRS(intervalDays, currentMastery, easeFactor, rating)
 
   const { error } = await supabase
     .from('vocabulary_bank')
     .update({
-      mastery_level: newMastery,
-      next_review: nextReview.toISOString().split('T')[0],
+      mastery_level: result.masteryLevel,
+      next_review: result.nextReview,
+      interval_days: result.intervalDays,
+      ease_factor: result.easeFactor,
     })
     .eq('id', vocabId)
     .eq('student_id', user.id)

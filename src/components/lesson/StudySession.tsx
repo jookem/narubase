@@ -95,7 +95,7 @@ export function StudySession({ cards, sessionName, onClose, onComplete }: Props)
     if (!current || rating) return
     setRating(true)
 
-    await rateVocabCard(current.id, current.mastery_level as MasteryLevel, r)
+    await rateVocabCard(current.id, current.mastery_level as MasteryLevel, r, (current as any).interval_days ?? null, (current as any).ease_factor ?? null)
 
     const newStats = { ...stats, [r]: stats[r] + 1 }
     setStats(newStats)

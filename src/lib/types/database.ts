@@ -161,6 +161,8 @@ export interface VocabularyBankEntry {
   deck_id: string | null
   mastery_level: MasteryLevel
   next_review: string | null
+  interval_days: number | null
+  ease_factor: number
   quiz_sentence: string | null
   quiz_answer: string | null
   quiz_distractors: string[]

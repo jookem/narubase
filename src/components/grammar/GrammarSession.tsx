@@ -170,7 +170,7 @@ export function GrammarSession({ cards, sessionName, onClose, onComplete }: Prop
   async function handleRate(r: GrammarRating) {
     if (!current || rating) return
     setRating(true)
-    await rateGrammarCard(current.id, current.mastery_level, r)
+    await rateGrammarCard(current.id, current.mastery_level, r, current.interval_days ?? null, current.ease_factor ?? null)
 
     const nextQueue = queue.slice(1)
     const newAgainQueue = r === 'again' ? [...againQueue, current] : againQueue

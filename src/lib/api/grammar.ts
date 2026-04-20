@@ -21,6 +21,8 @@ export interface GrammarBankEntry {
   category: string | null
   mastery_level: MasteryLevel
   next_review: string | null
+  interval_days: number | null
+  ease_factor: number
   created_at: string
   updated_at: string
 }
@@ -62,7 +64,6 @@ export interface GrammarDeck {
   slides?: GrammarLessonSlide[]
 }
 
-const INTERVALS = [1, 3, 7, 14]
 
 // ── Grammar Bank ──────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ export async function listGrammar(
 ): Promise<{ entries?: GrammarBankEntry[]; error?: string }> {
   const { data, error } = await supabase
     .from('grammar_bank')
-    .select('id, student_id, teacher_id, lesson_id, deck_id, point, mastery_level, next_review, created_at, updated_at')
+    .select('id, student_id, teacher_id, lesson_id, deck_id, point, mastery_level, next_review, interval_days, ease_factor, created_at, updated_at')
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
 
@@ -158,40 +159,22 @@ export async function rateGrammarCard(
   id: string,
   currentMastery: MasteryLevel,
   rating: GrammarRating,
+  intervalDays: number | null = null,
+  easeFactor: number | null = null,
 ): Promise<{ error?: string }> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.user) return { error: 'Not authenticated.' }
 
-  let newMastery: number
-  let intervalDays: number
-
-  switch (rating) {
-    case 'again':
-      newMastery = Math.max(0, currentMastery - 1)
-      intervalDays = 1
-      break
-    case 'hard':
-      newMastery = currentMastery
-      intervalDays = INTERVALS[currentMastery]
-      break
-    case 'good':
-      newMastery = Math.min(3, currentMastery + 1)
-      intervalDays = INTERVALS[newMastery]
-      break
-    case 'easy':
-      newMastery = Math.min(3, currentMastery + 2)
-      intervalDays = INTERVALS[newMastery] * 2
-      break
-  }
-
-  const nextReview = new Date()
-  nextReview.setDate(nextReview.getDate() + intervalDays)
+  const { computeSRS } = await import('@/lib/srs')
+  const result = computeSRS(intervalDays, currentMastery, easeFactor, rating)
 
   const { error } = await supabase
     .from('grammar_bank')
     .update({
-      mastery_level: newMastery,
-      next_review: nextReview.toISOString().split('T')[0],
+      mastery_level: result.masteryLevel,
+      next_review: result.nextReview,
+      interval_days: result.intervalDays,
+      ease_factor: result.easeFactor,
     })
     .eq('id', id)
     .eq('student_id', session.user.id)
