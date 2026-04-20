@@ -159,7 +159,7 @@ export function StudentDashboard() {
         getStudyStreak(user!.id),
 
         supabase.from('grammar_bank').select('mastery_level').eq('student_id', user!.id),
-        supabase.from('vocabulary_bank').select('mastery_level').eq('student_id', user!.id).eq('is_active', true),
+        supabase.from('vocabulary_bank').select('mastery_level').eq('student_id', user!.id),
         supabase.from('study_logs').select('studied_date').eq('student_id', user!.id).gte('studied_date', thirtyDaysAgo),
         supabase.from('progress_snapshots').select('*').eq('student_id', user!.id).order('snapshot_date', { ascending: false }).limit(1),
         supabase.from('lessons').select('id', { count: 'exact', head: true }).eq('student_id', user!.id).eq('status', 'completed'),

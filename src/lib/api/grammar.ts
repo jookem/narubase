@@ -353,7 +353,7 @@ export async function assignGrammarDeckToStudent(
 
   const { error } = await supabase
     .from('grammar_bank')
-    .upsert(entries, { onConflict: 'student_id,point', ignoreDuplicates: true })
+    .upsert(entries.map(e => ({ ...e, is_active: true })), { onConflict: 'student_id,point' })
 
   if (error) return { error: error.message }
   return { count: entries.length }
@@ -365,7 +365,7 @@ export async function removeGrammarDeckFromStudent(
 ): Promise<{ error?: string }> {
   const { error } = await supabase
     .from('grammar_bank')
-    .delete()
+    .update({ is_active: false })
     .eq('deck_id', deckId)
     .eq('student_id', studentId)
 
