@@ -3,9 +3,21 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+
+const appVersion = process.env.VERCEL_GIT_COMMIT_SHA || `dev-${Date.now()}`
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
+    {
+      name: 'write-version-file',
+      buildStart() {
+        fs.writeFileSync('public/app-version.json', JSON.stringify({ v: appVersion }))
+      },
+    },
     react(),
     tailwindcss(),
     VitePWA({

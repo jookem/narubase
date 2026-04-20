@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { useVersionCheck } from '@/lib/hooks/useVersionCheck'
 import {
   LayoutDashboard, Users, Calendar, Clock, BookOpen,
   Home, CalendarPlus, Target, Languages, GraduationCap, Gamepad2,
@@ -37,6 +38,7 @@ export function AppLayout() {
 
   const isTeacher = profile.role === 'teacher'
   const nav = isTeacher ? teacherNav : studentNav
+  const updateAvailable = useVersionCheck()
   const { counts: due } = useDueCounts()
   const dueBadge: Record<string, number> = {
     '/grammar': due.grammar,
@@ -45,7 +47,18 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      {updateAvailable && (
+        <div className="fixed top-0 inset-x-0 z-50 bg-brand text-white text-sm flex items-center justify-between px-4 py-2 shadow-md">
+          <span>A new version is available.</span>
+          <button
+            onClick={() => window.location.reload()}
+            className="ml-4 px-3 py-1 bg-white text-brand font-medium rounded-full text-xs hover:bg-brand-light transition-colors"
+          >
+            Update now
+          </button>
+        </div>
+      )}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10" style={updateAvailable ? { marginTop: '40px' } : undefined}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-8">
