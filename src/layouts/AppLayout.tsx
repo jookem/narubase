@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useVersionCheck } from '@/lib/hooks/useVersionCheck'
 import {
   LayoutDashboard, Users, Calendar, Clock, BookOpen,
-  Home, CalendarPlus, Target, Languages, GraduationCap, Gamepad2,
+  Home, CalendarPlus, Target, Languages, GraduationCap, Gamepad2, Drama,
 } from 'lucide-react'
 import { AvatarMenu } from '@/components/shared/AvatarMenu'
 import { useAuth } from '@/contexts/AuthContext'
@@ -11,11 +11,12 @@ import { useDueCounts } from '@/lib/hooks/useDueCounts'
 import { GuideModal } from '@/components/guide/GuideModal'
 
 const teacherNav = [
-  { href: '/dashboard', label: 'Dashboard', shortLabel: 'Home', icon: LayoutDashboard },
-  { href: '/students', label: 'Students', shortLabel: 'Students', icon: Users },
-  { href: '/calendar', label: 'Calendar', shortLabel: 'Calendar', icon: Calendar },
+  { href: '/dashboard',  label: 'Dashboard',   shortLabel: 'Home',    icon: LayoutDashboard },
+  { href: '/students',   label: 'Students',    shortLabel: 'Students', icon: Users },
+  { href: '/calendar',   label: 'Calendar',    shortLabel: 'Calendar', icon: Calendar },
   { href: '/availability', label: 'Availability', shortLabel: 'Hours', icon: Clock },
-  { href: '/lessons', label: 'Lessons', shortLabel: 'Lessons', icon: BookOpen },
+  { href: '/lessons',    label: 'Lessons',     shortLabel: 'Lessons', icon: BookOpen },
+  { href: '/situations', label: 'Situations',  shortLabel: 'Sitns',   icon: Drama },
 ]
 
 const studentNav = [
@@ -112,7 +113,7 @@ export function AppLayout() {
       </main>
 
       <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
-        <div className={`grid h-16 ${isTeacher ? 'grid-cols-5' : 'grid-cols-7'}`}>
+        <div className={`grid h-16 ${isTeacher ? 'grid-cols-6' : 'grid-cols-7'}`}>
           {nav.map(item => {
             const badge = dueBadge[item.href] ?? 0
             return (
@@ -126,7 +127,7 @@ export function AppLayout() {
                 }
               >
                 <span className="relative">
-                  <item.icon size={isTeacher ? 20 : 17} />
+                  <item.icon size={17} />
                   {badge > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
                       {badge > 9 ? '9+' : badge}
