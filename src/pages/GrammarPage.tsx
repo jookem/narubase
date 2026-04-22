@@ -307,7 +307,7 @@ export function GrammarPage() {
                     {cat}
                   </button>
                 ))}
-                {uncategorized.length > 0 && (
+                {uncategorized.length > 0 && categories.length > 0 && (
                   <button
                     onClick={() => jumpTo('__other__')}
                     className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
@@ -373,7 +373,7 @@ export function GrammarPage() {
                 </section>
               ))}
 
-              {uncategorized.length > 0 && (
+              {uncategorized.length > 0 && categories.length > 0 && (
                 <section
                   ref={el => { sectionRefs.current['__other__'] = el }}
                   className="scroll-mt-20 space-y-3"
@@ -417,11 +417,13 @@ export function GrammarPage() {
                 </section>
               )}
 
-              {/* If everything is uncategorized, just show them all without "Other" header */}
-              {categories.length === 0 && uncategorized.length > 0 && filtered.length > 0 && !q && (
-                <p className="text-xs text-gray-400 text-center py-2">
-                  No categories set yet — your teacher can add them from the lesson or student page.
-                </p>
+              {/* All entries uncategorized — flat grid, no "Other" header */}
+              {categories.length === 0 && uncategorized.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {uncategorized.map(e => (
+                    <GrammarCard key={e.id} entry={e} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(uncategorized)} />
+                  ))}
+                </div>
               )}
             </div>
           </>
