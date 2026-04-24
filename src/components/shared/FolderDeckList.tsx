@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { SortableDeckList, type DeckRow } from './SortableDeckList'
 
 export interface FolderDeckRow extends DeckRow {
@@ -13,38 +14,53 @@ interface Props {
 }
 
 function FolderPicker({
+  anchorRef,
   currentFolder,
   allFolders,
   onPick,
   onClose,
 }: {
+  anchorRef: React.RefObject<HTMLButtonElement>
   currentFolder: string | null
   allFolders: string[]
   onPick: (folder: string | null) => void
   onClose: () => void
 }) {
   const [newName, setNewName] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-  const [openUpward, setOpenUpward] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
 
+  // Calculate position from anchor button
+  useEffect(() => {
+    if (!anchorRef.current) return
+    const rect = anchorRef.current.getBoundingClientRect()
+    const pickerHeight = 220 // approximate
+    const spaceBelow = window.innerHeight - rect.bottom
+    const top = spaceBelow >= pickerHeight
+      ? rect.bottom + 4
+      : rect.top - pickerHeight - 4
+    setPos({ top, right: window.innerWidth - rect.right })
+  }, [anchorRef])
+
+  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+      if (
+        pickerRef.current && !pickerRef.current.contains(e.target as Node) &&
+        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+      ) onClose()
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [onClose])
+  }, [onClose, anchorRef])
 
-  useEffect(() => {
-    if (!ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    if (rect.bottom > window.innerHeight - 16) setOpenUpward(true)
-  }, [])
+  if (!pos) return null
 
-  return (
+  return createPortal(
     <div
-      ref={ref}
-      className={`absolute right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-2 w-52 space-y-1 ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+      ref={pickerRef}
+      style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 9999 }}
+      className="bg-white border border-gray-200 rounded-xl shadow-xl p-2 w-52 space-y-1"
     >
       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pb-1">Move to folder</p>
 
@@ -92,7 +108,8 @@ function FolderPicker({
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -100,12 +117,19 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [pickingId, setPickingId] = useState<string | null>(null)
   const [moving, setMoving] = useState<string | null>(null)
+  const buttonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement>>>({})
+
+  function getButtonRef(id: string): React.RefObject<HTMLButtonElement> {
+    if (!buttonRefs.current[id]) {
+      buttonRefs.current[id] = { current: null } as unknown as React.RefObject<HTMLButtonElement>
+    }
+    return buttonRefs.current[id]
+  }
 
   const allFolders = Array.from(
     new Set(decks.map(d => d.folder).filter((f): f is string => !!f))
   ).sort()
 
-  // Group: named folders in alpha order, then uncategorized
   const groups: Array<{ label: string | null; key: string; rows: FolderDeckRow[] }> = [
     ...allFolders.map(f => ({
       label: f,
@@ -116,7 +140,6 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
   ].filter(g => g.rows.length > 0)
 
   function handleReorderGroup(groupKey: string, newGroupOrder: FolderDeckRow[]) {
-    // Rebuild the full deck list: replace this group's entries in-place
     const result: FolderDeckRow[] = []
     const replaced = new Set(newGroupOrder.map(r => r.id))
     let inserted = false
@@ -137,6 +160,10 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
     setMoving(null)
   }
 
+  const pickingRow = pickingId
+    ? decks.find(d => d.id === pickingId) ?? null
+    : null
+
   return (
     <div className="space-y-3">
       {groups.map(group => {
@@ -144,15 +171,12 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
         const isUncategorized = group.label === null
         return (
           <div key={group.key}>
-            {/* Folder header — only show if there are named folders or multiple groups */}
-            {(allFolders.length > 0) && (
+            {allFolders.length > 0 && (
               <button
                 onClick={() => setCollapsed(prev => ({ ...prev, [group.key]: !prev[group.key] }))}
-                className="flex items-center gap-1.5 w-full text-left mb-1.5 group"
+                className="flex items-center gap-1.5 w-full text-left mb-1.5"
               >
-                <span className="text-xs text-gray-400">
-                  {isCollapsed ? '▶' : '▼'}
-                </span>
+                <span className="text-xs text-gray-400">{isCollapsed ? '▶' : '▼'}</span>
                 <span className={`text-xs font-semibold uppercase tracking-wide ${isUncategorized ? 'text-gray-400' : 'text-gray-600'}`}>
                   {isUncategorized ? 'Uncategorized' : `📁 ${group.label}`}
                 </span>
@@ -167,24 +191,15 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
                 renderActions={row => (
                   <div className="flex items-center gap-2 shrink-0">
                     {renderActions(row as FolderDeckRow)}
-                    <div className="relative">
-                      <button
-                        onClick={() => setPickingId(pickingId === row.id ? null : row.id)}
-                        disabled={moving === row.id}
-                        title="Move to folder"
-                        className="text-gray-300 hover:text-gray-500 transition-colors disabled:opacity-40 text-sm px-0.5"
-                      >
-                        {moving === row.id ? '…' : '📁'}
-                      </button>
-                      {pickingId === row.id && (
-                        <FolderPicker
-                          currentFolder={(row as FolderDeckRow).folder ?? null}
-                          allFolders={allFolders}
-                          onPick={folder => handleMove(row.id, folder)}
-                          onClose={() => setPickingId(null)}
-                        />
-                      )}
-                    </div>
+                    <button
+                      ref={getButtonRef(row.id)}
+                      onClick={() => setPickingId(pickingId === row.id ? null : row.id)}
+                      disabled={moving === row.id}
+                      title="Move to folder"
+                      className="text-gray-300 hover:text-gray-500 transition-colors disabled:opacity-40 text-sm px-0.5"
+                    >
+                      {moving === row.id ? '…' : '📁'}
+                    </button>
                   </div>
                 )}
               />
@@ -193,7 +208,15 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
         )
       })}
 
-      {decks.length === 0 && null}
+      {pickingId && pickingRow && (
+        <FolderPicker
+          anchorRef={getButtonRef(pickingId)}
+          currentFolder={pickingRow.folder ?? null}
+          allFolders={allFolders}
+          onPick={folder => handleMove(pickingId, folder)}
+          onClose={() => setPickingId(null)}
+        />
+      )}
     </div>
   )
 }
