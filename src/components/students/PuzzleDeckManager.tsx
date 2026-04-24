@@ -728,6 +728,7 @@ export function PuzzleDeckManager({ studentId }: { studentId: string }) {
               <p className="text-xs text-gray-400">No puzzle decks yet. Create one to get started.</p>
             ) : (
               <FolderDeckList
+                storageKey="puzzle-decks"
                 decks={decks.map(d => ({
                   id: d.id,
                   name: d.name,

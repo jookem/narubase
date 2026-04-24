@@ -1111,6 +1111,7 @@ export function GrammarBankManager({ studentId }: { studentId: string }) {
               <p className="text-xs text-gray-400">No decks yet. Create one to get started.</p>
             ) : (
               <FolderDeckList
+                storageKey="grammar-decks"
                 decks={decks.map(d => ({
                   id: d.id,
                   name: d.name,

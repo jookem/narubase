@@ -1115,6 +1115,7 @@ export function StudentVocabManager({ studentId }: Props) {
               <p className="text-xs text-gray-400">No decks yet. Create one to get started.</p>
             ) : (
               <FolderDeckList
+                storageKey="vocab-decks"
                 decks={decks.map(d => ({
                   id: d.id,
                   name: d.name,

@@ -11,6 +11,7 @@ interface Props {
   onReorder: (newOrder: FolderDeckRow[]) => void
   renderActions: (row: FolderDeckRow) => React.ReactNode
   onMoveToFolder: (id: string, folder: string | null) => Promise<void>
+  storageKey: string
 }
 
 function FolderPicker({
@@ -113,8 +114,11 @@ function FolderPicker({
   )
 }
 
-export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder }: Props) {
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder, storageKey }: Props) {
+  const lsKey = `folder-collapsed:${storageKey}`
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem(lsKey) ?? '{}') } catch { return {} }
+  })
   const [pickingId, setPickingId] = useState<string | null>(null)
   const [moving, setMoving] = useState<string | null>(null)
   const buttonRefs = useRef<Record<string, React.RefObject<HTMLButtonElement>>>({})
@@ -173,7 +177,11 @@ export function FolderDeckList({ decks, onReorder, renderActions, onMoveToFolder
           <div key={group.key}>
             {allFolders.length > 0 && (
               <button
-                onClick={() => setCollapsed(prev => ({ ...prev, [group.key]: !prev[group.key] }))}
+                onClick={() => setCollapsed(prev => {
+                  const next = { ...prev, [group.key]: !prev[group.key] }
+                  try { localStorage.setItem(lsKey, JSON.stringify(next)) } catch {}
+                  return next
+                })}
                 className="flex items-center gap-1.5 w-full text-left mb-1.5"
               >
                 <span className="text-xs text-gray-400">{isCollapsed ? '▶' : '▼'}</span>
