@@ -25,6 +25,7 @@ function FolderPicker({
 }) {
   const [newName, setNewName] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const [openUpward, setOpenUpward] = useState(false)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -34,10 +35,16 @@ function FolderPicker({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [onClose])
 
+  useEffect(() => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    if (rect.bottom > window.innerHeight - 16) setOpenUpward(true)
+  }, [])
+
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-2 w-52 space-y-1"
+      className={`absolute right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-2 w-52 space-y-1 ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'}`}
     >
       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pb-1">Move to folder</p>
 
