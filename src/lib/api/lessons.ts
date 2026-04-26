@@ -401,7 +401,7 @@ export async function uploadDeckWordImage(
   if (!user) return { error: 'Not authenticated.' }
 
   const webpFile = await convertToWebP(file)
-  const path = `deck/${deckWordId}.webp`
+  const path = `dw-${deckWordId}.webp`
 
   const { error: uploadError } = await supabase.storage
     .from('vocab-images')
@@ -426,7 +426,7 @@ export async function removeDeckWordImage(
   deckId: string,
   wordText: string,
 ): Promise<{ error?: string }> {
-  await supabase.storage.from('vocab-images').remove([`deck/${deckWordId}.webp`])
+  await supabase.storage.from('vocab-images').remove([`dw-${deckWordId}.webp`])
   await supabase.from('vocabulary_deck_words').update({ image_url: null }).eq('id', deckWordId)
   await supabase.from('vocabulary_bank').update({ image_url: null }).eq('deck_id', deckId).eq('word', wordText)
   return {}
