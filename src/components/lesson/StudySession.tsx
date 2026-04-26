@@ -266,8 +266,13 @@ export function StudySession({ cards, sessionName, onClose, onComplete }: Props)
                 {current.definition_en && (
                   <p className="text-lg text-gray-500 font-sans" dangerouslySetInnerHTML={{ __html: current.definition_en }} />
                 )}
-                {current.example && (
-                  <p className="text-sm text-gray-400 italic border-t pt-3 mt-3 w-full" dangerouslySetInnerHTML={{ __html: `&ldquo;${current.example}&rdquo;` }} />
+                {current.quiz_sentence?.includes('_____') && current.quiz_answer && (
+                  <p className="text-sm text-gray-400 italic border-t pt-3 mt-1 w-full">
+                    &ldquo;{current.quiz_sentence.replace('_____', current.quiz_answer)}&rdquo;
+                  </p>
+                )}
+                {!current.quiz_sentence?.includes('_____') && current.example && (
+                  <p className="text-sm text-gray-400 italic border-t pt-3 mt-1 w-full" dangerouslySetInnerHTML={{ __html: `&ldquo;${current.example}&rdquo;` }} />
                 )}
               </div>
             )}

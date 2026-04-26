@@ -256,16 +256,9 @@ export function VocabQuizGame({ words, deckName, onClose }: Props) {
               className="w-full max-h-48 object-cover"
             />
           )}
-          <div className="p-6 space-y-3">
-            <p className="text-white text-xl font-medium leading-relaxed">
-              <SentenceDisplay sentence={q.sentence} />
-            </p>
-            {selected && (
-              <p className="text-white/60 text-sm leading-relaxed">
-                {q.sentence.replace('_____', q.answer)}
-              </p>
-            )}
-          </div>
+          <p className="text-white text-xl font-medium leading-relaxed p-6">
+            <SentenceDisplay sentence={q.sentence} />
+          </p>
         </div>
 
         {/* Choices */}
