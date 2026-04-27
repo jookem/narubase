@@ -3,14 +3,16 @@ import { StudentVocabManager } from '@/components/students/StudentVocabManager'
 import { GrammarBankManager } from '@/components/students/GrammarBankManager'
 import { EikenPictureManager } from '@/components/eiken/EikenPictureManager'
 import { PuzzleDeckManager } from '@/components/students/PuzzleDeckManager'
+import { SituationsManager } from '@/pages/SituationsPage'
 
-type Tab = 'vocab' | 'grammar' | 'eiken' | 'puzzles'
+type Tab = 'vocab' | 'grammar' | 'eiken' | 'puzzles' | 'situations'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'vocab',   label: 'Vocabulary Decks' },
-  { id: 'grammar', label: 'Grammar Decks' },
-  { id: 'eiken',   label: 'Eiken Picture Bank' },
-  { id: 'puzzles', label: 'Train Puzzles' },
+  { id: 'vocab',      label: 'Vocabulary Decks' },
+  { id: 'grammar',    label: 'Grammar Decks' },
+  { id: 'eiken',      label: 'Eiken Picture Bank' },
+  { id: 'puzzles',    label: 'Train Puzzles' },
+  { id: 'situations', label: 'Situations' },
 ]
 
 export function MaterialsPage() {
@@ -40,10 +42,11 @@ export function MaterialsPage() {
       </div>
 
       <div>
-        {tab === 'vocab'   && <StudentVocabManager />}
-        {tab === 'grammar' && <GrammarBankManager />}
-        {tab === 'eiken'   && <EikenPictureManager />}
-        {tab === 'puzzles' && <PuzzleDeckManager />}
+        {tab === 'vocab'      && <StudentVocabManager />}
+        {tab === 'grammar'    && <GrammarBankManager />}
+        {tab === 'eiken'      && <EikenPictureManager />}
+        {tab === 'puzzles'    && <PuzzleDeckManager />}
+        {tab === 'situations' && <SituationsManager />}
       </div>
     </div>
   )

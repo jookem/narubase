@@ -323,18 +323,13 @@ function BackgroundSection() {
   )
 }
 
-// ── Page ───────────────────────────────────────────────────────────
+// ── Shared manager (used by MaterialsPage) ────────────────────────
 
-export function SituationsPage() {
+export function SituationsManager() {
   const [tab, setTab] = useState<'npcs' | 'avatars' | 'backgrounds'>('npcs')
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Situation Assets</h1>
-        <p className="text-gray-500 text-sm mt-1">Upload character sprites and scene backgrounds for the Situation Simulator</p>
-      </div>
-
       <div className="grid grid-cols-3 gap-1 bg-gray-100 rounded-xl p-1">
         <Tab label="🎭 Characters" active={tab === 'npcs'}        onClick={() => setTab('npcs')} />
         <Tab label="👤 Avatars"    active={tab === 'avatars'}     onClick={() => setTab('avatars')} />
@@ -344,6 +339,20 @@ export function SituationsPage() {
       {tab === 'npcs'        && <NpcSection />}
       {tab === 'avatars'     && <AvatarSection />}
       {tab === 'backgrounds' && <BackgroundSection />}
+    </div>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────────────
+
+export function SituationsPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Situation Assets</h1>
+        <p className="text-gray-500 text-sm mt-1">Upload character sprites and scene backgrounds for the Situation Simulator</p>
+      </div>
+      <SituationsManager />
     </div>
   )
 }
