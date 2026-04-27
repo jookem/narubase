@@ -27,6 +27,21 @@ const NotificationsContext = createContext<NotificationsContextValue>({
   reload: () => {},
 })
 
+function seenKey(userId: string) {
+  return `narubase_seen_notifs_${userId}`
+}
+
+function getSeenIds(userId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(seenKey(userId))
+    return new Set(raw ? JSON.parse(raw) : [])
+  } catch { return new Set() }
+}
+
+function markAllSeen(userId: string, ids: string[]) {
+  localStorage.setItem(seenKey(userId), JSON.stringify(ids))
+}
+
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth()
   const [items, setItems] = useState<NotificationItem[]>([])
@@ -37,6 +52,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const load = useCallback(async () => {
     if (!user || !profile) return
     setLoading(true)
+
+    const seen = getSeenIds(user.id)
 
     if (profile.role === 'teacher') {
       const { data } = await supabase
@@ -60,9 +77,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         }
       })
       setItems(notifications)
-      setUnreadCount(notifications.length)
+      setUnreadCount(notifications.filter(n => !seen.has(n.id)).length)
     } else {
-      // Students: recent booking status changes
       const { data } = await supabase
         .from('booking_requests')
         .select('id, requested_start, status, teacher_note, updated_at, profiles!booking_requests_teacher_id_fkey(full_name)')
@@ -85,8 +101,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         }
       })
       setItems(notifications)
-      // Don't persist student unread count for now — just show all recent
-      setUnreadCount(notifications.filter(n => n.type === 'booking_approved' || n.type === 'booking_declined').length)
+      setUnreadCount(notifications.filter(n => !seen.has(n.id)).length)
     }
 
     setLoading(false)
@@ -126,7 +141,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { channel.unsubscribe(); channelRef.current = null }
   }, [user, profile, load])
 
-  function clearUnread() { setUnreadCount(0) }
+  function clearUnread() {
+    if (!user) return
+    markAllSeen(user.id, items.map(n => n.id))
+    setUnreadCount(0)
+  }
 
   return (
     <NotificationsContext.Provider value={{ items, unreadCount, loading, clearUnread, reload: load }}>
