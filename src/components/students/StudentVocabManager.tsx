@@ -1128,10 +1128,7 @@ export function StudentVocabManager({ studentId }: Props) {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Vocabulary Bank</CardTitle>
-            <AnkiImporter studentId={studentId} onImported={loadVocab} />
-          </div>
+          <CardTitle className="text-base">Vocabulary Bank</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-4">
