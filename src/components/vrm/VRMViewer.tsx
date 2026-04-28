@@ -195,24 +195,17 @@ export function VRMViewer({
       loadingAnims.add(url)
 
       const isFbx = url.split('?')[0].toLowerCase().endsWith('.fbx')
-      console.log('[VRMViewer] switchAnim', { url, isFbx })
 
       if (isFbx) {
-        console.log('[VRMViewer] starting FBX load:', url)
         fbxLoader.load(
           url,
           fbx => {
-            fbx.animations.forEach((a,i) => console.log(`[VRMViewer] clip[${i}] name="${a.name}" dur=${a.duration.toFixed(2)}s tracks=${a.tracks.length}`))
             loadingAnims.delete(url)
             if (!vrmRef.current || currentAnimUrlRef.current !== url) return
             const srcClip = fbx.animations[0]
-            if (!srcClip) {
-              console.warn('[VRMViewer] FBX loaded but contains no animations:', url)
-              return
-            }
+            if (!srcClip) return
             const clip = retargetMixamoClip(srcClip, vrmRef.current)
-            console.log('[VRMViewer] retargeted tracks:', clip.tracks.length, 'first:', clip.tracks[0]?.name)
-            if (clip.tracks.length === 0) return  // warning already logged in retarget
+            if (clip.tracks.length === 0) return
             clipCache.set(url, clip)
             playClip(clip)
           },

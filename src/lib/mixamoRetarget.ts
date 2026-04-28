@@ -49,14 +49,11 @@ function normaliseMixamoName(raw: string): string {
 /**
  * Retarget a Mixamo FBX AnimationClip to a VRM humanoid skeleton.
  *
- * Coordinate system:
- *   VRM 0.x — scene already rotated π around Y by rotateVRM0, bone local spaces
- *              are in the original +Z-forward frame → no quaternion correction needed.
- *   VRM 1.0 — model faces -Z natively; converting +Z→-Z quaternions via conjugation
- *              by 180° Y rotation simplifies to negating X and Z: (x,y,z,w)→(-x,y,-z,w).
+ * NOTE: FBX animations produce noticeably better results when pre-converted to
+ * VRMA format using fbx2vrma-converter before uploading. FBX retargeting is a
+ * best-effort fallback; VRMA is the recommended format.
  *
- * Non-hips position tracks are dropped to avoid root-motion drift.
- * Logs a warning to the console if zero tracks were mapped (bone name mismatch).
+ * Position tracks are dropped to avoid root-motion drift.
  */
 export function retargetMixamoClip(clip: THREE.AnimationClip, vrm: VRM): THREE.AnimationClip {
   const tracks: THREE.KeyframeTrack[] = []
