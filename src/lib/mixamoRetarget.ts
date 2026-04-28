@@ -77,12 +77,6 @@ export function retargetMixamoClip(clip: THREE.AnimationClip, vrm: VRM): THREE.A
     const values     = new Float32Array(track.values)
 
     if (prop === 'quaternion') {
-      // Normalized bones are always in VRM 1.0 space (-Z forward) regardless of model version.
-      // Mixamo FBX bones (after FBXLoader) are in +Z forward. Convert: negate x and z.
-      for (let i = 0; i < values.length; i += 4) {
-        values[i]     *= -1  // negate x
-        values[i + 2] *= -1  // negate z
-      }
       tracks.push(new THREE.QuaternionKeyframeTrack(targetName, track.times, values))
     }
     // position tracks dropped — Mixamo world-space hip positions teleport the character off-screen
