@@ -72,13 +72,9 @@ export function VRMViewer({
   // Keep animationMapRef and desiredAnimUrl in sync when props change
   useEffect(() => {
     animationMapRef.current = animationMap ?? {}
-    const desired = expression ? (animationMap?.[expression] ?? null) : null
+    const map = animationMap ?? {}
+    const desired = expression ? (map[expression] ?? map['neutral'] ?? null) : null
     desiredAnimUrlRef.current = desired
-    console.log('[VRMViewer] animationMap updated', {
-      expression,
-      mapKeys: Object.keys(animationMap ?? {}),
-      desired,
-    })
   }, [animationMap, expression])
 
   // Expose handle
@@ -103,7 +99,8 @@ export function VRMViewer({
     const targets: Record<string, number> = {}
     EXPRESSIONS.forEach(n => { targets[n] = n === expression ? 1 : 0 })
     expressionTargets.current = targets
-    desiredAnimUrlRef.current = animationMapRef.current[expression] ?? null
+    const map = animationMapRef.current
+    desiredAnimUrlRef.current = map[expression] ?? map['neutral'] ?? null
   }, [expression])
 
   useEffect(() => {
