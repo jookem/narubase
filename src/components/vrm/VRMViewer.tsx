@@ -3,7 +3,6 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { VRMLoaderPlugin, VRMUtils, type VRM } from '@pixiv/three-vrm'
-import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation'
 
 export type VRMExpression =
   | 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'relaxed'
@@ -22,7 +21,6 @@ interface Props {
   orbitControls?: boolean
   showGrid?: boolean
   facingDirection?: 'left' | 'right'
-  animationUrl?: string | null
   className?: string
   onLoad?: (vrm: VRM) => void
   onError?: (msg: string) => void
@@ -38,7 +36,6 @@ export function VRMViewer({
   orbitControls = true,
   showGrid = false,
   facingDirection,
-  animationUrl,
   className,
   onLoad,
   onError,
@@ -49,7 +46,6 @@ export function VRMViewer({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const rafRef = useRef<number>(0)
   const expressionTargets = useRef<Record<string, number>>({})
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -128,10 +124,9 @@ export function VRMViewer({
     controls.enabled = orbitControls
     controls.update()
 
-    // ── Loader (VRM + animation) ─────────────────────────────
+    // ── Load VRM ─────────────────────────────────────────────
     const loader = new GLTFLoader()
     loader.register(parser => new VRMLoaderPlugin(parser))
-    loader.register(parser => new VRMAnimationLoaderPlugin(parser))
 
     loader.load(
       url,
@@ -143,7 +138,7 @@ export function VRMViewer({
         scene.add(vrm.scene)
         vrmRef.current = vrm
 
-        // Natural A-pose: drop arms to ~45° from T-pose default
+        // Natural A-pose: drop arms to ~40° from T-pose default
         if (vrm.humanoid) {
           const leftUpperArm  = vrm.humanoid.getRawBoneNode('leftUpperArm')
           const rightUpperArm = vrm.humanoid.getRawBoneNode('rightUpperArm')
@@ -155,31 +150,19 @@ export function VRMViewer({
           if (rightLowerArm) rightLowerArm.rotation.z = -Math.PI * 0.05
         }
 
-        // Facing direction: offset from current base rotation (which may be Math.PI for VRM 0.x)
+        // Facing direction: additive offset on whatever rotateVRM0 set
         if (facingDirection) {
           const offset = Math.PI * 0.15
           vrm.scene.rotation.y += facingDirection === 'right' ? -offset : offset
         }
 
-        // Recentre camera on the model head
+        // Recentre camera on the model
         const box = new THREE.Box3().setFromObject(vrm.scene)
         const cy = (box.min.y + box.max.y) / 2
         const height = box.max.y - box.min.y
         controls.target.set(0, cy * 0.9, 0)
         camera.position.set(0, cy * 0.95, height * 1.4)
         controls.update()
-
-        // Load animation if provided
-        if (animationUrl) {
-          loader.load(animationUrl, animGltf => {
-            const vrmAnimations = animGltf.userData.vrmAnimations
-            if (!vrmAnimations?.length) return
-            const clip = createVRMAnimationClip(vrmAnimations[0], vrm)
-            const mixer = new THREE.AnimationMixer(vrm.scene)
-            mixer.clipAction(clip).play()
-            mixerRef.current = mixer
-          })
-        }
 
         setLoading(false)
         onLoad?.(vrm)
@@ -238,24 +221,21 @@ export function VRMViewer({
           }
         }
 
-        // Subtle idle sway (skip if animation is playing — mixer handles movement)
-        if (!mixerRef.current) {
-          const t = clock.elapsedTime
-          if (vrm.humanoid) {
-            const spine = vrm.humanoid.getRawBoneNode('spine')
-            if (spine) {
-              spine.rotation.z = Math.sin(t * 0.4) * 0.012
-              spine.rotation.x = Math.sin(t * 0.3) * 0.008
-            }
-            const head = vrm.humanoid.getRawBoneNode('head')
-            if (head) {
-              head.rotation.y = Math.sin(t * 0.35) * 0.04
-              head.rotation.x = Math.sin(t * 0.28) * 0.02 - 0.05
-            }
+        // Subtle idle sway
+        const t = clock.elapsedTime
+        if (vrm.humanoid) {
+          const spine = vrm.humanoid.getRawBoneNode('spine')
+          if (spine) {
+            spine.rotation.z = Math.sin(t * 0.4) * 0.012
+            spine.rotation.x = Math.sin(t * 0.3) * 0.008
+          }
+          const head = vrm.humanoid.getRawBoneNode('head')
+          if (head) {
+            head.rotation.y = Math.sin(t * 0.35) * 0.04
+            head.rotation.x = Math.sin(t * 0.28) * 0.02 - 0.05
           }
         }
 
-        mixerRef.current?.update(delta)
         vrm.update(delta)
       }
 
@@ -278,8 +258,6 @@ export function VRMViewer({
       cancelAnimationFrame(rafRef.current)
       ro.disconnect()
       controls.dispose()
-      mixerRef.current?.stopAllAction()
-      mixerRef.current = null
       if (vrmRef.current) VRMUtils.deepDispose(vrmRef.current.scene)
       renderer.dispose()
       vrmRef.current = null

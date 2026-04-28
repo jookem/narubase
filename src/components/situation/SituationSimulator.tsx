@@ -11,6 +11,7 @@ import {
 import { SituationList } from './SituationList'
 import { RPGDialogueBox } from './RPGDialogueBox'
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
+import { VRMViewer, type VRMExpression } from '@/components/vrm/VRMViewer'
 
 function deriveAgeGroup(age: number | null): 'children' | 'teens' | 'adults' | undefined {
   if (!age) return undefined
@@ -19,6 +20,26 @@ function deriveAgeGroup(age: number | null): 'children' | 'teens' | 'adults' | u
   return 'adults'
 }
 
+async function uploadVrm(file: File, userId: string): Promise<string | null> {
+  const path = `students/${userId}/avatar.vrm`
+  const { error } = await supabase.storage
+    .from('situation-assets')
+    .upload(path, file, { upsert: true, contentType: 'model/gltf-binary' })
+
+  if (error) return null
+  const { data } = supabase.storage.from('situation-assets').getPublicUrl(path)
+  return data.publicUrl
+}
+
+const PREVIEW_EXPRESSIONS: { id: VRMExpression; emoji: string; label: string }[] = [
+  { id: 'neutral',   emoji: '😐', label: 'Neutral' },
+  { id: 'happy',     emoji: '😊', label: 'Happy' },
+  { id: 'surprised', emoji: '😲', label: 'Surprised' },
+  { id: 'relaxed',   emoji: '😌', label: 'Relaxed' },
+  { id: 'sad',       emoji: '😢', label: 'Sad' },
+  { id: 'angry',     emoji: '😠', label: 'Angry' },
+]
+
 export function SituationSimulator() {
   const { user, profile } = useAuth()
 
@@ -26,10 +47,9 @@ export function SituationSimulator() {
   const [loading, setLoading] = useState(true)
 
   const [studentVrmUrl, setStudentVrmUrl] = useState<string | null>(null)
-  const [vrmInput, setVrmInput] = useState('')
-  const [showVrmInput, setShowVrmInput] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [previewExpr, setPreviewExpr] = useState<VRMExpression>('neutral')
   const vrmFileRef = useRef<HTMLInputElement>(null)
-  const vrmObjectUrl = useRef<string | null>(null)
 
   const [activeSituation, setActiveSituation] = useState<Situation | null>(null)
   const [scriptNodes, setScriptNodes] = useState<DialogueNode[]>([])
@@ -53,10 +73,7 @@ export function SituationSimulator() {
       .maybeSingle()
 
     const group = deriveAgeGroup(details?.age ?? null)
-    if (details?.vrm_url) {
-      setStudentVrmUrl(details.vrm_url)
-      setVrmInput(details.vrm_url)
-    }
+    if (details?.vrm_url) setStudentVrmUrl(details.vrm_url)
 
     const { situations: s } = await listSituations(group)
     setSituations(s ?? [])
@@ -70,30 +87,21 @@ export function SituationSimulator() {
       .upsert({ student_id: user.id, vrm_url: url }, { onConflict: 'student_id' })
   }
 
-  function handleVrmUrl() {
-    const url = vrmInput.trim()
-    if (!url) return
-    setStudentVrmUrl(url)
-    persistVrmUrl(url)
-    setShowVrmInput(false)
-  }
-
-  function handleVrmFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleVrmFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
-    if (vrmObjectUrl.current) URL.revokeObjectURL(vrmObjectUrl.current)
-    const url = URL.createObjectURL(file)
-    vrmObjectUrl.current = url
-    setStudentVrmUrl(url)
-    // Blob URLs can't be persisted — session only
-    setShowVrmInput(false)
+    if (!file || !user) return
+    setUploading(true)
+    const url = await uploadVrm(file, user.id)
+    if (url) {
+      setStudentVrmUrl(url)
+      persistVrmUrl(url)
+    }
+    setUploading(false)
     e.target.value = ''
   }
 
   function handleVrmClear() {
-    if (vrmObjectUrl.current) { URL.revokeObjectURL(vrmObjectUrl.current); vrmObjectUrl.current = null }
     setStudentVrmUrl(null)
-    setVrmInput('')
     persistVrmUrl(null)
   }
 
@@ -186,51 +194,70 @@ export function SituationSimulator() {
     )
   }
 
-  // ── Inline: VRM setup + situation selection ───────────────────
+  // ── Inline: character setup + situation selection ─────────────
 
   if (loading) return <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
 
   return (
     <div className="space-y-4">
-      {/* Student VRM section */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-700">
+      {/* VRM character section */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Your character</p>
             {studentVrmUrl
-              ? <span className="text-green-600">✓ Your VRM avatar is set</span>
-              : 'Your VRM avatar (optional)'}
-          </p>
+              ? <p className="text-xs text-green-600 mt-0.5">VRM loaded — orbit &amp; zoom to preview</p>
+              : <p className="text-xs text-gray-400 mt-0.5">Upload a VRM file to use your own avatar</p>}
+          </div>
           <div className="flex gap-2">
             {studentVrmUrl && (
-              <button onClick={handleVrmClear} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+              <button onClick={handleVrmClear} className="text-xs text-red-400 hover:text-red-600">
+                Remove
+              </button>
             )}
-            <button onClick={() => setShowVrmInput(v => !v)} className="text-xs text-brand hover:underline">
-              {studentVrmUrl ? 'Change' : 'Set VRM'}
+            <button
+              onClick={() => vrmFileRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-brand text-white text-xs rounded-lg disabled:opacity-50 transition-colors hover:bg-brand/90"
+            >
+              {uploading && <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />}
+              {studentVrmUrl ? 'Replace VRM' : 'Upload VRM'}
             </button>
+            <input ref={vrmFileRef} type="file" accept=".vrm" className="hidden" onChange={handleVrmFile} />
           </div>
         </div>
 
-        {showVrmInput && (
-          <div className="mt-3 space-y-2">
-            <div className="flex gap-2">
-              <input
-                value={vrmInput}
-                onChange={e => setVrmInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleVrmUrl()}
-                placeholder="Paste VRM URL (e.g. VRoid Hub)…"
-                className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/30 min-w-0"
-              />
-              <button onClick={handleVrmUrl} disabled={!vrmInput.trim()} className="px-3 py-1.5 bg-brand text-white text-xs rounded-lg disabled:opacity-40">
-                Use
-              </button>
+        {studentVrmUrl ? (
+          <>
+            <VRMViewer
+              url={studentVrmUrl}
+              expression={previewExpr}
+              autoBlink
+              orbitControls
+              showGrid
+              className="w-full h-80"
+            />
+            <div className="flex justify-center gap-2 px-4 py-2 bg-slate-50 border-t border-gray-100">
+              {PREVIEW_EXPRESSIONS.map(ex => (
+                <button
+                  key={ex.id}
+                  onClick={() => setPreviewExpr(ex.id)}
+                  title={ex.label}
+                  className={`text-xl px-2 py-1 rounded-lg transition-colors ${previewExpr === ex.id ? 'bg-brand/20 ring-2 ring-brand/40' : 'hover:bg-gray-200'}`}
+                >
+                  {ex.emoji}
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => vrmFileRef.current?.click()} className="text-xs text-gray-500 hover:text-brand border border-gray-200 rounded-lg px-3 py-1.5 transition-colors">
-                📂 Upload .vrm file
-              </button>
-              <span className="text-xs text-gray-400">(session only)</span>
-            </div>
-            <input ref={vrmFileRef} type="file" accept=".vrm" className="hidden" onChange={handleVrmFile} />
+          </>
+        ) : (
+          <div
+            className="w-full h-40 flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors"
+            onClick={() => vrmFileRef.current?.click()}
+          >
+            <span className="text-4xl">🧍</span>
+            <p className="text-sm text-gray-400">Click to upload a .vrm file</p>
+            <p className="text-xs text-gray-300">or start without one — an NPC character will still appear</p>
           </div>
         )}
       </div>

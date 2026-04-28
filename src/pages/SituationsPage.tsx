@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import type { SituationNpc, Situation } from '@/lib/api/situations'
 import { listSituations } from '@/lib/api/situations'
 import { Upload, ImageIcon } from 'lucide-react'
+import { VRMViewer } from '@/components/vrm/VRMViewer'
 
 // ── Storage helpers ────────────────────────────────────────────────
 
@@ -107,155 +108,145 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 // ── NPC section ────────────────────────────────────────────────────
 
+const NPC_EXPRESSIONS = [
+  { id: 'neutral' as const,   emoji: '😐' },
+  { id: 'happy' as const,     emoji: '😊' },
+  { id: 'surprised' as const, emoji: '😲' },
+  { id: 'relaxed' as const,   emoji: '😌' },
+]
+
+function NpcCard({ npc, onUpdate }: { npc: SituationNpc; onUpdate: (updated: SituationNpc) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewExpr, setPreviewExpr] = useState<'neutral' | 'happy' | 'surprised' | 'relaxed'>('neutral')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleVrmFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const path = `npcs/${npc.id}/model.vrm`
+    const url = await uploadToStorage(file, path)
+    if (!url) { setUploading(false); return }
+
+    const { error } = await supabase
+      .from('situation_npcs')
+      .update({ vrm_url: url })
+      .eq('id', npc.id)
+
+    if (error) { toast.error(error.message); setUploading(false); return }
+
+    onUpdate({ ...npc, vrm_url: url })
+    setShowPreview(true)
+    setUploading(false)
+    toast.success(`${npc.name} VRM uploaded`)
+    e.target.value = ''
+  }
+
+  async function handleVrmClear() {
+    const { error } = await supabase
+      .from('situation_npcs')
+      .update({ vrm_url: null })
+      .eq('id', npc.id)
+    if (error) { toast.error(error.message); return }
+    onUpdate({ ...npc, vrm_url: null })
+    setShowPreview(false)
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4">
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+          style={{ backgroundColor: npc.placeholder_color }}
+        >
+          {npc.name[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm text-gray-900">{npc.name}</p>
+          <p className="text-xs text-gray-400">{npc.role}</p>
+        </div>
+
+        {npc.vrm_url && (
+          <>
+            <button
+              onClick={() => setShowPreview(v => !v)}
+              className="text-xs text-gray-500 hover:text-brand border border-gray-200 rounded-lg px-2.5 py-1 transition-colors shrink-0"
+            >
+              {showPreview ? 'Hide' : 'Preview'}
+            </button>
+            <button onClick={handleVrmClear} className="text-xs text-red-400 hover:text-red-600 shrink-0">
+              Remove
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand text-white text-xs rounded-lg disabled:opacity-50 shrink-0 transition-colors hover:bg-brand/90"
+        >
+          {uploading
+            ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+            : <Upload size={12} />}
+          {npc.vrm_url ? 'Replace VRM' : 'Upload VRM'}
+        </button>
+        <input ref={fileRef} type="file" accept=".vrm" className="hidden" onChange={handleVrmFile} />
+      </div>
+
+      {/* Inline preview */}
+      {showPreview && npc.vrm_url && (
+        <div className="border-t border-gray-100">
+          <VRMViewer
+            url={npc.vrm_url}
+            expression={previewExpr}
+            autoBlink
+            orbitControls
+            showGrid={false}
+            className="w-full h-72"
+          />
+          <div className="flex justify-center gap-2 p-2 bg-slate-50 border-t border-gray-100">
+            {NPC_EXPRESSIONS.map(ex => (
+              <button
+                key={ex.id}
+                onClick={() => setPreviewExpr(ex.id)}
+                className={`text-xl px-2 py-1 rounded-lg transition-colors ${previewExpr === ex.id ? 'bg-brand/20 ring-2 ring-brand/40' : 'hover:bg-gray-200'}`}
+              >
+                {ex.emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function NpcSection() {
   const [npcs, setNpcs] = useState<SituationNpc[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [vrmInputs, setVrmInputs] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState<string | null>(null)
-  const animFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     supabase.from('situation_npcs').select('*').order('name').then(({ data }) => {
-      const loaded = (data ?? []) as SituationNpc[]
-      setNpcs(loaded)
-      const inputs: Record<string, string> = {}
-      loaded.forEach(n => { inputs[n.id] = n.vrm_url ?? '' })
-      setVrmInputs(inputs)
+      setNpcs((data ?? []) as SituationNpc[])
       setLoading(false)
     })
   }, [])
-
-  async function handleSaveVrm(npc: SituationNpc) {
-    const url = vrmInputs[npc.id]?.trim() ?? ''
-    setSaving(npc.id)
-    const { error } = await supabase
-      .from('situation_npcs')
-      .update({ vrm_url: url || null })
-      .eq('id', npc.id)
-
-    if (error) { toast.error(error.message); setSaving(null); return }
-
-    setNpcs(prev => prev.map(n => n.id === npc.id ? { ...n, vrm_url: url || null } : n))
-    setEditingId(null)
-    setSaving(null)
-    toast.success(`${npc.name} VRM updated`)
-  }
-
-  async function handleAnimationUpload(npc: SituationNpc, file: File) {
-    const path = `npcs/${npc.id}/animation.vrma`
-    const url = await uploadToStorage(file, path)
-    if (!url) return
-
-    const { error } = await supabase
-      .from('situation_npcs')
-      .update({ animation_url: url })
-      .eq('id', npc.id)
-
-    if (error) { toast.error(error.message); return }
-
-    setNpcs(prev => prev.map(n => n.id === npc.id ? { ...n, animation_url: url } : n))
-    toast.success(`${npc.name} animation uploaded`)
-  }
-
-  async function handleAnimationClear(npc: SituationNpc) {
-    const { error } = await supabase
-      .from('situation_npcs')
-      .update({ animation_url: null })
-      .eq('id', npc.id)
-
-    if (error) { toast.error(error.message); return }
-
-    setNpcs(prev => prev.map(n => n.id === npc.id ? { ...n, animation_url: null } : n))
-    toast.success(`${npc.name} animation removed`)
-  }
 
   if (loading) return <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">
-        Assign a VRM model and optional idle animation to each NPC. Models render live in the situation game.
+        Upload a VRM model for each NPC. Models render live in the situation game.
       </p>
       {npcs.map(npc => (
-        <div key={npc.id} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          {/* Header row */}
-          <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-              style={{ backgroundColor: npc.placeholder_color }}
-            >
-              {npc.name[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-gray-900">{npc.name}</p>
-              <p className="text-xs text-gray-400">{npc.role}</p>
-            </div>
-            {npc.vrm_url
-              ? <span className="text-xs text-green-600 font-medium shrink-0">✓ VRM set</span>
-              : <span className="text-xs text-amber-500 shrink-0">No VRM</span>}
-            <button
-              onClick={() => setEditingId(editingId === npc.id ? null : npc.id)}
-              className="text-xs text-brand hover:underline shrink-0"
-            >
-              {editingId === npc.id ? 'Cancel' : (npc.vrm_url ? 'Change VRM' : 'Set VRM')}
-            </button>
-          </div>
-
-          {/* VRM URL editor */}
-          {editingId === npc.id && (
-            <div className="flex gap-2">
-              <input
-                value={vrmInputs[npc.id] ?? ''}
-                onChange={e => setVrmInputs(prev => ({ ...prev, [npc.id]: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleSaveVrm(npc)}
-                placeholder="Paste VRM URL…"
-                className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/30 min-w-0"
-              />
-              <button
-                onClick={() => handleSaveVrm(npc)}
-                disabled={saving === npc.id}
-                className="px-3 py-1.5 bg-brand text-white text-xs rounded-lg disabled:opacity-40 shrink-0"
-              >
-                {saving === npc.id ? '…' : 'Save'}
-              </button>
-            </div>
-          )}
-
-          {/* Animation row */}
-          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-            <span className="text-xs text-gray-500 flex-1">
-              {npc.animation_url
-                ? <span className="text-green-600 font-medium">✓ Animation set</span>
-                : 'Idle animation (.vrma)'}
-            </span>
-            {npc.animation_url && (
-              <button
-                onClick={() => handleAnimationClear(npc)}
-                className="text-xs text-red-400 hover:text-red-600"
-              >
-                Remove
-              </button>
-            )}
-            <button
-              onClick={() => animFileRefs.current[npc.id]?.click()}
-              className="text-xs text-brand hover:underline shrink-0"
-            >
-              {npc.animation_url ? 'Replace' : 'Upload .vrma'}
-            </button>
-            <input
-              ref={el => { animFileRefs.current[npc.id] = el }}
-              type="file"
-              accept=".vrma"
-              className="hidden"
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) handleAnimationUpload(npc, file)
-                e.target.value = ''
-              }}
-            />
-          </div>
-        </div>
+        <NpcCard
+          key={npc.id}
+          npc={npc}
+          onUpdate={updated => setNpcs(prev => prev.map(n => n.id === updated.id ? updated : n))}
+        />
       ))}
     </div>
   )

@@ -28,14 +28,12 @@ function VRMPortrait({
   dim,
   expression,
   facingDirection,
-  animationUrl,
 }: {
   url: string
   label: string
   dim: boolean
   expression: VRMExpression
   facingDirection: 'left' | 'right'
-  animationUrl?: string | null
 }) {
   return (
     <div className={`flex flex-col items-center transition-all duration-300 ${dim ? 'opacity-30 scale-95' : 'opacity-100 scale-100'}`}>
@@ -49,7 +47,6 @@ function VRMPortrait({
         orbitControls={false}
         showGrid={false}
         facingDirection={facingDirection}
-        animationUrl={animationUrl}
         className="h-[52vh] sm:h-[64vh] w-[30vw] sm:w-[28vw] max-w-xs"
       />
     </div>
@@ -131,7 +128,6 @@ export function RPGDialogueBox({
               dim={isStudentTurn}
               expression={npcExpression}
               facingDirection="right"
-              animationUrl={npc.animation_url}
             />
           ) : (
             <FallbackPortrait
