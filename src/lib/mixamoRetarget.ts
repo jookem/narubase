@@ -71,7 +71,7 @@ export function retargetMixamoClip(clip: THREE.AnimationClip, vrm: VRM): THREE.A
     const normName = normaliseMixamoName(rawName)
     const vrmBone  = MIXAMO_VRM[normName]
     if (!vrmBone) continue
-    const node = vrm.humanoid.getRawBoneNode(vrmBone)
+    const node = vrm.humanoid.getNormalizedBoneNode(vrmBone)
     if (!node) continue
 
     const targetName = `${node.name}.${prop}`
