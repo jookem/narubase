@@ -90,6 +90,24 @@ export function SituationSimulator() {
     setLoading(false)
   }
 
+  async function persistGender(gender: VrmGender) {
+    setStudentVrmGender(gender)
+    listVrmAnimations(gender).then(setStudentAnimationMap)
+    if (!user) return
+    const { data: updated, error: updateErr } = await supabase
+      .from('student_details')
+      .update({ vrm_gender: gender })
+      .eq('student_id', user.id)
+      .select('student_id')
+    if (updateErr) { toast.error('Could not save gender: ' + updateErr.message); return }
+    if (!updated || updated.length === 0) {
+      const { error: insertErr } = await supabase
+        .from('student_details')
+        .insert({ student_id: user.id, vrm_gender: gender })
+      if (insertErr) toast.error('Could not save gender: ' + insertErr.message)
+    }
+  }
+
   async function persistVrmUrl(url: string | null) {
     if (!user) return
     // Try UPDATE first (works even without INSERT policy)
@@ -254,6 +272,27 @@ export function SituationSimulator() {
             </button>
             <input ref={vrmFileRef} type="file" accept=".vrm" className="hidden" onChange={handleVrmFile} />
           </div>
+        </div>
+
+        {/* Animation gender selector — always shown */}
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+          <span className="text-xs text-gray-500 shrink-0">Animation set</span>
+          <div className="flex gap-1">
+            {(['male', 'female', 'neutral'] as VrmGender[]).map(g => (
+              <button
+                key={g}
+                onClick={() => persistGender(g)}
+                className={`px-2.5 py-1 text-xs rounded-lg capitalize transition-colors ${
+                  studentVrmGender === g
+                    ? 'bg-brand text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+          <span className="text-[10px] text-gray-400">Selects which motion animations play during scenes</span>
         </div>
 
         {studentVrmUrl ? (
