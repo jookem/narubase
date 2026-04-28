@@ -59,7 +59,6 @@ function normaliseMixamoName(raw: string): string {
  * Logs a warning to the console if zero tracks were mapped (bone name mismatch).
  */
 export function retargetMixamoClip(clip: THREE.AnimationClip, vrm: VRM): THREE.AnimationClip {
-  const isVrm0 = (vrm.meta as any)?.metaVersion === '0'
   const tracks: THREE.KeyframeTrack[] = []
 
   for (const track of clip.tracks) {
@@ -78,11 +77,11 @@ export function retargetMixamoClip(clip: THREE.AnimationClip, vrm: VRM): THREE.A
     const values     = new Float32Array(track.values)
 
     if (prop === 'quaternion') {
-      if (!isVrm0) {
-        for (let i = 0; i < values.length; i += 4) {
-          values[i]     *= -1  // negate x
-          values[i + 2] *= -1  // negate z
-        }
+      // Normalized bones are always in VRM 1.0 space (-Z forward) regardless of model version.
+      // Mixamo FBX bones (after FBXLoader) are in +Z forward. Convert: negate x and z.
+      for (let i = 0; i < values.length; i += 4) {
+        values[i]     *= -1  // negate x
+        values[i + 2] *= -1  // negate z
       }
       tracks.push(new THREE.QuaternionKeyframeTrack(targetName, track.times, values))
     }
