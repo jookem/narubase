@@ -196,15 +196,27 @@ export function VRMViewer({
       const isFbx = url.split('?')[0].toLowerCase().endsWith('.fbx')
 
       if (isFbx) {
-        fbxLoader.load(url, fbx => {
-          loadingAnims.delete(url)
-          if (!vrmRef.current || currentAnimUrlRef.current !== url) return
-          const srcClip = fbx.animations[0]
-          if (!srcClip) return
-          const clip = retargetMixamoClip(srcClip, vrmRef.current)
-          clipCache.set(url, clip)
-          playClip(clip)
-        })
+        fbxLoader.load(
+          url,
+          fbx => {
+            loadingAnims.delete(url)
+            if (!vrmRef.current || currentAnimUrlRef.current !== url) return
+            const srcClip = fbx.animations[0]
+            if (!srcClip) {
+              console.warn('[VRMViewer] FBX loaded but contains no animations:', url)
+              return
+            }
+            const clip = retargetMixamoClip(srcClip, vrmRef.current)
+            if (clip.tracks.length === 0) return  // warning already logged in retarget
+            clipCache.set(url, clip)
+            playClip(clip)
+          },
+          undefined,
+          err => {
+            loadingAnims.delete(url)
+            console.error('[VRMViewer] FBX load error:', err)
+          },
+        )
       } else {
         vrmaLoader.load(url, gltf => {
           loadingAnims.delete(url)
