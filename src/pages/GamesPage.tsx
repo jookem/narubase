@@ -209,19 +209,6 @@ export function GamesPage() {
       }
     }
 
-    // Also check examples stored directly on grammar_bank (non-deck entries)
-    const { data: directRows } = await supabase
-      .from('grammar_bank')
-      .select('examples')
-      .eq('student_id', user.id)
-      .is('deck_id', null)
-
-    for (const row of directRows ?? []) {
-      for (const ex of (row as any).examples ?? []) {
-        const s = ex?.trim()
-        if (s && s.split(/\s+/).length >= 3) all.push(s)
-      }
-    }
 
     const seen = new Set<string>()
     const unique = all.filter(s => { if (seen.has(s)) return false; seen.add(s); return true })
