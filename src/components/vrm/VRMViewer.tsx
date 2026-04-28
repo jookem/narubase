@@ -205,7 +205,7 @@ export function VRMViewer({
         fbxLoader.load(
           url,
           fbx => {
-            console.log('[VRMViewer] FBX loaded, animations:', fbx.animations.length, 'tracks[0]:', fbx.animations[0]?.tracks.slice(0,3).map(t=>t.name))
+            console.log('[VRMViewer] FBX clips:', fbx.animations.map((a,i) => `[${i}] "${a.name}" ${a.duration.toFixed(2)}s`))
             loadingAnims.delete(url)
             if (!vrmRef.current || currentAnimUrlRef.current !== url) return
             const srcClip = fbx.animations[0]
