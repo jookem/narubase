@@ -249,8 +249,9 @@ export function SituationSimulator() {
               expression={previewExpr}
               autoBlink
               orbitControls
-              showGrid
-              className="w-full h-80"
+              showGrid={false}
+              framing="bust"
+              className="w-full h-72"
             />
             <div className="flex justify-center gap-2 px-4 py-2 bg-slate-50 border-t border-gray-100">
               {PREVIEW_EXPRESSIONS.map(ex => (
