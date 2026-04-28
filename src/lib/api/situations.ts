@@ -8,7 +8,17 @@ export interface SituationNpc {
   sprites: Record<string, string>
   vrm_url?: string | null
   animation_url?: string | null
+  gender?: 'male' | 'female' | 'neutral'
   created_at: string
+}
+
+export type VrmGender = 'male' | 'female' | 'neutral'
+
+export interface VrmAnimation {
+  id: string
+  gender: VrmGender
+  expression: string
+  animation_url: string
 }
 
 export interface AvatarPreset {
@@ -99,6 +109,26 @@ export async function listAvatarPresets(
   const { data, error } = await query
   if (error) return { error: error.message }
   return { presets: data as AvatarPreset[] }
+}
+
+export async function listVrmAnimations(
+  gender: VrmGender,
+): Promise<Record<string, string>> {
+  const gendersToFetch = gender === 'neutral' ? ['neutral'] : [gender, 'neutral']
+  const { data } = await supabase
+    .from('vrm_animations')
+    .select('gender, expression, animation_url')
+    .in('gender', gendersToFetch)
+
+  if (!data) return {}
+
+  const map: Record<string, string> = {}
+  // neutral first, gender-specific overrides
+  data.filter(r => r.gender === 'neutral').forEach(r => { map[r.expression] = r.animation_url })
+  if (gender !== 'neutral') {
+    data.filter(r => r.gender === gender).forEach(r => { map[r.expression] = r.animation_url })
+  }
+  return map
 }
 
 export async function saveSituationSession(
