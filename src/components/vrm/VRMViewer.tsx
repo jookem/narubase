@@ -167,15 +167,11 @@ export function VRMViewer({
 
     function playClip(clip: THREE.AnimationClip) {
       if (!mixer) return
+      if (currentAction) currentAction.stop()
       const action = mixer.clipAction(clip)
+      action.reset()
       action.loop = THREE.LoopRepeat
-      if (currentAction && currentAction !== action) {
-        currentAction.crossFadeTo(action, 0.5, true)
-        action.play()
-      } else {
-        // reset() clears any lingering weight=0 from a previous fadeOut/stop
-        action.reset().play()
-      }
+      action.play()
       currentAction = action
     }
 
@@ -183,8 +179,7 @@ export function VRMViewer({
       currentAnimUrlRef.current = url
 
       if (!url || !vrmRef.current) {
-        console.warn('[VRMViewer] switchAnim(null) — animation stopped', { expression: desiredAnimUrlRef.current })
-        currentAction?.stop()  // stop() fully resets the action so weight is restored on next play()
+        currentAction?.stop()
         currentAction = null
         return
       }

@@ -300,6 +300,7 @@ export function SituationSimulator() {
             <VRMViewer
               url={studentVrmUrl}
               expression={previewExpr}
+              animationMap={studentAnimationMap}
               autoBlink
               orbitControls
               showGrid={false}
