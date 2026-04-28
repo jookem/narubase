@@ -85,16 +85,8 @@ export function retargetMixamoClip(clip: THREE.AnimationClip, vrm: VRM): THREE.A
         }
       }
       tracks.push(new THREE.QuaternionKeyframeTrack(targetName, track.times, values))
-
-    } else if (prop === 'position' && vrmBone === 'hips') {
-      if (!isVrm0) {
-        for (let i = 0; i < values.length; i += 3) {
-          values[i]     *= -1  // negate x
-          values[i + 2] *= -1  // negate z
-        }
-      }
-      tracks.push(new THREE.VectorKeyframeTrack(targetName, track.times, values))
     }
+    // position tracks dropped — Mixamo world-space hip positions teleport the character off-screen
   }
 
   if (tracks.length === 0) {
