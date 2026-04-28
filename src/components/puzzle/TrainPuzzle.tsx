@@ -235,6 +235,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
   const [activeCar, setActiveCar] = useState<Car | null>(null)
   const [trainExiting, setTrainExiting] = useState(false)
   const [showCorrect, setShowCorrect] = useState(false)
+  const [gaveUp, setGaveUp] = useState(false)
   const trackScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -248,6 +249,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
     setTrainExiting(false)
     setShowCorrect(false)
     setShowHints(false)
+    setGaveUp(false)
   }, [puzzle.id])
 
   const sensors = useSensors(
@@ -291,6 +293,14 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
       setTimeout(() => { setShake(false); setGameState('playing'); setShowHints(true) }, 800)
       setTimeout(() => setShowHints(false), 2800)
     }
+  }
+
+  function handleGiveUp() {
+    setGaveUp(true)
+    setGameState('correct')
+    recordPuzzleAttempt(puzzle.id, false)
+    setCars(puzzle.parts.map((p, i) => ({ id: String(i), originalIdx: i, part: p })))
+    setTimeout(() => setShowCorrect(true), 300)
   }
 
   const progress = Math.round((puzzleNumber / total) * 100)
@@ -372,26 +382,36 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
         </p>
 
 
-        {/* Success */}
+        {/* Success / Give up */}
         {showCorrect && (
           <div className="text-center space-y-4 animate-[fadeIn_0.4s_ease]">
-            <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-4 py-3">
-              <p className="text-green-400 font-semibold">
-                {attempts === 1 ? '🎉 Perfect first try!' : `✓ Correct! (${attempts} attempt${attempts !== 1 ? 's' : ''})`}
-              </p>
-              {puzzle.hint && <p className="text-sm text-green-300/70 mt-1">💡 {puzzle.hint}</p>}
-            </div>
+            {gaveUp ? (
+              <div className="bg-orange-900/30 border border-orange-700/50 rounded-xl px-4 py-3">
+                <p className="text-orange-400 font-semibold">💡 Here's the answer</p>
+                {puzzle.hint && <p className="text-sm text-orange-300/70 mt-1">{puzzle.hint}</p>}
+              </div>
+            ) : (
+              <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-4 py-3">
+                <p className="text-green-400 font-semibold">
+                  {attempts === 1 ? '🎉 Perfect first try!' : `✓ Correct! (${attempts} attempt${attempts !== 1 ? 's' : ''})`}
+                </p>
+                {puzzle.hint && <p className="text-sm text-green-300/70 mt-1">💡 {puzzle.hint}</p>}
+              </div>
+            )}
             <button onClick={onNext} className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90 transition-colors">
               {isLast ? 'Finish 🚉' : 'Next Puzzle →'}
             </button>
           </div>
         )}
 
-        {/* Check button */}
+        {/* Check + Give Up buttons */}
         {gameState === 'playing' && (
-          <div className="text-center">
+          <div className="flex items-center justify-center gap-3">
             <button onClick={checkAnswer} className="px-8 py-3 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-colors shadow-lg">
               Check Order
+            </button>
+            <button onClick={handleGiveUp} className="px-4 py-3 text-gray-500 hover:text-gray-300 text-sm transition-colors">
+              Give Up
             </button>
           </div>
         )}

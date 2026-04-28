@@ -120,7 +120,9 @@ CRITICAL — THE BLANK:
 SENTENCE RULES:
 - ${levelGuide.sentenceRule}
 - ${levelGuide.grammarBan}
-- The sentence context must make it clear that ONLY the target word fills the blank correctly.
+- The sentence MUST include enough context (a specific object, complement, adverb, or subject type) so that synonyms and semantically related words would also be unnatural — not just the exact answer word.
+  WEAK: "She _____ to school." (walk/run/bike all plausibly fit)
+  STRONG: "She _____ the violin for two hours every evening." (only music-related verbs fit — distractors can now be unrelated verbs like "eat", "forget", "build")
 - Do NOT use apostrophes — write "does not" not "doesn't", "I am" not "I'm".
 - The blank must be grammatically and semantically unambiguous.
 
@@ -143,8 +145,12 @@ INFLECTIONS RULES:
 DISTRACTOR RULES:
 - All 3 distractors must be the same part of speech as the target word.
 - Prefer distractors from the vocabulary pool — same category makes better wrong answers.
-- Each distractor must be clearly wrong in the sentence context.
-- Do NOT use near-synonyms that could also correctly fill the blank.
+- Distractors MUST come from a completely different semantic domain than the answer word. Never pick words from the same semantic field (e.g., do not use other movement verbs as distractors for a movement verb answer).
+  BAD: answer="run", distractors=["walk","skip","jog"] — all movement verbs, many fit the sentence
+  GOOD: answer="run", distractors=["eat","forget","build"] — unrelated domains, clearly wrong
+  BAD: answer="happy", distractors=["joyful","pleased","glad"] — near-synonyms, could fit
+  GOOD: answer="happy", distractors=["tall","cloudy","narrow"] — unrelated adjectives, clearly wrong
+- SELF-CHECK: Before finalising each distractor, mentally substitute it into the sentence. If the resulting sentence makes any sense at all, discard it and choose from an unrelated semantic domain instead.
 
 Target words:
 ${wordList}
