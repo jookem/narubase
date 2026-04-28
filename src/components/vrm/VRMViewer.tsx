@@ -72,9 +72,13 @@ export function VRMViewer({
   // Keep animationMapRef and desiredAnimUrl in sync when props change
   useEffect(() => {
     animationMapRef.current = animationMap ?? {}
-    if (expression) {
-      desiredAnimUrlRef.current = animationMap?.[expression] ?? null
-    }
+    const desired = expression ? (animationMap?.[expression] ?? null) : null
+    desiredAnimUrlRef.current = desired
+    console.log('[VRMViewer] animationMap updated', {
+      expression,
+      mapKeys: Object.keys(animationMap ?? {}),
+      desired,
+    })
   }, [animationMap, expression])
 
   // Expose handle
