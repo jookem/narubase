@@ -194,26 +194,43 @@ export function RPGDialogueBox({
       <div className="bg-slate-900/95 backdrop-blur-sm border-t border-white/10 flex-shrink-0 relative z-20">
         {isNpcTurn && (
           <div className="px-5 pt-4 pb-5 space-y-3">
-            <div>
-              <p className="text-xs font-bold text-indigo-300 tracking-wide mb-1.5">
-                {npc?.name} · {npc?.role}
-              </p>
-              <p className="text-white text-sm sm:text-base leading-relaxed">{currentNode.text}</p>
-            </div>
-            {isEnd ? (
-              <button
-                onClick={onComplete}
-                className="w-full py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold rounded-xl transition-colors text-sm sm:text-base"
-              >
-                Scene Complete! ✓
-              </button>
+            {currentNode.text ? (
+              <>
+                <div>
+                  <p className="text-xs font-bold text-indigo-300 tracking-wide mb-1.5">
+                    {npc?.name} · {npc?.role}
+                  </p>
+                  <p className="text-white text-sm sm:text-base leading-relaxed">{currentNode.text}</p>
+                </div>
+                {isEnd ? (
+                  <button
+                    onClick={onComplete}
+                    className="w-full py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold rounded-xl transition-colors text-sm sm:text-base"
+                  >
+                    Scene Complete! ✓
+                  </button>
+                ) : (
+                  <button
+                    onClick={onContinue}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl transition-colors text-sm sm:text-base"
+                  >
+                    Continue →
+                  </button>
+                )}
+              </>
             ) : (
-              <button
-                onClick={onContinue}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl transition-colors text-sm sm:text-base"
-              >
-                Continue →
-              </button>
+              <div className="flex items-center gap-2 py-1">
+                <p className="text-xs font-bold text-indigo-300 tracking-wide">{npc?.name}</p>
+                <div className="flex gap-1 ml-1">
+                  {[0, 1, 2].map(i => (
+                    <span
+                      key={i}
+                      className="w-2 h-2 bg-white/50 rounded-full animate-bounce"
+                      style={{ animationDelay: `${i * 150}ms` }}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}

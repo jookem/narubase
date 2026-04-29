@@ -136,6 +136,35 @@ export async function listVrmAnimations(
   return map
 }
 
+export interface LlmTurn {
+  npc_text: string
+  expression: string
+  options: { text: string }[]
+  is_end: boolean
+}
+
+export async function generateSituationTurn(
+  situation: Situation,
+  history: Array<{ speaker: string; text: string }>,
+  studentName: string,
+): Promise<LlmTurn | null> {
+  const { data, error } = await supabase.functions.invoke('generate-situation-turn', {
+    body: {
+      situation: {
+        title:      situation.title,
+        description: situation.description,
+        difficulty: situation.difficulty,
+        npc_name:   situation.npc?.name ?? 'NPC',
+        npc_role:   situation.npc?.role ?? '',
+      },
+      history,
+      student_name: studentName,
+    },
+  })
+  if (error) { console.error('[generateSituationTurn]', error); return null }
+  return data as LlmTurn
+}
+
 export async function saveSituationSession(
   studentId: string,
   situationId: string,

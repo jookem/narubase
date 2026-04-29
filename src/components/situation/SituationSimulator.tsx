@@ -7,8 +7,10 @@ import {
   getSituationScript,
   saveSituationSession,
   listVrmAnimations,
+  generateSituationTurn,
   type Situation,
   type DialogueNode,
+  type LlmTurn,
   type VrmGender,
 } from '@/lib/api/situations'
 import { SituationList } from './SituationList'
@@ -73,6 +75,11 @@ export function SituationSimulator() {
   const [transcript, setTranscript] = useState<Array<{ speaker: string; text: string }>>([])
   const [phase, setPhase] = useState<'playing' | 'complete' | null>(null)
   const [scriptLoading, setScriptLoading] = useState(false)
+
+  // LLM mode state
+  const [llmTurn, setLlmTurn] = useState<LlmTurn | null>(null)
+  const [llmPhase, setLlmPhase] = useState<'npc' | 'student'>('npc')
+  const [llmGenerating, setLlmGenerating] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -160,6 +167,25 @@ export function SituationSimulator() {
 
   async function handleSituationSelect(situation: Situation) {
     setScriptLoading(true)
+
+    if (situation.mode === 'llm') {
+      const studentName = profile?.display_name ?? profile?.full_name ?? 'Student'
+      const [npcMap, firstTurn] = await Promise.all([
+        listVrmAnimations((situation.npc?.gender as VrmGender) ?? 'neutral'),
+        generateSituationTurn(situation, [], studentName),
+      ])
+      if (!firstTurn) { setScriptLoading(false); toast.error('Could not start conversation'); return }
+      setNpcAnimationMap(npcMap)
+      setActiveSituation(situation)
+      setTranscript([{ speaker: 'npc', text: firstTurn.npc_text }])
+      setLlmTurn(firstTurn)
+      setLlmPhase('npc')
+      setLlmGenerating(false)
+      setPhase('playing')
+      setScriptLoading(false)
+      return
+    }
+
     const [{ script, error }, npcMap] = await Promise.all([
       getSituationScript(situation.id),
       listVrmAnimations((situation.npc?.gender as VrmGender) ?? 'neutral'),
@@ -176,17 +202,58 @@ export function SituationSimulator() {
   }
 
   function currentNode(): DialogueNode | null {
+    if (activeSituation?.mode === 'llm') {
+      if (llmGenerating) {
+        // Show typing indicator — node with no text
+        return { id: 'llm_generating', speaker: 'npc', expression: 'thinking', next: 'pending' }
+      }
+      if (!llmTurn) return null
+      if (llmPhase === 'npc') {
+        return {
+          id: 'llm_npc',
+          speaker: 'npc',
+          text: llmTurn.npc_text,
+          expression: llmTurn.expression as DialogueNode['expression'],
+          next: llmTurn.is_end ? null : 'llm_student',
+        }
+      }
+      return {
+        id: 'llm_student',
+        speaker: 'student',
+        options: llmTurn.options.map((o, i) => ({ text: o.text, next: String(i) })),
+      }
+    }
     return scriptNodes.find(n => n.id === currentNodeId) ?? null
   }
 
   function handleContinue() {
+    if (activeSituation?.mode === 'llm') {
+      setLlmPhase('student')
+      return
+    }
     const node = currentNode()
     if (!node || node.speaker !== 'npc' || !node.next) return
     if (node.text) setTranscript(prev => [...prev, { speaker: 'npc', text: node.text! }])
     setCurrentNodeId(node.next)
   }
 
-  function handleSelectOption(i: number) {
+  async function handleSelectOption(i: number) {
+    if (activeSituation?.mode === 'llm') {
+      const option = llmTurn?.options[i]
+      if (!option || llmGenerating) return
+      const newTranscript = [...transcript, { speaker: 'student', text: option.text }]
+      setTranscript(newTranscript)
+      setLlmPhase('npc')
+      setLlmGenerating(true)
+      const studentName = profile?.display_name ?? profile?.full_name ?? 'Student'
+      const result = await generateSituationTurn(activeSituation, newTranscript, studentName)
+      if (result) {
+        setTranscript(prev => [...prev, { speaker: 'npc', text: result.npc_text }])
+        setLlmTurn(result)
+      }
+      setLlmGenerating(false)
+      return
+    }
     const node = currentNode()
     if (!node || node.speaker !== 'student' || !node.options) return
     const opt = node.options[i]
@@ -212,6 +279,9 @@ export function SituationSimulator() {
     setCurrentNodeId('start')
     setTranscript([])
     setPhase(null)
+    setLlmTurn(null)
+    setLlmPhase('npc')
+    setLlmGenerating(false)
   }
 
   // ── Full-screen: playing ──────────────────────────────────────
@@ -219,7 +289,9 @@ export function SituationSimulator() {
   const node = currentNode()
 
   if (phase === 'playing' && activeSituation && node) {
-    const isEnd = node.speaker === 'npc' && !node.next
+    const isEnd = activeSituation.mode === 'llm'
+      ? (llmTurn?.is_end === true && llmPhase === 'npc' && !llmGenerating)
+      : (node.speaker === 'npc' && !node.next)
     return (
       <RPGDialogueBox
         npc={activeSituation.npc ?? null}
