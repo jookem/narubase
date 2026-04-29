@@ -222,6 +222,7 @@ export function VRMViewer({
           if (!gltf.userData.vrmAnimations?.length || !vrmRef.current) return
           if (currentAnimUrlRef.current !== url) return
           const clip = createVRMAnimationClip(gltf.userData.vrmAnimations[0], vrmRef.current)
+          clip.tracks = clip.tracks.filter(t => !t.name.endsWith('.position'))
           clipCache.set(url, clip)
           playClip(clip)
         })
