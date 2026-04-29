@@ -272,7 +272,7 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
         <textarea
           value={addExamples}
           onChange={e => setAddExamples(e.target.value)}
-          placeholder="Examples — one per line&#10;e.g. I have eaten lunch.&#10;She has lived here for 3 years."
+          placeholder="Examples — one per line&#10;e.g. I [have eaten] lunch.&#10;She [has lived] here for 3 years.&#10;Wrap the grammar point in [brackets] to highlight it in the lesson."
           rows={4}
           className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand resize-y"
         />
@@ -313,7 +313,7 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
                   <textarea
                     value={editFields.examples}
                     onChange={e => setEditFields(f => ({ ...f, examples: e.target.value }))}
-                    placeholder="Examples (one per line)"
+                    placeholder="Examples (one per line) — wrap grammar point in [brackets] to highlight"
                     rows={4}
                     className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand resize-y"
                   />

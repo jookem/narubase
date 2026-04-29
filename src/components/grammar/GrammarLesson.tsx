@@ -2,6 +2,22 @@ import { useState } from 'react'
 import type { GrammarLessonSlide } from '@/lib/api/grammar'
 import { renderMarkdown } from '@/lib/renderMarkdown'
 
+// Wrap [text] in a highlight span. Teachers write e.g. "She [has been] waiting."
+function renderHighlighted(text: string): React.ReactNode {
+  const parts = text.split(/(\[[^\]]+\])/)
+  if (parts.length === 1) return text
+  return parts.map((part, i) => {
+    if (part.startsWith('[') && part.endsWith(']')) {
+      return (
+        <mark key={i} className="bg-brand/20 text-brand font-bold px-0.5 rounded not-italic">
+          {part.slice(1, -1)}
+        </mark>
+      )
+    }
+    return part
+  })
+}
+
 interface Props {
   slides: GrammarLessonSlide[]
   deckName: string
@@ -76,7 +92,7 @@ export function GrammarLesson({ slides, deckName, initialIndex = 0, onComplete, 
                     <div key={i} className="flex gap-3 items-start">
                       <span className="text-brand text-xs font-bold mt-1 shrink-0">{i + 1}.</span>
                       <div>
-                        <p className="text-white/85 text-base leading-relaxed">{english}</p>
+                        <p className="text-white/85 text-base leading-relaxed">{renderHighlighted(english)}</p>
                         {japanese && <p className="text-white/45 text-sm leading-relaxed mt-0.5">{japanese}</p>}
                       </div>
                     </div>
