@@ -128,25 +128,37 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
         },
       })
 
-      if (error || !data?.slide) {
-        console.error('Failed to generate slide for', category, error, data)
+      if (error || (!data?.slides && !data?.slide)) {
+        console.error('Failed to generate slides for', category, error, data)
         failed++
         continue
       }
 
-      const slide = data.slide as { title: string; explanation: string; examples: string[]; hint_ja: string }
-      const { error: addErr } = await addLessonSlide(deckId, {
-        title: slide.title,
-        explanation: slide.explanation,
-        examples: slide.examples,
-        hint_ja: slide.hint_ja || undefined,
-      })
-      if (addErr) {
-        console.error('Failed to save slide for', category, addErr)
-        failed++
-      } else {
-        created++
+      // Support both new { slides: [...] } and legacy { slide: {...} }
+      type SlidePayload = { title: string; explanation: string; examples: string[]; hint_ja: string }
+      const generatedSlides: SlidePayload[] = Array.isArray(data.slides)
+        ? data.slides
+        : data.slide ? [data.slide] : []
+
+      let anyFailed = false
+      for (const slide of generatedSlides) {
+        // Skip if a slide with this exact title was already saved in a previous iteration
+        if (existingTitles.has(slide.title.toLowerCase())) { skipped++; continue }
+        const { error: addErr } = await addLessonSlide(deckId, {
+          title: slide.title,
+          explanation: slide.explanation,
+          examples: slide.examples,
+          hint_ja: slide.hint_ja || undefined,
+        })
+        if (addErr) {
+          console.error('Failed to save slide', slide.title, addErr)
+          anyFailed = true
+        } else {
+          existingTitles.add(slide.title.toLowerCase())
+          created++
+        }
       }
+      if (anyFailed) failed++
     }
 
     const { slides: updated } = await listLessonSlides(deckId)
@@ -239,7 +251,7 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
       {/* Auto-generate from categories */}
       {points.length > 0 && (
         <div className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-xl px-4 py-3">
-          <p className="text-xs text-purple-700">AI generates one slide per grammar category — with explanation, 4 examples, and Japanese note</p>
+          <p className="text-xs text-purple-700">AI breaks each grammar category into 2–4 focused bilingual slides — formula, uses, and common mistakes</p>
           <button
             onClick={handleAutoGenerate}
             disabled={autoGenerating}

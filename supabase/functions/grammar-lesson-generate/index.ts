@@ -41,59 +41,73 @@ Deno.serve(async (req) => {
       .map(q => `- ${q.sentence_with_blank.replace('_____', `[${q.answer}]`)}`)
       .join('\n')
 
-    const prompt = `You are writing a detailed grammar lesson slide for Japanese students studying for the Eiken exam (levels 5–3). Students are aged 12–18. Write all English simply and clearly. Use Japanese where it helps understanding.
+    const prompt = `You are a Japanese English teacher creating lesson slides for Japanese students (ages 12–18) studying for the Eiken exam (levels 5–3). Your goal is clear, friendly, and bilingual teaching.
 
 Grammar point: "${category}"
 
-Sample quiz sentences from this category:
+Sample quiz sentences:
 ${sampleList || '(none provided)'}
+
+---
+
+Generate 2–4 SHORT, FOCUSED lesson slides that break this grammar point into digestible steps.
+
+SLIDE STRUCTURE RULES:
+- Slide 1: Always the formula/form slide — introduce the pattern and its core meaning
+- Slide 2+: One use case or sub-pattern per slide (e.g. negative form, question form, a specific meaning)
+- Final slide (if needed): Common mistakes / 注意ポイント
+- Each slide should be SHORT — students read one focused idea, not a wall of text
+
+TITLE FORMAT: "${category} — Japanese subtitle"
+e.g. "Present Perfect — 基本の形", "Can — 疑問文・否定文", "Present Perfect — 注意ポイント"
+
+EXPLANATION FORMAT (use markdown, keep it SHORT per slide):
+Each explanation should have 2–4 of these building blocks as appropriate:
+
+**フォーム / Formula:**
+Show the grammar pattern using both English labels and Japanese in parentheses.
+e.g. Subject（主語）+ [have/has] + past participle（過去分詞）
+
+**意味 / Meaning:**
+One sentence in English + one sentence in Japanese.
+e.g. 「完了・経験・継続」を表す現在完了形です。
+
+**使い方 / How to use:**
+A short numbered list — each item has English + Japanese in parentheses.
+1. Talking about experience （経験を表す）— e.g. "Have you ever...?"
+2. Talking about duration （継続を表す）— e.g. "I have lived here for 3 years."
+
+**⚠ 注意 / Watch out:** (only if this slide needs it)
+1–2 bullet points on common mistakes Japanese learners make.
+e.g. - ✗ I have went → ✓ I have gone （過去分詞を使います）
+
+Keep every bullet/numbered point to ONE clear sentence. No long paragraphs.
+
+EXAMPLES FORMAT:
+- Array of strings, each string is TWO lines joined by \\n:
+  Line 1: English sentence with the grammar point wrapped in [square brackets]
+  Line 2: Natural Japanese translation
+  e.g. "She [has lived] in Tokyo for five years.\\n彼女は5年間東京に住んでいます。"
+- 3–5 examples per slide, matching the specific focus of that slide
+- Vary subjects, contexts, positive/negative/question as fits the slide topic
+
+HINT_JA:
+2–3 sentences in Japanese ONLY. Summarise this slide's concept with the formula notation.
+e.g.「主語 + have/has + 過去分詞」の形で経験を表します。"Have you ever ~?" は「〜したことがありますか？」という意味です。
 
 ---
 
 OUTPUT: Return ONLY a valid JSON object. No text before or after. No markdown fences.
 
-FIELDS:
-
-"title": Exactly "${category}"
-
-"explanation": A rich, step-by-step explanation using markdown formatting. Structure it like this:
-
-  **Formula:** Show the grammar pattern clearly.
-  e.g. **Formula:** Subject + *can* + base verb (動詞の原形)
-
-  **意味 / Meaning:** One sentence in English and Japanese explaining what it means.
-
-  **いつ使う？ / When to use:**
-  Write a numbered list of the main uses/situations.
-  1. Use 1 — short English explanation (Japanese in parentheses)
-  2. Use 2 — etc.
-
-  **⚠ 注意 / Watch out:**
-  A bullet list of 2–3 common mistakes or important rules to remember.
-  - Rule 1
-  - Rule 2
-
-  Use **bold** for key terms, *italics* for emphasis or example words.
-  Keep each point short — one clear sentence each. No long paragraphs.
-  If the grammar has multiple forms (e.g. my/your/his/her), address each form in the numbered list.
-
-"examples": An array of strings. Each string is TWO lines separated by \\n:
-  Line 1: A natural English example sentence.
-  Line 2: Japanese translation.
-  e.g. "She can speak three languages.\\n彼女は3カ国語を話すことができます。"
-
-  Cover every major form or use case — minimum 4 examples, maximum 8.
-  Vary the subject, context, and sentence type (positive, negative, question).
-  Do NOT repeat the same form twice.
-
-"hint_ja": 2–3 sentences in Japanese only. Summarise the grammar point, its formula, and a key tip for Japanese learners. Include the formula notation, e.g.「主語 + can + 動詞の原形」の形で能力や可能性を表します。
-
-Return this exact structure:
 {
-  "title": "${category}",
-  "explanation": "...",
-  "examples": ["English 1.\\n日本語1。", "English 2.\\n日本語2。"],
-  "hint_ja": "..."
+  "slides": [
+    {
+      "title": "...",
+      "explanation": "...",
+      "examples": ["English 1\\n日本語1", "English 2\\n日本語2"],
+      "hint_ja": "..."
+    }
+  ]
 }`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -119,19 +133,32 @@ Return this exact structure:
     const data = await res.json()
     const text: string = data.content?.[0]?.text?.trim() ?? ''
 
-    let slide: SlideResult
+    let parsed: { slides?: SlideResult[]; slide?: SlideResult }
     try {
       const match = text.match(/\{[\s\S]*\}/)
       if (!match) throw new Error('No JSON found')
-      slide = JSON.parse(match[0])
+      parsed = JSON.parse(match[0])
     } catch (e) {
       console.error('Parse error:', e, 'Raw:', text)
       return jsonResponse({ error: 'Failed to parse slide response' }, 500)
     }
 
-    if (!Array.isArray(slide.examples)) slide.examples = []
+    // Normalise: support both { slides: [...] } and legacy { slide: {...} }
+    const slides: SlideResult[] = Array.isArray(parsed.slides)
+      ? parsed.slides
+      : parsed.slide
+        ? [parsed.slide]
+        : []
 
-    return jsonResponse({ slide })
+    slides.forEach(s => {
+      if (!Array.isArray(s.examples)) s.examples = []
+    })
+
+    if (slides.length === 0) {
+      return jsonResponse({ error: 'No slides returned by model' }, 500)
+    }
+
+    return jsonResponse({ slides })
   } catch (err) {
     console.error('Unexpected error:', err)
     return jsonResponse({ error: String(err) }, 500)
