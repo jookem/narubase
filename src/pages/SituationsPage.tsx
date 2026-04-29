@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import type { SituationNpc, Situation, VrmGender } from '@/lib/api/situations'
-import { listSituations } from '@/lib/api/situations'
+import { listSituations, listVrmAnimations } from '@/lib/api/situations'
+import type { VRMExpression } from '@/components/vrm/VRMViewer'
 import { Upload, ImageIcon } from 'lucide-react'
 import { VRMViewer } from '@/components/vrm/VRMViewer'
 
@@ -108,19 +109,26 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 // ── NPC section ────────────────────────────────────────────────────
 
-const NPC_EXPRESSIONS = [
-  { id: 'neutral' as const,   emoji: '😐' },
-  { id: 'happy' as const,     emoji: '😊' },
-  { id: 'surprised' as const, emoji: '😲' },
-  { id: 'relaxed' as const,   emoji: '😌' },
+const NPC_EXPRESSIONS: { id: VRMExpression; emoji: string }[] = [
+  { id: 'neutral',   emoji: '😐' },
+  { id: 'happy',     emoji: '😊' },
+  { id: 'sad',       emoji: '😢' },
+  { id: 'angry',     emoji: '😠' },
+  { id: 'surprised', emoji: '😲' },
+  { id: 'relaxed',   emoji: '😌' },
 ]
 
 function NpcCard({ npc, onUpdate }: { npc: SituationNpc; onUpdate: (updated: SituationNpc) => void }) {
   const [uploading, setUploading] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [previewExpr, setPreviewExpr] = useState<'neutral' | 'happy' | 'surprised' | 'relaxed'>('neutral')
+  const [previewExpr, setPreviewExpr] = useState<VRMExpression>('neutral')
+  const [animationMap, setAnimationMap] = useState<Record<string, string>>({})
   const [savingGender, setSavingGender] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    listVrmAnimations((npc.gender as VrmGender) ?? 'neutral').then(setAnimationMap)
+  }, [npc.gender])
 
   async function handleGenderChange(gender: VrmGender) {
     setSavingGender(true)
@@ -128,6 +136,7 @@ function NpcCard({ npc, onUpdate }: { npc: SituationNpc; onUpdate: (updated: Sit
       .from('situation_npcs').update({ gender }).eq('id', npc.id)
     if (error) { toast.error(error.message); setSavingGender(false); return }
     onUpdate({ ...npc, gender })
+    listVrmAnimations(gender).then(setAnimationMap)
     setSavingGender(false)
   }
 
@@ -232,6 +241,7 @@ function NpcCard({ npc, onUpdate }: { npc: SituationNpc; onUpdate: (updated: Sit
           <VRMViewer
             url={npc.vrm_url}
             expression={previewExpr}
+            animationMap={animationMap}
             autoBlink
             orbitControls
             showGrid={false}
@@ -242,6 +252,7 @@ function NpcCard({ npc, onUpdate }: { npc: SituationNpc; onUpdate: (updated: Sit
               <button
                 key={ex.id}
                 onClick={() => setPreviewExpr(ex.id)}
+                title={ex.id}
                 className={`text-xl px-2 py-1 rounded-lg transition-colors ${previewExpr === ex.id ? 'bg-brand/20 ring-2 ring-brand/40' : 'hover:bg-gray-200'}`}
               >
                 {ex.emoji}
