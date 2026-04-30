@@ -12,12 +12,12 @@ function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5)
 }
 
-function PointDisplay({ point, answerJa, answer }: { point: string; answerJa?: string | null; answer?: string | null }) {
+function PointDisplay({ point, answerJa }: { point: string; answerJa?: string | null }) {
   const parts = point.split('_____')
   if (parts.length === 1) {
     return <h2 className="text-2xl font-bold text-white">{point}</h2>
   }
-  const fills = answerJa?.split(' / ') ?? answer?.split(' / ') ?? null
+  const fills = answerJa?.split(' / ') ?? null
   return (
     <h2 className="text-2xl font-bold text-white">
       {parts.map((part, i) => (
@@ -85,7 +85,7 @@ export function GrammarFlashcards({ cards, onComplete, onClose }: Props) {
         {/* Front — always visible */}
         <div className="w-full max-w-lg bg-white/10 rounded-2xl p-6 text-center space-y-3">
           <p className="text-white/40 text-xs font-semibold uppercase tracking-widest">Grammar Point</p>
-          <PointDisplay point={card.point} answerJa={card.answer_ja} answer={card.answer} />
+          <PointDisplay point={card.point} answerJa={card.answer_ja} />
         </div>
 
         {/* Back — revealed on flip */}
