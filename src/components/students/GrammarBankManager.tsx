@@ -57,7 +57,7 @@ function SentenceWithBlank({ sentence }: { sentence: string }) {
 }
 
 // ── Lesson Slides Tab ─────────────────────────────────────────
-function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDeckPoint[] }) {
+function LessonSlidesTab({ deckId }: { deckId: string }) {
   const [slides, setSlides] = useState<GrammarLessonSlide[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -65,13 +65,9 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
   const [savingEdit, setSavingEdit] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
 
-  // Add form
-  const [addTitle, setAddTitle] = useState('')
-  const [addExplanation, setAddExplanation] = useState('')
-  const [addExamples, setAddExamples] = useState('')
-  const [addHint, setAddHint] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [autoGenerating, setAutoGenerating] = useState(false)
+  // Grammar point input
+  const [grammarPoint, setGrammarPoint] = useState('')
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     listLessonSlides(deckId).then(({ slides: s }) => {
@@ -80,118 +76,41 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
     })
   }, [deckId])
 
-  async function handleAutoGenerate() {
-    if (points.length === 0) {
-      toast.error('No quiz questions found in this deck.')
-      return
-    }
-    setAutoGenerating(true)
-    let created = 0
-    let skipped = 0
-    let failed = 0
-
-    // Re-fetch slides from DB to get accurate existing titles (state may be stale)
-    const { slides: freshSlides } = await listLessonSlides(deckId)
-    const currentSlides = freshSlides ?? []
-    setSlides(currentSlides)
-
-    // Group points by category (fall back to answer text if uncategorized)
-    const groups = new Map<string, typeof points>()
-    for (const p of points) {
-      const key = p.category ?? (p.answer ?? p.explanation)
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(p)
-    }
-
-    if (groups.size === 0) {
-      toast.error('No categories found — run Auto-categorize on the questions first.')
-      setAutoGenerating(false)
-      return
-    }
-
-    const existingTitles = new Set(currentSlides.map(s => s.title.toLowerCase()))
-
-    for (const [category, groupPoints] of groups) {
-      if (existingTitles.has(category.toLowerCase())) {
-        skipped++
-        continue
-      }
-
+  async function handleGenerate(e: React.FormEvent) {
+    e.preventDefault()
+    const topic = grammarPoint.trim()
+    if (!topic) return
+    setGenerating(true)
+    try {
       const { data, error } = await supabase.functions.invoke('grammar-lesson-generate', {
-        body: {
-          category,
-          samples: groupPoints.slice(0, 5).map(p => ({
-            sentence_with_blank: p.sentence_with_blank ?? p.point,
-            answer: p.answer ?? p.explanation,
-            hint_ja: p.hint_ja,
-          })),
-        },
+        body: { category: topic, samples: [] },
       })
+      if (error || (!data?.slides && !data?.slide)) throw new Error(error?.message ?? 'No slides returned')
 
-      if (error || (!data?.slides && !data?.slide)) {
-        console.error('Failed to generate slides for', category, error, data)
-        failed++
-        continue
-      }
-
-      // Support both new { slides: [...] } and legacy { slide: {...} }
       type SlidePayload = { title: string; explanation: string; examples: string[]; hint_ja: string }
-      const generatedSlides: SlidePayload[] = Array.isArray(data.slides)
-        ? data.slides
-        : data.slide ? [data.slide] : []
-
-      let anyFailed = false
-      for (const slide of generatedSlides) {
-        // Skip if a slide with this exact title was already saved in a previous iteration
-        if (existingTitles.has(slide.title.toLowerCase())) { skipped++; continue }
+      const generated: SlidePayload[] = Array.isArray(data.slides) ? data.slides : data.slide ? [data.slide] : []
+      const existingTitles = new Set(slides.map(s => s.title.toLowerCase()))
+      let created = 0
+      for (const s of generated) {
+        if (existingTitles.has(s.title.toLowerCase())) continue
         const { error: addErr } = await addLessonSlide(deckId, {
-          title: slide.title,
-          explanation: slide.explanation,
-          examples: slide.examples,
-          hint_ja: slide.hint_ja || undefined,
+          title: s.title, explanation: s.explanation, examples: s.examples, hint_ja: s.hint_ja || undefined,
         })
-        if (addErr) {
-          console.error('Failed to save slide', slide.title, addErr)
-          anyFailed = true
-        } else {
-          existingTitles.add(slide.title.toLowerCase())
-          created++
-        }
+        if (!addErr) { existingTitles.add(s.title.toLowerCase()); created++ }
       }
-      if (anyFailed) failed++
-    }
-
-    const { slides: updated } = await listLessonSlides(deckId)
-    setSlides(updated ?? [])
-    setAutoGenerating(false)
-
-    if (created > 0) {
-      toast.success(`Generated ${created} slide${created !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} already existed` : ''}`)
-    } else if (skipped > 0 && failed === 0) {
-      toast.info('All slides already exist — delete existing slides first to regenerate.')
-    } else if (failed > 0) {
-      toast.error(`Generation failed for ${failed} categor${failed !== 1 ? 'ies' : 'y'} — check console for details.`)
+      const { slides: updated } = await listLessonSlides(deckId)
+      setSlides(updated ?? [])
+      if (created > 0) { setGrammarPoint(''); toast.success(`Generated ${created} slide${created !== 1 ? 's' : ''} for "${topic}"`) }
+      else toast.info('Slides already exist for this grammar point')
+    } catch (e: any) {
+      toast.error(`Failed: ${e?.message ?? String(e)}`)
+    } finally {
+      setGenerating(false)
     }
   }
 
   function parseExamples(text: string) {
     return text.split('\n').map(s => s.trim()).filter(Boolean)
-  }
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!addTitle.trim()) return
-    setSaving(true)
-    const { slide, error } = await addLessonSlide(deckId, {
-      title: addTitle.trim(),
-      explanation: addExplanation.trim(),
-      examples: parseExamples(addExamples),
-      hint_ja: addHint.trim() || undefined,
-    })
-    setSaving(false)
-    if (error) { toast.error(error); return }
-    setSlides(prev => [...prev, slide!])
-    setAddTitle(''); setAddExplanation(''); setAddExamples(''); setAddHint('')
   }
 
   function startEdit(s: GrammarLessonSlide) {
@@ -248,63 +167,28 @@ function LessonSlidesTab({ deckId, points }: { deckId: string; points: GrammarDe
 
   return (
     <div className="space-y-4">
-      {/* Auto-generate from categories */}
-      {points.length > 0 && (
-        <div className="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-xl px-4 py-3">
-          <p className="text-xs text-purple-700">AI breaks each grammar category into 2–4 focused bilingual slides — formula, uses, and common mistakes</p>
-          <button
-            onClick={handleAutoGenerate}
-            disabled={autoGenerating}
-            className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-          >
-            {autoGenerating ? 'Generating…' : '✦ Auto-generate slides'}
-          </button>
-        </div>
-      )}
-
-      {/* Add slide form */}
-      <form onSubmit={handleAdd} className="space-y-2 bg-gray-50 rounded-xl p-4 border">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Add Slide</p>
-        <Input
-          value={addTitle}
-          onChange={e => setAddTitle(e.target.value)}
-          placeholder="Grammar point title * e.g. Present Perfect"
-          required
-        />
-        <div className="space-y-1">
-          <textarea
-            value={addExplanation}
-            onChange={e => setAddExplanation(e.target.value)}
-            placeholder="Explanation — supports markdown&#10;**bold**  *italic*&#10;1. numbered list&#10;- bullet list"
-            rows={7}
-            className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand resize-y"
-          />
-          <p className="text-xs text-gray-400">Formatting: <code className="bg-gray-100 px-1 rounded">**bold**</code> <code className="bg-gray-100 px-1 rounded">*italic*</code> <code className="bg-gray-100 px-1 rounded">1. list</code> <code className="bg-gray-100 px-1 rounded">- bullet</code></p>
-        </div>
-        <textarea
-          value={addExamples}
-          onChange={e => setAddExamples(e.target.value)}
-          placeholder="Examples — one per line&#10;e.g. I [have eaten] lunch.&#10;She [has lived] here for 3 years.&#10;Wrap the grammar point in [brackets] to highlight it in the lesson."
-          rows={4}
-          className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand resize-y"
-        />
-        <Input
-          value={addHint}
-          onChange={e => setAddHint(e.target.value)}
-          placeholder="Japanese note (optional) e.g. 「have + 過去分詞」の形です"
+      {/* Grammar point input */}
+      <form onSubmit={handleGenerate} className="flex gap-2">
+        <input
+          value={grammarPoint}
+          onChange={e => setGrammarPoint(e.target.value)}
+          placeholder="Enter a grammar point e.g. Present Perfect, Modal Verbs…"
+          className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <button
           type="submit"
-          disabled={saving || !addTitle.trim()}
-          className="px-4 py-1.5 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50"
+          disabled={generating || !grammarPoint.trim()}
+          className="shrink-0 px-4 py-2.5 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50 whitespace-nowrap"
         >
-          {saving ? 'Adding…' : '+ Add Slide'}
+          {generating ? 'Generating…' : '✦ Generate slides'}
         </button>
       </form>
 
       {/* Slide list */}
-      {slides.length === 0 ? (
-        <p className="text-sm text-gray-400 py-2">No lesson slides yet. Add one above to teach this grammar point before practice.</p>
+      {loading ? (
+        <div className="space-y-2">{[...Array(2)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
+      ) : slides.length === 0 ? (
+        <p className="text-sm text-gray-400 py-2">No lesson slides yet — enter a grammar point above to get started.</p>
       ) : (
         <div className="space-y-2">
           {slides.map((s, i) => (
@@ -384,18 +268,8 @@ function DeckEditor({
   const [name, setName] = useState(deck.name)
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
-  const [suggestingCategories, setSuggestingCategories] = useState(false)
-  const [fillingJa, setFillingJa] = useState(false)
-  const [enriching, setEnriching] = useState(false)
-  // Add form
-  const [addSentence, setAddSentence] = useState('')
-  const [addAnswer, setAddAnswer] = useState('')
-  const [addHint, setAddHint] = useState('')
-  const [addAnswerJa, setAddAnswerJa] = useState('')
-  const [addDistractors, setAddDistractors] = useState('')
-  const [addCategory, setAddCategory] = useState('')
-  const [saving, setSaving] = useState(false)
-  const addSentenceRef = useRef<HTMLInputElement>(null)
+  const [generateLevel, setGenerateLevel] = useState('3')
+  const [generatingQuestions, setGeneratingQuestions] = useState(false)
   const editSentenceRef = useRef<HTMLInputElement>(null)
 
   function insertBlank(
@@ -421,151 +295,46 @@ function DeckEditor({
   const [savingEdit, setSavingEdit] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
 
-  // JSON import
-  const [showImport, setShowImport] = useState(false)
-  const [importJson, setImportJson] = useState('')
-  const [importing, setImporting] = useState(false)
-
-  // AI question generation
-  const [showGenerate, setShowGenerate] = useState(false)
-  const [generateTopic, setGenerateTopic] = useState('')
-  const [generateLevel, setGenerateLevel] = useState('3')
-  const [generateCount, setGenerateCount] = useState(10)
-  const [generating, setGenerating] = useState(false)
-  const [generatedQuestions, setGeneratedQuestions] = useState<Array<{
-    sentence_with_blank: string; answer: string; hint_ja: string; distractors: string[]; category: string
-  }>>([])
-  const [slideTopics, setSlideTopics] = useState<string[]>([])
-
-  async function openGenerate() {
-    setShowGenerate(v => !v)
-    setGeneratedQuestions([])
-    if (!showGenerate) {
-      const { slides: s } = await listLessonSlides(deck.id)
-      const topics = [...new Set((s ?? []).map(sl => sl.title.split(' — ')[0].trim()))].filter(Boolean)
-      setSlideTopics(topics)
-    }
-  }
-
-  async function handleGenerate() {
-    if (!generateTopic.trim()) { toast.error('Enter a grammar topic first'); return }
-    setGenerating(true)
-    setGeneratedQuestions([])
+  async function handleGenerateFromSlides() {
+    setGeneratingQuestions(true)
     try {
-      const { data, error } = await supabase.functions.invoke('grammar-generate-questions', {
-        body: { topic: generateTopic.trim(), level: generateLevel, count: generateCount },
-      })
-      if (error) {
-        let msg = error.message
-        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
-        throw new Error(msg)
+      const { slides } = await listLessonSlides(deck.id)
+      if (!slides || slides.length === 0) {
+        toast.error('No lesson slides found — add slides first')
+        return
       }
-      const questions = data.questions ?? []
-      if (questions.length === 0) throw new Error('No questions returned')
-      setGeneratedQuestions(questions)
+      const topics = [...new Set(slides.map(s => s.title.split(' — ')[0].trim()))].filter(Boolean)
+      let added = 0
+      for (const topic of topics) {
+        const { data, error } = await supabase.functions.invoke('grammar-generate-questions', {
+          body: { topic, level: generateLevel, count: 10 },
+        })
+        if (error || !data?.questions?.length) {
+          console.error('Failed to generate questions for', topic, error)
+          continue
+        }
+        for (const q of data.questions) {
+          const { error: addErr } = await addPointToDeck(deck.id, {
+            point: q.sentence_with_blank,
+            explanation: q.answer,
+            sentence_with_blank: q.sentence_with_blank,
+            answer: q.answer,
+            hint_ja: q.hint_ja || undefined,
+            distractors: q.distractors ?? [],
+            category: q.category || topic,
+          })
+          if (!addErr) added++
+        }
+      }
+      const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
+      setPoints(refreshed?.points ?? points)
+      onUpdated()
+      toast.success(`Generated ${added} question${added !== 1 ? 's' : ''} from ${topics.length} grammar point${topics.length !== 1 ? 's' : ''}`)
     } catch (e: any) {
       toast.error(`Failed: ${e?.message ?? String(e)}`)
     } finally {
-      setGenerating(false)
+      setGeneratingQuestions(false)
     }
-  }
-
-  async function handleAddGenerated() {
-    if (generatedQuestions.length === 0) return
-    setGenerating(true)
-    let added = 0
-    for (const q of generatedQuestions) {
-      const { error } = await addPointToDeck(deck.id, {
-        point: q.sentence_with_blank,
-        explanation: q.answer,
-        sentence_with_blank: q.sentence_with_blank,
-        answer: q.answer,
-        hint_ja: q.hint_ja || undefined,
-        distractors: q.distractors ?? [],
-        category: q.category || undefined,
-      })
-      if (!error) added++
-    }
-    const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
-    setPoints(refreshed?.points ?? points)
-    setGenerating(false)
-    setGeneratedQuestions([])
-    setShowGenerate(false)
-    setGenerateTopic('')
-    onUpdated()
-    toast.success(`Added ${added} question${added !== 1 ? 's' : ''} to deck`)
-  }
-
-  type ImportRow = {
-    point: string
-    explanation: string
-    sentence: string
-    sentence_ja?: string
-    answer: string
-    hint?: string
-    distractors?: string[]
-    category?: string
-    examples?: string[]
-  }
-
-  function parseImport(): { rows: ImportRow[]; error: string | null } {
-    try {
-      const parsed = JSON.parse(importJson)
-      if (!Array.isArray(parsed)) return { rows: [], error: 'Must be a JSON array [ ... ]' }
-      const rows: ImportRow[] = []
-      for (let i = 0; i < parsed.length; i++) {
-        const r = parsed[i]
-        if (!r.point) return { rows: [], error: `Item ${i + 1} missing "point" (grammar rule title)` }
-        if (!r.sentence) return { rows: [], error: `Item ${i + 1} missing "sentence"` }
-        if (!r.answer) return { rows: [], error: `Item ${i + 1} missing "answer"` }
-        if (!String(r.sentence).includes('_____')) return { rows: [], error: `Item ${i + 1} "sentence" must contain _____ (5 underscores)` }
-        rows.push({
-          point: String(r.point),
-          explanation: r.explanation ? String(r.explanation) : '',
-          sentence: String(r.sentence),
-          sentence_ja: r.sentence_ja ? String(r.sentence_ja) : undefined,
-          answer: String(r.answer),
-          hint: r.hint ? String(r.hint) : undefined,
-          distractors: Array.isArray(r.distractors) ? r.distractors.map(String) : [],
-          category: r.category ? String(r.category) : undefined,
-          examples: Array.isArray(r.examples) ? r.examples.map(String) : [],
-        })
-      }
-      return { rows, error: null }
-    } catch {
-      return { rows: [], error: 'Invalid JSON — check for missing commas or brackets' }
-    }
-  }
-
-  async function handleImport() {
-    const { rows, error } = parseImport()
-    if (error) { toast.error(error); return }
-    if (rows.length === 0) { toast.error('No items found in JSON.'); return }
-    setImporting(true)
-    let added = 0
-    for (const r of rows) {
-      const { error: err } = await addPointToDeck(deck.id, {
-        point: r.sentence,
-        explanation: r.explanation || r.answer,
-        examples: r.examples ?? [],
-        sentence_with_blank: r.sentence,
-        sentence_ja: r.sentence_ja,
-        answer: r.answer,
-        hint_ja: r.hint,
-        distractors: r.distractors ?? [],
-        category: r.category || r.point,
-      })
-      if (!err) added++
-    }
-    const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
-    const newPoints = refreshed?.points ?? points
-    setPoints(newPoints)
-
-    setImporting(false)
-    setShowImport(false)
-    setImportJson('')
-    onUpdated()
-    toast.success(`Imported ${added} of ${rows.length} point${rows.length !== 1 ? 's' : ''}`)
   }
 
   useEffect(() => {
@@ -583,162 +352,6 @@ function DeckEditor({
     deck.name = name.trim()
     onUpdated()
     setRenamingName(false)
-  }
-
-  async function handleSuggestCategories(force = false) {
-    const targets = force ? points : points.filter(p => !p.category)
-    if (!targets.length) { toast.info('No questions in this deck'); return }
-    setSuggestingCategories(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('grammar-categorize', {
-        body: {
-          questions: targets.map(p => ({
-            id: p.id,
-            sentence_with_blank: p.sentence_with_blank ?? p.point,
-            answer: p.answer ?? p.explanation,
-            hint_ja: p.hint_ja,
-          })),
-        },
-      })
-      if (error) {
-        let msg = error.message
-        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
-        throw new Error(msg)
-      }
-      const categories: { id: string; category: string }[] = data.categories ?? []
-      // Apply to grammar_deck_points
-      await Promise.all(categories.map(({ id, category }) =>
-        supabase.from('grammar_deck_points').update({ category }).eq('id', id)
-      ))
-      // Propagate directly to grammar_bank rows so student views update without merge
-      await Promise.all(
-        categories.map(({ id, category }) => {
-          const p = points.find(pt => pt.id === id)
-          if (!p) return Promise.resolve()
-          return supabase
-            .from('grammar_bank')
-            .update({ category })
-            .eq('deck_id', deck.id)
-            .eq('point', p.point)
-        })
-      )
-      // Update local state
-      setPoints(prev => prev.map(p => {
-        const match = categories.find(c => c.id === p.id)
-        return match ? { ...p, category: match.category } : p
-      }))
-      toast.success(`Categorized ${categories.length} question${categories.length !== 1 ? 's' : ''}`)
-    } catch (e: any) {
-      toast.error(`Failed: ${e?.message ?? String(e)}`)
-    } finally {
-      setSuggestingCategories(false)
-    }
-  }
-
-  async function handleEnrichPoints(force = false) {
-    const targets = force ? points : points.filter(p => !p.explanation || p.examples.length === 0)
-    if (!targets.length) {
-      toast.info(force ? 'No questions found' : 'All questions already have explanations and examples')
-      return
-    }
-    setEnriching(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('grammar-enrich-points', {
-        body: {
-          points: targets.map(p => ({
-            id: p.id,
-            sentence_with_blank: p.sentence_with_blank ?? p.point,
-            answer: p.answer ?? p.explanation,
-            category: p.category,
-          })),
-        },
-      })
-      if (error) {
-        let msg = error.message
-        try {
-          const text = await (error as any).context?.text?.()
-          const b = JSON.parse(text)
-          if (b?.error) msg = b.error
-        } catch {}
-        throw new Error(msg)
-      }
-      const results: { id: string; explanation: string; examples: string[] }[] = data.results ?? []
-      await Promise.all(results.map(({ id, explanation, examples }) =>
-        supabase.from('grammar_deck_points').update({ explanation, examples }).eq('id', id)
-      ))
-      setPoints(prev => prev.map(p => {
-        const r = results.find(r => r.id === p.id)
-        return r ? { ...p, explanation: r.explanation, examples: r.examples } : p
-      }))
-      toast.success(`Filled explanations for ${results.length} question${results.length !== 1 ? 's' : ''}`)
-    } catch (e: any) {
-      toast.error(`Failed: ${e?.message ?? String(e)}`)
-    } finally {
-      setEnriching(false)
-    }
-  }
-
-  async function handleAutoFillJa(force = false) {
-    const targets = force
-      ? points.filter(p => p.answer)
-      : points.filter(p => p.answer && !p.answer_ja)
-    if (!targets.length) {
-      toast.info(force ? 'No questions with answers found' : 'All questions already have Japanese answers')
-      return
-    }
-    setFillingJa(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('grammar-translate-answers', {
-        body: { answers: targets.map(p => ({ id: p.id, answer: p.answer ?? p.explanation })) },
-      })
-      if (error) {
-        let msg = error.message
-        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
-        throw new Error(msg)
-      }
-      const results: { id: string; answer_ja: string }[] = data.results ?? []
-      await Promise.all(results.map(({ id, answer_ja }) =>
-        supabase.from('grammar_deck_points').update({ answer_ja }).eq('id', id)
-      ))
-      setPoints(prev => prev.map(p => {
-        const match = results.find(r => r.id === p.id)
-        return match ? { ...p, answer_ja: match.answer_ja } : p
-      }))
-      toast.success(`Filled Japanese for ${results.length} question${results.length !== 1 ? 's' : ''}`)
-    } catch (e: any) {
-      toast.error(`Failed: ${e?.message ?? String(e)}`)
-    } finally {
-      setFillingJa(false)
-    }
-  }
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    const sentence = addSentence.trim()
-    const answer = addAnswer.trim()
-    if (!sentence || !answer) return
-    if (!sentence.includes('_____')) {
-      toast.error('Sentence must contain _____ to mark the blank.')
-      return
-    }
-    const distractors = addDistractors.split(',').map(s => s.trim()).filter(Boolean)
-    setSaving(true)
-    const { error } = await addPointToDeck(deck.id, {
-      point: sentence,
-      explanation: answer,
-      sentence_with_blank: sentence,
-      answer,
-      hint_ja: addHint.trim() || undefined,
-      answer_ja: addAnswerJa.trim() || undefined,
-      distractors,
-      category: addCategory.trim() || undefined,
-    })
-    setSaving(false)
-    if (error) { toast.error(error); return }
-    const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
-    setPoints(refreshed?.points ?? points)
-    setAddSentence(''); setAddAnswer(''); setAddHint(''); setAddAnswerJa(''); setAddDistractors(''); setAddCategory('')
-    onUpdated()
   }
 
   function startEdit(p: GrammarDeckPoint) {
@@ -830,32 +443,6 @@ function DeckEditor({
           )}
           <button aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-4 shrink-0">✕</button>
         </div>
-        {points.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-6 pb-3 shrink-0">
-            <button
-              onClick={() => handleEnrichPoints(true)}
-              disabled={enriching}
-              title="Re-generate explanation and examples for every question so they match the specific grammar pattern"
-              className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap"
-            >
-              {enriching ? 'Enriching…' : '✦ Auto-fill explanations'}
-            </button>
-            <button
-              onClick={() => handleAutoFillJa(false)}
-              disabled={fillingJa}
-              className="px-3 py-1.5 bg-sky-600 text-white text-xs rounded-lg hover:bg-sky-700 transition-colors disabled:opacity-50 whitespace-nowrap"
-            >
-              {fillingJa ? '日本語…' : '✦ 日本語 auto-fill'}
-            </button>
-            <button
-              onClick={() => handleSuggestCategories(true)}
-              disabled={suggestingCategories}
-              className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 whitespace-nowrap"
-            >
-              {suggestingCategories ? 'Categorizing…' : '✦ Auto-categorize all'}
-            </button>
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="flex border-b shrink-0">
@@ -876,192 +463,42 @@ function DeckEditor({
         {/* Tab content */}
         <div className="overflow-y-auto flex-1 px-6 py-4">
           {tab === 'lesson' ? (
-            <LessonSlidesTab deckId={deck.id} points={points} />
+            <LessonSlidesTab deckId={deck.id} />
           ) : (
             <>
-              {/* Action bar */}
-              <div className="flex gap-2 mb-4">
+              {/* Generate from slides */}
+              <div className="mb-4 bg-violet-50 rounded-xl p-4 border border-violet-200 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-violet-900">Generate quiz questions from slides</p>
+                    <p className="text-xs text-violet-600 mt-0.5">10 questions per grammar point, auto-categorized to match your lesson slides</p>
+                  </div>
+                  <select
+                    value={generateLevel}
+                    onChange={e => setGenerateLevel(e.target.value)}
+                    className="shrink-0 text-xs border border-violet-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  >
+                    <option value="5">Eiken 5</option>
+                    <option value="4">Eiken 4</option>
+                    <option value="3">Eiken 3</option>
+                    <option value="2">Eiken 2</option>
+                    <option value="1">Eiken 1</option>
+                  </select>
+                </div>
                 <button
-                  onClick={openGenerate}
-                  className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-colors ${showGenerate ? 'bg-violet-600 text-white border-violet-600' : 'bg-violet-50 text-violet-700 border-violet-200 hover:border-violet-400'}`}
+                  onClick={handleGenerateFromSlides}
+                  disabled={generatingQuestions}
+                  className="w-full py-2.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50"
                 >
-                  ✦ Generate with AI
-                </button>
-                <button
-                  onClick={() => { setShowImport(v => !v); if (showGenerate) { setShowGenerate(false); setGeneratedQuestions([]) } }}
-                  className={`flex-1 py-2.5 text-sm font-medium rounded-xl border-2 transition-colors ${showImport ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-400'}`}
-                >
-                  ↓ Import JSON
+                  {generatingQuestions ? 'Generating…' : '✦ Generate questions'}
                 </button>
               </div>
-
-              {/* AI Generate panel */}
-              {showGenerate && (
-                <div className="mb-4 space-y-3 bg-violet-50 rounded-xl p-4 border border-violet-200">
-                  {slideTopics.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-violet-600 font-medium">Select from your lesson slides:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {slideTopics.map(topic => (
-                          <button
-                            key={topic}
-                            type="button"
-                            onClick={() => setGenerateTopic(topic)}
-                            className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${generateTopic === topic ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-violet-700 border-violet-300 hover:bg-violet-100'}`}
-                          >
-                            {topic}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <input
-                    autoFocus
-                    value={generateTopic}
-                    onChange={e => setGenerateTopic(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleGenerate() }}
-                    placeholder="Or type a topic e.g. Modal Verbs, Comparatives…"
-                    className="w-full text-sm border border-violet-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
-                  />
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <label className="block text-xs text-violet-600 mb-1">Eiken Level</label>
-                      <select
-                        value={generateLevel}
-                        onChange={e => setGenerateLevel(e.target.value)}
-                        className="w-full text-sm border border-violet-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
-                      >
-                        <option value="5">Level 5 — Beginner</option>
-                        <option value="4">Level 4</option>
-                        <option value="3">Level 3 — Pre-intermediate</option>
-                        <option value="2">Level 2 — Intermediate</option>
-                        <option value="1">Level 1 — Advanced</option>
-                      </select>
-                    </div>
-                    <div className="w-28">
-                      <label className="block text-xs text-violet-600 mb-1">Questions</label>
-                      <select
-                        value={generateCount}
-                        onChange={e => setGenerateCount(Number(e.target.value))}
-                        className="w-full text-sm border border-violet-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
-                      >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={15}>15</option>
-                        <option value={20}>20</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleGenerate}
-                    disabled={generating || !generateTopic.trim()}
-                    className="w-full py-2.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50"
-                  >
-                    {generating && generatedQuestions.length === 0 ? 'Generating…' : 'Generate Questions'}
-                  </button>
-
-                  {generatedQuestions.length > 0 && (
-                    <div className="space-y-2 border-t border-violet-200 pt-3">
-                      <p className="text-xs text-violet-700 font-medium">{generatedQuestions.length} questions ready — review then add:</p>
-                      <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
-                        {generatedQuestions.map((q, i) => (
-                          <div key={i} className="bg-white rounded-lg border border-violet-100 px-3 py-2 text-xs">
-                            <p className="text-gray-800 font-medium">{q.sentence_with_blank}</p>
-                            <p className="text-gray-500 mt-0.5">
-                              <span className="text-green-700 font-semibold">{q.answer}</span>
-                              {q.distractors?.length > 0 && <span className="text-gray-400"> · {q.distractors.join(', ')}</span>}
-                              {q.hint_ja && <span className="text-violet-500"> · {q.hint_ja}</span>}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        onClick={handleAddGenerated}
-                        disabled={generating}
-                        className="w-full py-2.5 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50"
-                      >
-                        {generating ? 'Adding…' : `Add ${generatedQuestions.length} questions to deck`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* JSON Import panel */}
-              {showImport && (
-                <div className="mb-4 space-y-3 bg-amber-50 rounded-xl p-4 border border-amber-200">
-                  <p className="text-xs text-amber-700 font-mono bg-amber-100 rounded p-2 leading-relaxed whitespace-pre-wrap">{`[{
-  "point": "Simple Present",
-  "sentence": "She _____ every day.",
-  "answer": "runs",
-  "hint": "動詞（三単現）",
-  "distractors": ["run", "ran", "running"],
-  "category": "Verb Tenses"
-}, ...]`}</p>
-                  <textarea
-                    autoFocus
-                    value={importJson}
-                    onChange={e => setImportJson(e.target.value)}
-                    placeholder="Paste JSON array here…"
-                    rows={5}
-                    className="w-full text-xs font-mono border border-amber-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand resize-none"
-                  />
-                  {importJson.trim() && (() => {
-                    const { rows, error } = parseImport()
-                    return error
-                      ? <p className="text-xs text-red-500">{error}</p>
-                      : <p className="text-xs text-green-700">{rows.length} question{rows.length !== 1 ? 's' : ''} ready to import</p>
-                  })()}
-                  <button
-                    onClick={handleImport}
-                    disabled={importing || !importJson.trim()}
-                    className="w-full py-2.5 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50"
-                  >
-                    {importing ? 'Importing…' : 'Import All'}
-                  </button>
-                </div>
-              )}
-
-              {/* Manual add form */}
-              <form onSubmit={handleAdd} className="space-y-2 mb-4 bg-gray-50 rounded-xl p-4 border">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Add manually</p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    ref={addSentenceRef}
-                    value={addSentence}
-                    onChange={e => setAddSentence(e.target.value)}
-                    placeholder='Sentence * e.g. "There _____ a park."'
-                    className="flex-1"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => insertBlank(addSentenceRef, addSentence, setAddSentence)}
-                    title="Insert blank (_____)"
-                    className="shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-100 transition-colors font-mono text-gray-600 hover:text-brand"
-                  >
-                    _____
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={addAnswer} onChange={e => setAddAnswer(e.target.value)} placeholder="Answer * e.g. is" required />
-                  <Input value={addHint} onChange={e => setAddHint(e.target.value)} placeholder="Japanese hint e.g. 「単数」です" />
-                </div>
-                <Input value={addAnswerJa} onChange={e => setAddAnswerJa(e.target.value)} placeholder="Japanese answer e.g. もっと大きい" />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={addDistractors} onChange={e => setAddDistractors(e.target.value)} placeholder="Wrong choices (comma-separated)" />
-                  <Input value={addCategory} onChange={e => setAddCategory(e.target.value)} placeholder="Category e.g. Present Continuous" />
-                </div>
-                <button type="submit" disabled={saving || !addSentence.trim() || !addAnswer.trim()} className="px-4 py-1.5 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50">
-                  {saving ? 'Adding…' : '+ Add Question'}
-                </button>
-              </form>
 
               {/* Point list — grouped by category */}
               {loading ? (
                 <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
               ) : points.length === 0 ? (
-                <p className="text-sm text-gray-400">No questions yet. Add some above.</p>
+                <p className="text-sm text-gray-400">No questions yet — generate from your lesson slides above.</p>
               ) : (() => {
                 const catMap = new Map<string, GrammarDeckPoint[]>()
                 for (const p of points) {
