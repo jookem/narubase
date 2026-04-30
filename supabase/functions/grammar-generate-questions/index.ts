@@ -24,44 +24,63 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { topic, level, count }: { topic: string; level: string; count: number } = await req.json()
+    const { topic, examples, count }: { topic: string; examples?: string[]; count?: number } = await req.json()
     if (!topic) return jsonResponse({ error: 'topic is required' }, 400)
 
     const targetCount = Math.min(Math.max(count ?? 10, 5), 20)
 
-    const levelDescriptions: Record<string, string> = {
-      '5': 'Eiken Level 5 (absolute beginner — simple sentences, to be, basic present simple, numbers, colours)',
-      '4': 'Eiken Level 4 (beginner — present/past simple, can, there is/are, basic questions)',
-      '3': 'Eiken Level 3 (pre-intermediate — present perfect, comparatives, modal verbs, passive, basic conditionals)',
-      '2': 'Eiken Level 2 (intermediate — all tenses, conditionals, relative clauses, reported speech)',
-      '1': 'Eiken Level 1 (advanced — complex grammar, academic structures)',
-    }
-    const levelDesc = levelDescriptions[level] ?? levelDescriptions['3']
+    const exampleBlock = examples && examples.length > 0
+      ? `\nHere are example sentences from the lesson slides showing the grammar pattern (the grammar point is inside [brackets]):\n${examples.slice(0, 6).map(e => `- ${e}`).join('\n')}\nMatch the vocabulary difficulty and sentence style of these examples.\n`
+      : ''
 
-    const prompt = `You are creating fill-in-the-blank grammar quiz questions for Japanese students studying English (ages 12–18).
+    const prompt = `You are creating fill-in-the-blank grammar quiz questions for Japanese students studying English.
 
 Grammar topic: "${topic}"
-Difficulty: ${levelDesc}
-Number of questions to generate: ${targetCount}
+${exampleBlock}
+Generate exactly ${targetCount} questions. Follow ALL rules below precisely.
 
-REQUIREMENTS:
-1. Each sentence must contain exactly _____ (five underscores) to mark the blank.
-2. The answer is a single word or short phrase (1–3 words) that fills the blank correctly.
-3. Sentences should be natural, age-appropriate, and varied in subject/context.
-4. Provide 3 distractors — wrong answer choices that are plausible but incorrect. They should be the same part of speech as the answer but wrong for this sentence.
-5. hint_ja: A SHORT Japanese grammar hint (8–15 characters) showing the grammatical concept. e.g. "現在進行形", "過去形", "助動詞 can", "比較級"
-6. category: The grammar sub-category this question belongs to. Use a broad, consistent name matching the topic (e.g. "Present Continuous", "Comparatives", "Past Simple"). Never add parenthetical sub-types like "(whose)" or "(Type 1)".
-7. All ${targetCount} questions must cover the topic "${topic}" — vary the sub-patterns (affirmative, negative, question forms, different contexts).
+━━━ RULE 1 — THE BLANK TESTS THE GRAMMAR POINT ━━━
+The blank _____ must always replace the target grammar structure for "${topic}".
+NEVER blank out a random noun, adjective, or preposition that has nothing to do with the grammar point.
+
+Examples of CORRECT blank placement:
+- Topic "Present Perfect" → "She _____ in Tokyo for five years." (answer: has lived)
+- Topic "Past Simple" → "He _____ the door and walked in." (answer: opened)
+- Topic "Passive Voice" → "The letter _____ by Tom." (answer: was written)
+- Topic "Comparatives" → "This bag is _____ than mine." (answer: heavier)
+- Topic "Modal Verbs" → "You _____ wear a seatbelt." (answer: must)
+
+Examples of WRONG blank placement (do NOT do this):
+- Topic "Present Perfect" → "She has lived in _____ for five years." (blanking a noun = wrong)
+- Topic "Modal Verbs" → "You must wear a _____." (blanking a noun = wrong)
+
+━━━ RULE 2 — hint_ja IS A CONJUGATED TRANSLATION ━━━
+hint_ja must be the Japanese translation of the ANSWER, conjugated into the SAME grammatical form as the answer.
+The Japanese form must match the English tense/aspect/mood exactly.
+
+Examples:
+- answer: "has eaten" → hint_ja: "食べました" (NOT 食べる)
+- answer: "was written" → hint_ja: "書かれました" (passive, NOT 書く)
+- answer: "will go" → hint_ja: "行くでしょう" (future, NOT 行く)
+- answer: "is running" → hint_ja: "走っています" (continuous, NOT 走る)
+- answer: "had finished" → hint_ja: "終わっていた" (past perfect, NOT 終わる)
+- answer: "must study" → hint_ja: "勉強しなければなりません"
+- answer: "heavier" → hint_ja: "より重い"
+
+━━━ RULE 3 — OTHER REQUIREMENTS ━━━
+- 3 distractors: same part of speech, grammatically plausible but wrong (wrong tense, wrong form, etc.)
+- category: broad consistent name for the grammar sub-type, no parenthetical sub-types
+- Vary subjects and contexts across questions (affirmative, negative, questions)
 
 Return ONLY a valid JSON object, no text before or after:
 {
   "questions": [
     {
-      "sentence_with_blank": "She _____ to school every day.",
-      "answer": "walks",
-      "hint_ja": "三単現の -s",
-      "distractors": ["walk", "walked", "walking"],
-      "category": "Present Simple"
+      "sentence_with_blank": "She _____ in Tokyo for five years.",
+      "answer": "has lived",
+      "hint_ja": "住んでいます",
+      "distractors": ["lived", "is living", "lives"],
+      "category": "Present Perfect"
     }
   ]
 }`

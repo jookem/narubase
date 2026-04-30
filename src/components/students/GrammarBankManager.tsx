@@ -268,7 +268,6 @@ function DeckEditor({
   const [name, setName] = useState(deck.name)
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
-  const [generateLevel, setGenerateLevel] = useState('3')
   const [generatingQuestions, setGeneratingQuestions] = useState(false)
   const editSentenceRef = useRef<HTMLInputElement>(null)
 
@@ -303,11 +302,19 @@ function DeckEditor({
         toast.error('No lesson slides found — add slides first')
         return
       }
-      const topics = [...new Set(slides.map(s => s.title.split(' — ')[0].trim()))].filter(Boolean)
+      // Group slides by base topic (strip " — Japanese subtitle")
+      const topicSlides = new Map<string, typeof slides>()
+      for (const s of slides) {
+        const topic = s.title.split(' — ')[0].trim()
+        if (!topicSlides.has(topic)) topicSlides.set(topic, [])
+        topicSlides.get(topic)!.push(s)
+      }
       let added = 0
-      for (const topic of topics) {
+      for (const [topic, topicGroup] of topicSlides) {
+        // Collect example sentences from this topic's slides as context
+        const examples = topicGroup.flatMap(s => s.examples).slice(0, 6)
         const { data, error } = await supabase.functions.invoke('grammar-generate-questions', {
-          body: { topic, level: generateLevel, count: 10 },
+          body: { topic, examples, count: 10 },
         })
         if (error || !data?.questions?.length) {
           console.error('Failed to generate questions for', topic, error)
@@ -329,7 +336,7 @@ function DeckEditor({
       const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
       setPoints(refreshed?.points ?? points)
       onUpdated()
-      toast.success(`Generated ${added} question${added !== 1 ? 's' : ''} from ${topics.length} grammar point${topics.length !== 1 ? 's' : ''}`)
+      toast.success(`Generated ${added} question${added !== 1 ? 's' : ''} from ${topicSlides.size} grammar point${topicSlides.size !== 1 ? 's' : ''}`)
     } catch (e: any) {
       toast.error(`Failed: ${e?.message ?? String(e)}`)
     } finally {
@@ -468,22 +475,9 @@ function DeckEditor({
             <>
               {/* Generate from slides */}
               <div className="mb-4 bg-violet-50 rounded-xl p-4 border border-violet-200 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-violet-900">Generate quiz questions from slides</p>
-                    <p className="text-xs text-violet-600 mt-0.5">10 questions per grammar point, auto-categorized to match your lesson slides</p>
-                  </div>
-                  <select
-                    value={generateLevel}
-                    onChange={e => setGenerateLevel(e.target.value)}
-                    className="shrink-0 text-xs border border-violet-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
-                  >
-                    <option value="5">Eiken 5</option>
-                    <option value="4">Eiken 4</option>
-                    <option value="3">Eiken 3</option>
-                    <option value="2">Eiken 2</option>
-                    <option value="1">Eiken 1</option>
-                  </select>
+                <div>
+                  <p className="text-sm font-semibold text-violet-900">Generate quiz questions from slides</p>
+                  <p className="text-xs text-violet-600 mt-0.5">10 questions per grammar point based on your lesson slides</p>
                 </div>
                 <button
                   onClick={handleGenerateFromSlides}
