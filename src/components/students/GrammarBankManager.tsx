@@ -326,6 +326,7 @@ function DeckEditor({
             explanation: q.answer,
             sentence_with_blank: q.sentence_with_blank,
             answer: q.answer,
+            answer_ja: q.answer_ja || undefined,
             hint_ja: q.hint_ja || undefined,
             distractors: q.distractors ?? [],
             category: q.category || topic,

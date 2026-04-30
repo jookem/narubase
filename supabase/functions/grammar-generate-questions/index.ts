@@ -15,6 +15,7 @@ function jsonResponse(body: unknown, status = 200) {
 interface GeneratedQuestion {
   sentence_with_blank: string
   answer: string
+  answer_ja: string
   hint_ja: string
   distractors: string[]
   category: string
@@ -86,6 +87,20 @@ Examples:
 - sentence: "You _____ wear a seatbelt." (answer: must)
   → hint_ja: "シートベルトを着用しなければなりません。"
 
+━━━ RULE 3b — answer_ja IS THE JAPANESE EQUIVALENT OF THE ANSWER WORDS ONLY ━━━
+answer_ja must be the Japanese equivalent of just the answer word(s), using the same grammatical form.
+For multi-word answers, separate with " / " matching the same number of parts as the answer.
+This appears as a hint inside the blank on flashcard study screens.
+
+Examples:
+- answer: "has / lived"   → answer_ja: "住んで / います"
+- answer: "was / written" → answer_ja: "書かれ / ました"
+- answer: "let / go"      → answer_ja: "行かせて / くれます"
+- answer: "heavier"       → answer_ja: "重い"
+- answer: "must"          → answer_ja: "しなければなりません"
+- answer: "opened"        → answer_ja: "開けました"
+- answer: "will / go"     → answer_ja: "行き / ます"
+
 ━━━ RULE 4 — DISTRACTORS MUST BE CLEARLY WRONG ━━━
 Distractors must be GRAMMATICALLY INCORRECT — broken forms that no teacher could ever mark as correct.
 They should look tempting to a student but be definitively wrong for the grammar rule being tested.
@@ -153,8 +168,9 @@ Return ONLY a valid JSON object, no text before or after:
     {
       "sentence_with_blank": "She _____ _____ in Tokyo for five years.",
       "answer": "has / lived",
+      "answer_ja": "住んで / います",
       "hint_ja": "彼女は5年間東京に住んでいます。",
-      "distractors": ["have / lived", "is / living", "was / living"],
+      "distractors": ["has / live", "have / living", "is / lived"],
       "category": "Present Perfect"
     }
   ]
