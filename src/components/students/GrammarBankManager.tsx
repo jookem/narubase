@@ -426,6 +426,65 @@ function DeckEditor({
   const [importJson, setImportJson] = useState('')
   const [importing, setImporting] = useState(false)
 
+  // AI question generation
+  const [showGenerate, setShowGenerate] = useState(false)
+  const [generateTopic, setGenerateTopic] = useState('')
+  const [generateLevel, setGenerateLevel] = useState('3')
+  const [generateCount, setGenerateCount] = useState(10)
+  const [generating, setGenerating] = useState(false)
+  const [generatedQuestions, setGeneratedQuestions] = useState<Array<{
+    sentence_with_blank: string; answer: string; hint_ja: string; distractors: string[]; category: string
+  }>>([])
+
+  async function handleGenerate() {
+    if (!generateTopic.trim()) { toast.error('Enter a grammar topic first'); return }
+    setGenerating(true)
+    setGeneratedQuestions([])
+    try {
+      const { data, error } = await supabase.functions.invoke('grammar-generate-questions', {
+        body: { topic: generateTopic.trim(), level: generateLevel, count: generateCount },
+      })
+      if (error) {
+        let msg = error.message
+        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error } catch {}
+        throw new Error(msg)
+      }
+      const questions = data.questions ?? []
+      if (questions.length === 0) throw new Error('No questions returned')
+      setGeneratedQuestions(questions)
+    } catch (e: any) {
+      toast.error(`Failed: ${e?.message ?? String(e)}`)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleAddGenerated() {
+    if (generatedQuestions.length === 0) return
+    setGenerating(true)
+    let added = 0
+    for (const q of generatedQuestions) {
+      const { error } = await addPointToDeck(deck.id, {
+        point: q.sentence_with_blank,
+        explanation: q.answer,
+        sentence_with_blank: q.sentence_with_blank,
+        answer: q.answer,
+        hint_ja: q.hint_ja || undefined,
+        distractors: q.distractors ?? [],
+        category: q.category || undefined,
+      })
+      if (!error) added++
+    }
+    const { deck: refreshed } = await getGrammarDeckWithPoints(deck.id)
+    setPoints(refreshed?.points ?? points)
+    setGenerating(false)
+    setGeneratedQuestions([])
+    setShowGenerate(false)
+    setGenerateTopic('')
+    onUpdated()
+    toast.success(`Added ${added} question${added !== 1 ? 's' : ''} to deck`)
+  }
+
   type ImportRow = {
     point: string
     explanation: string
@@ -809,6 +868,88 @@ function DeckEditor({
             <LessonSlidesTab deckId={deck.id} points={points} />
           ) : (
             <>
+              {/* AI Generate */}
+              {showGenerate ? (
+                <div className="mb-4 space-y-3 bg-violet-50 rounded-xl p-4 border border-violet-200">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-violet-800 uppercase tracking-wide">✦ Generate questions with AI</p>
+                    <button onClick={() => { setShowGenerate(false); setGeneratedQuestions([]) }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <input
+                        autoFocus
+                        value={generateTopic}
+                        onChange={e => setGenerateTopic(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleGenerate() }}
+                        placeholder="Grammar topic e.g. Present Perfect, Modal Verbs, Comparatives"
+                        className="w-full text-sm border border-violet-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-violet-700 mb-1">Eiken Level</label>
+                      <select
+                        value={generateLevel}
+                        onChange={e => setGenerateLevel(e.target.value)}
+                        className="w-full text-sm border border-violet-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      >
+                        <option value="5">Level 5 (Beginner)</option>
+                        <option value="4">Level 4</option>
+                        <option value="3">Level 3 (Pre-intermediate)</option>
+                        <option value="2">Level 2 (Intermediate)</option>
+                        <option value="1">Level 1 (Advanced)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-violet-700 mb-1">Number of questions</label>
+                      <select
+                        value={generateCount}
+                        onChange={e => setGenerateCount(Number(e.target.value))}
+                        className="w-full text-sm border border-violet-200 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={15}>15</option>
+                        <option value={20}>20</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={generating || !generateTopic.trim()}
+                    className="px-4 py-1.5 bg-violet-600 text-white text-sm rounded-md hover:bg-violet-700 transition-colors disabled:opacity-50"
+                  >
+                    {generating && generatedQuestions.length === 0 ? 'Generating…' : 'Generate'}
+                  </button>
+
+                  {generatedQuestions.length > 0 && (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-xs text-violet-700 font-medium">{generatedQuestions.length} questions generated — review before adding:</p>
+                      <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                        {generatedQuestions.map((q, i) => (
+                          <div key={i} className="bg-white rounded-lg border border-violet-100 px-3 py-2 text-xs">
+                            <p className="text-gray-800 font-medium">{q.sentence_with_blank}</p>
+                            <p className="text-gray-500 mt-0.5">
+                              <span className="text-green-700 font-semibold">{q.answer}</span>
+                              {q.distractors?.length > 0 && <span className="text-gray-400"> · {q.distractors.join(', ')}</span>}
+                              {q.hint_ja && <span className="text-violet-600"> · {q.hint_ja}</span>}
+                            </p>
+                            <p className="text-gray-400 mt-0.5">{q.category}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleAddGenerated}
+                        disabled={generating}
+                        className="px-4 py-1.5 bg-brand text-white text-sm rounded-md hover:bg-brand/90 transition-colors disabled:opacity-50"
+                      >
+                        {generating ? 'Adding…' : `Add all ${generatedQuestions.length} questions to deck`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               {/* JSON Import */}
               {showImport ? (
                 <div className="mb-4 space-y-3 bg-amber-50 rounded-xl p-4 border border-amber-200">
@@ -886,6 +1027,9 @@ function DeckEditor({
                   </button>
                   <button type="button" onClick={() => setShowImport(v => !v)} className="px-4 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-100 transition-colors text-gray-600">
                     {showImport ? 'Cancel import' : '↓ Import JSON'}
+                  </button>
+                  <button type="button" onClick={() => { setShowGenerate(v => !v); setGeneratedQuestions([]) }} className="px-4 py-1.5 text-sm border border-violet-300 rounded-md hover:bg-violet-50 transition-colors text-violet-700">
+                    ✦ Generate with AI
                   </button>
                 </div>
               </form>
