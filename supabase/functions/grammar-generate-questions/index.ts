@@ -86,8 +86,26 @@ Examples:
 - sentence: "You _____ wear a seatbelt." (answer: must)
   → hint_ja: "シートベルトを着用しなければなりません。"
 
-━━━ RULE 4 — OTHER REQUIREMENTS ━━━
-- 3 distractors, same structure (same number of words, same " / " format if multi-word)
+━━━ RULE 4 — DISTRACTORS MUST BE CLEARLY WRONG ━━━
+Distractors must be GRAMMATICALLY INCORRECT — broken forms that no teacher could ever mark as correct.
+They should look tempting to a student but be definitively wrong for the grammar rule being tested.
+
+WRONG approach (these are valid English in other contexts — students could argue they're correct):
+- answer "has / lived" → BAD distractors: "have / lived", "had / lived", "will / live"
+  (These are all valid English tenses — just wrong here. A student can argue.)
+
+CORRECT approach (these are broken forms — no argument possible):
+- answer "has / lived" → GOOD distractors: "has / live", "have / living", "is / lived"
+  ("has live" = wrong infinitive; "have living" = wrong participle; "is lived" = wrong auxiliary)
+- answer "was / written" → GOOD distractors: "was / write", "is / wrote", "were / writing"
+- answer "will / go" → GOOD distractors: "will / went", "will / gone", "would / going"
+- answer "opened" → GOOD distractors: "opening", "open", "has open"
+- answer "heavier" → GOOD distractors: "more heavy", "heaviest", "heavy"
+
+The goal: a student who doesn't know the rule might pick one, but a student who knows cannot argue it's correct.
+Same number of words and " / " format as the answer.
+
+━━━ RULE 5 — OTHER REQUIREMENTS ━━━
 - category: broad consistent name, no parenthetical sub-types
 - Vary subjects and contexts across questions (affirmative, negative, question forms)
 
