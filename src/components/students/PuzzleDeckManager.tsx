@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import nlp from 'compromise'
 import {
   listPuzzleDecks, createPuzzleDeck, deletePuzzleDeck, renamePuzzleDeck,
-  getPuzzleDeckWithPuzzles, createPuzzle, updatePuzzle, deletePuzzle,
+  getPuzzleDeckWithPuzzles, createPuzzle, updatePuzzle, deletePuzzle, deletePuzzles,
   assignPuzzleDeckToStudent, removePuzzleDeckFromStudent, getAssignedDeckIds,
   reorderPuzzleDecks,
   updatePuzzleDeckFolder,
@@ -14,6 +14,7 @@ import { listDecks, getDeckWithWords, type Deck } from '@/lib/api/lessons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { useBulkSelect } from '@/hooks/useBulkSelect'
 
 // ── Parts of speech ───────────────────────────────────────────
 
@@ -161,6 +162,8 @@ function PuzzleEditor({
   const [translating, setTranslating] = useState(false)
 
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [bulkDeletingPuzzles, setBulkDeletingPuzzles] = useState(false)
+  const bulkPuzzles = useBulkSelect(puzzles.map(p => p.id))
 
   useEffect(() => {
     if (!deck.puzzles) {
@@ -324,6 +327,21 @@ function PuzzleEditor({
     setDeleting(null)
     if (error) toast.error(error)
     else { setPuzzles(prev => prev.filter(p => p.id !== puzzleId)); onUpdated() }
+  }
+
+  async function handleBulkDeletePuzzles() {
+    const ids = bulkPuzzles.selectedIds
+    const count = ids.length
+    if (!confirm(`Delete ${count} puzzle${count !== 1 ? 's' : ''}?`)) return
+    setBulkDeletingPuzzles(true)
+    const { error } = await deletePuzzles(ids)
+    setBulkDeletingPuzzles(false)
+    if (error) { toast.error(error); return }
+    const idSet = new Set(ids)
+    setPuzzles(prev => prev.filter(p => !idSet.has(p.id)))
+    bulkPuzzles.clear()
+    onUpdated()
+    toast.success(`Deleted ${count} puzzle${count !== 1 ? 's' : ''}`)
   }
 
   // ── Inline edit state ─────────────────────────────────────────
@@ -523,6 +541,21 @@ function PuzzleEditor({
           ) : puzzles.length === 0 ? (
             <p className="text-sm text-gray-400 py-4">No puzzles yet. Generate from decks above or add one manually.</p>
           ) : (
+            <>
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-600 select-none">
+                  <input type="checkbox" checked={bulkPuzzles.allSelected} onChange={bulkPuzzles.toggleAll} className="w-3.5 h-3.5 accent-brand" />
+                  {bulkPuzzles.anySelected ? `${bulkPuzzles.count} selected` : 'Select all'}
+                </label>
+                {bulkPuzzles.anySelected && (
+                  <div className="flex items-center gap-3">
+                    <button onClick={bulkPuzzles.clear} className="hover:text-gray-600">Clear</button>
+                    <button onClick={handleBulkDeletePuzzles} disabled={bulkDeletingPuzzles} className="text-red-500 hover:text-red-700 font-medium disabled:opacity-50">
+                      {bulkDeletingPuzzles ? 'Deleting…' : `Delete ${bulkPuzzles.count}`}
+                    </button>
+                  </div>
+                )}
+              </div>
             <div className="space-y-1.5">
               {puzzles.map(p => (
                 <div key={p.id} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
@@ -602,6 +635,7 @@ function PuzzleEditor({
                   ) : (
                     /* ── View mode ── */
                     <div className="flex items-start gap-3 px-3 py-2">
+                      <input type="checkbox" checked={bulkPuzzles.isSelected(p.id)} onChange={() => bulkPuzzles.toggle(p.id)} className="mt-1 shrink-0 w-3.5 h-3.5 accent-brand cursor-pointer" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-900">{p.japanese_sentence}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -628,6 +662,7 @@ function PuzzleEditor({
                 </div>
               ))}
             </div>
+            </>
           )}
         </div>
 

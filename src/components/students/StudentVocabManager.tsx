@@ -13,6 +13,7 @@ import {
   getDeckWithWords,
   addWordToDeck,
   removeWordFromDeck,
+  removeWordsFromDeck,
   updateDeckWord,
   assignDeckToStudent,
   removeDeckFromStudent,
@@ -28,6 +29,7 @@ import { AnkiImporter } from './AnkiImporter'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import type { VocabularyBankEntry } from '@/lib/types/database'
+import { useBulkSelect } from '@/hooks/useBulkSelect'
 
 const MASTERY_COLORS = [
   'bg-gray-100 text-gray-500',
@@ -72,6 +74,8 @@ function DeckEditor({
   const [tab, setTab] = useState<'words' | 'quiz'>('words')
   const [suggestingCategories, setSuggestingCategories] = useState(false)
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null)
+  const [bulkDeletingWords, setBulkDeletingWords] = useState(false)
+  const bulkWords = useBulkSelect(words.map(w => w.id))
   const imageInputRef = useRef<HTMLInputElement>(null)
   const imageTargetWordRef = useRef<DeckWord | null>(null)
   // ── Quiz tab state — keyed by vocabulary_deck_words.id ───────
@@ -304,6 +308,21 @@ function DeckEditor({
     setRemoving(null)
     if (error) toast.error(error)
     else { setWords(prev => prev.filter(w => w.id !== wordId)); onUpdated() }
+  }
+
+  async function handleBulkDeleteWords() {
+    const ids = bulkWords.selectedIds
+    const count = ids.length
+    if (!confirm(`Delete ${count} word${count !== 1 ? 's' : ''}?`)) return
+    setBulkDeletingWords(true)
+    const { error } = await removeWordsFromDeck(ids)
+    setBulkDeletingWords(false)
+    if (error) { toast.error(error); return }
+    const idSet = new Set(ids)
+    setWords(prev => prev.filter(w => !idSet.has(w.id)))
+    bulkWords.clear()
+    onUpdated()
+    toast.success(`Deleted ${count} word${count !== 1 ? 's' : ''}`)
   }
 
   function startEdit(w: DeckWord) {
@@ -614,6 +633,21 @@ function DeckEditor({
           ) : words.length === 0 ? (
             <p className="text-sm text-gray-400 py-4">No words yet. Add some above or import from Anki.</p>
           ) : (
+            <>
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-600 select-none">
+                  <input type="checkbox" checked={bulkWords.allSelected} onChange={bulkWords.toggleAll} className="w-3.5 h-3.5 accent-brand" />
+                  {bulkWords.anySelected ? `${bulkWords.count} selected` : 'Select all'}
+                </label>
+                {bulkWords.anySelected && (
+                  <div className="flex items-center gap-3">
+                    <button onClick={bulkWords.clear} className="hover:text-gray-600">Clear</button>
+                    <button onClick={handleBulkDeleteWords} disabled={bulkDeletingWords} className="text-red-500 hover:text-red-700 font-medium disabled:opacity-50">
+                      {bulkDeletingWords ? 'Deleting…' : `Delete ${bulkWords.count}`}
+                    </button>
+                  </div>
+                )}
+              </div>
             <div className="space-y-1">
               {words.map(w => (
                 <div key={w.id} className="border-b border-gray-100 last:border-0">
@@ -638,6 +672,7 @@ function DeckEditor({
                     </div>
                   ) : (
                     <div className="flex items-start gap-2 py-2">
+                      <input type="checkbox" checked={bulkWords.isSelected(w.id)} onChange={() => bulkWords.toggle(w.id)} className="mt-1 shrink-0 w-3.5 h-3.5 accent-brand cursor-pointer" />
                       {/* Image thumbnail */}
                       <div className="relative shrink-0 group">
                         {uploadingImageId === w.id ? (
@@ -695,6 +730,7 @@ function DeckEditor({
                 </div>
               ))}
             </div>
+            </>
           )}
         </div>
 

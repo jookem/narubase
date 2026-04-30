@@ -324,6 +324,12 @@ export async function removePointFromDeck(
   return error ? { error: error.message } : {}
 }
 
+export async function removePointsFromDeck(pointIds: string[]): Promise<{ error?: string }> {
+  if (pointIds.length === 0) return {}
+  const { error } = await supabase.from('grammar_deck_points').delete().in('id', pointIds)
+  return error ? { error: error.message } : {}
+}
+
 export async function assignGrammarDeckToStudent(
   deckId: string,
   studentId: string,
@@ -455,6 +461,12 @@ export async function removeLessonSlide(
     .delete()
     .eq('id', slideId)
 
+  return error ? { error: error.message } : {}
+}
+
+export async function removeLessonSlides(slideIds: string[]): Promise<{ error?: string }> {
+  if (slideIds.length === 0) return {}
+  const { error } = await supabase.from('grammar_lesson_slides').delete().in('id', slideIds)
   return error ? { error: error.message } : {}
 }
 

@@ -141,6 +141,12 @@ export async function deletePuzzle(
   return error ? { error: error.message } : {}
 }
 
+export async function deletePuzzles(puzzleIds: string[]): Promise<{ error?: string }> {
+  if (puzzleIds.length === 0) return {}
+  const { error } = await supabase.from('puzzles').delete().in('id', puzzleIds)
+  return error ? { error: error.message } : {}
+}
+
 // ── Assignments ───────────────────────────────────────────────
 
 export async function assignPuzzleDeckToStudent(

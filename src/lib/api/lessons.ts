@@ -589,6 +589,12 @@ export async function removeWordFromDeck(wordId: string): Promise<{ error?: stri
   return error ? { error: error.message } : {}
 }
 
+export async function removeWordsFromDeck(wordIds: string[]): Promise<{ error?: string }> {
+  if (wordIds.length === 0) return {}
+  const { error } = await supabase.from('vocabulary_deck_words').delete().in('id', wordIds)
+  return error ? { error: error.message } : {}
+}
+
 export async function updateDeckWord(
   wordId: string,
   word: { word: string; reading?: string; definition_ja?: string; definition_en?: string; example?: string; category?: string },

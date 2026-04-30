@@ -11,6 +11,7 @@ import {
   addPointToDeck,
   updateGrammarDeckPoint,
   removePointFromDeck,
+  removePointsFromDeck,
   assignGrammarDeckToStudent,
   removeGrammarDeckFromStudent,
   reorderGrammarDecks,
@@ -19,12 +20,14 @@ import {
   addLessonSlide,
   updateLessonSlide,
   removeLessonSlide,
+  removeLessonSlides,
   reorderLessonSlides,
   type GrammarBankEntry,
   type GrammarDeck,
   type GrammarDeckPoint,
   type GrammarLessonSlide,
 } from '@/lib/api/grammar'
+import { useBulkSelect } from '@/hooks/useBulkSelect'
 import { FolderDeckList } from '@/components/shared/FolderDeckList'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -68,6 +71,8 @@ function LessonSlidesTab({ deckId }: { deckId: string }) {
   // Grammar point input
   const [grammarPoint, setGrammarPoint] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [bulkDeletingSlides, setBulkDeletingSlides] = useState(false)
+  const bulkSlides = useBulkSelect(slides.map(s => s.id))
 
   useEffect(() => {
     listLessonSlides(deckId).then(({ slides: s }) => {
@@ -163,6 +168,20 @@ function LessonSlidesTab({ deckId }: { deckId: string }) {
     await reorderLessonSlides(reordered.map(s => s.id))
   }
 
+  async function handleBulkDeleteSlides() {
+    const ids = bulkSlides.selectedIds
+    const count = ids.length
+    if (!confirm(`Delete ${count} slide${count !== 1 ? 's' : ''}?`)) return
+    setBulkDeletingSlides(true)
+    const { error } = await removeLessonSlides(ids)
+    setBulkDeletingSlides(false)
+    if (error) { toast.error(error); return }
+    const idSet = new Set(ids)
+    setSlides(prev => prev.filter(s => !idSet.has(s.id)))
+    bulkSlides.clear()
+    toast.success(`Deleted ${count} slide${count !== 1 ? 's' : ''}`)
+  }
+
   if (loading) return <div className="py-4 space-y-2">{[...Array(2)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
 
   return (
@@ -190,7 +209,22 @@ function LessonSlidesTab({ deckId }: { deckId: string }) {
       ) : slides.length === 0 ? (
         <p className="text-sm text-gray-400 py-2">No lesson slides yet — enter a grammar point above to get started.</p>
       ) : (
-        <div className="space-y-2">
+        <>
+          <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-600 select-none">
+              <input type="checkbox" checked={bulkSlides.allSelected} onChange={bulkSlides.toggleAll} className="w-3.5 h-3.5 accent-brand" />
+              {bulkSlides.anySelected ? `${bulkSlides.count} selected` : 'Select all'}
+            </label>
+            {bulkSlides.anySelected && (
+              <div className="flex items-center gap-3">
+                <button onClick={bulkSlides.clear} className="hover:text-gray-600">Clear</button>
+                <button onClick={handleBulkDeleteSlides} disabled={bulkDeletingSlides} className="text-red-500 hover:text-red-700 font-medium disabled:opacity-50">
+                  {bulkDeletingSlides ? 'Deleting…' : `Delete ${bulkSlides.count}`}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
           {slides.map((s, i) => (
             <div key={s.id} className="border border-gray-200 rounded-xl overflow-hidden">
               {editingId === s.id ? (
@@ -221,6 +255,7 @@ function LessonSlidesTab({ deckId }: { deckId: string }) {
                 </div>
               ) : (
                 <div className="flex items-start gap-2 p-3">
+                  <input type="checkbox" checked={bulkSlides.isSelected(s.id)} onChange={() => bulkSlides.toggle(s.id)} className="mt-1 shrink-0 w-3.5 h-3.5 accent-brand cursor-pointer" />
                   <div className="flex flex-col gap-0.5 shrink-0">
                     <button onClick={() => handleMove(s.id, -1)} disabled={i === 0} className="text-gray-300 hover:text-gray-500 disabled:opacity-20 text-xs leading-none">▲</button>
                     <button onClick={() => handleMove(s.id, 1)} disabled={i === slides.length - 1} className="text-gray-300 hover:text-gray-500 disabled:opacity-20 text-xs leading-none">▼</button>
@@ -245,7 +280,8 @@ function LessonSlidesTab({ deckId }: { deckId: string }) {
               )}
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
@@ -269,6 +305,8 @@ function DeckEditor({
   const [renamingName, setRenamingName] = useState(false)
   const [tab, setTab] = useState<'lesson' | 'quiz'>('lesson')
   const [generatingQuestions, setGeneratingQuestions] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const bulkPoints = useBulkSelect(points.map(p => p.id))
   const editSentenceRef = useRef<HTMLInputElement>(null)
 
   function insertBlank(
@@ -343,6 +381,21 @@ function DeckEditor({
     } finally {
       setGeneratingQuestions(false)
     }
+  }
+
+  async function handleBulkDeletePoints() {
+    const ids = bulkPoints.selectedIds
+    const count = ids.length
+    if (!confirm(`Delete ${count} question${count !== 1 ? 's' : ''}?`)) return
+    setBulkDeleting(true)
+    const { error } = await removePointsFromDeck(ids)
+    setBulkDeleting(false)
+    if (error) { toast.error(error); return }
+    const idSet = new Set(ids)
+    setPoints(prev => prev.filter(p => !idSet.has(p.id)))
+    bulkPoints.clear()
+    onUpdated()
+    toast.success(`Deleted ${count} question${count !== 1 ? 's' : ''}`)
   }
 
   useEffect(() => {
@@ -489,6 +542,24 @@ function DeckEditor({
                 </button>
               </div>
 
+              {/* Bulk action bar */}
+              {points.length > 0 && !loading && (
+                <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-gray-600 select-none">
+                    <input type="checkbox" checked={bulkPoints.allSelected} onChange={bulkPoints.toggleAll} className="w-3.5 h-3.5 accent-brand" />
+                    {bulkPoints.anySelected ? `${bulkPoints.count} selected` : 'Select all'}
+                  </label>
+                  {bulkPoints.anySelected && (
+                    <div className="flex items-center gap-3">
+                      <button onClick={bulkPoints.clear} className="hover:text-gray-600">Clear</button>
+                      <button onClick={handleBulkDeletePoints} disabled={bulkDeleting} className="text-red-500 hover:text-red-700 font-medium disabled:opacity-50">
+                        {bulkDeleting ? 'Deleting…' : `Delete ${bulkPoints.count}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Point list — grouped by category */}
               {loading ? (
                 <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
@@ -546,6 +617,7 @@ function DeckEditor({
                                 </div>
                               ) : (
                                 <div className={`flex items-start gap-2 py-2 ${!p.sentence_with_blank ? 'opacity-60' : ''}`}>
+                                  <input type="checkbox" checked={bulkPoints.isSelected(p.id)} onChange={() => bulkPoints.toggle(p.id)} className="mt-1 shrink-0 w-3.5 h-3.5 accent-brand cursor-pointer" />
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm text-gray-900">
                                       <SentenceWithBlank sentence={p.sentence_with_blank ?? p.point} />

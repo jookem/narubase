@@ -12,12 +12,17 @@ function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5)
 }
 
+function hasJapanese(s: string) {
+  return /[　-鿿＀-￯]/.test(s)
+}
+
 function PointDisplay({ point, answerJa }: { point: string; answerJa?: string | null }) {
   const parts = point.split('_____')
   if (parts.length === 1) {
     return <h2 className="text-2xl font-bold text-white">{point}</h2>
   }
-  const fills = answerJa?.split(' / ') ?? null
+  // Only use answerJa if it actually contains Japanese characters
+  const fills = (answerJa && hasJapanese(answerJa)) ? answerJa.split(' / ') : null
   return (
     <h2 className="text-2xl font-bold text-white">
       {parts.map((part, i) => (
