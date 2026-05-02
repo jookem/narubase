@@ -404,11 +404,14 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
           </div>
         )}
 
-        {/* Check + Give Up buttons */}
+        {/* Check + Skip + Give Up buttons */}
         {gameState === 'playing' && (
           <div className="flex items-center justify-center gap-3">
             <button onClick={checkAnswer} className="px-8 py-3 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-colors shadow-lg">
               Check Order
+            </button>
+            <button onClick={onNext} className="px-4 py-3 text-gray-500 hover:text-gray-300 text-sm transition-colors">
+              {isLast ? 'Skip & Finish' : 'Skip →'}
             </button>
             <button onClick={handleGiveUp} className="px-4 py-3 text-gray-500 hover:text-gray-300 text-sm transition-colors">
               Give Up
