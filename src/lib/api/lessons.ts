@@ -684,6 +684,12 @@ export async function assignDeckToStudent(
   if (failed > 0) {
     return { count: inserted + toUpdate.length, error: `${failed} word${failed !== 1 ? 's' : ''} failed to assign` }
   }
+
+  // Record explicit deck assignment so SpellingPage shows only intended decks
+  await supabase
+    .from('student_spelling_assignments')
+    .upsert({ student_id: studentId, deck_id: deckId, teacher_id: session.user.id }, { onConflict: 'student_id,deck_id' })
+
   return { count: wordTexts.length }
 }
 
@@ -764,7 +770,16 @@ export async function removeDeckFromStudent(
     .eq('deck_id', deckId)
     .eq('student_id', studentId)
 
-  return error ? { error: error.message } : {}
+  if (error) return { error: error.message }
+
+  // Remove explicit Spelling Bee assignment
+  await supabase
+    .from('student_spelling_assignments')
+    .delete()
+    .eq('deck_id', deckId)
+    .eq('student_id', studentId)
+
+  return {}
 }
 
 export async function reorderVocabDecks(

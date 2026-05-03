@@ -8,14 +8,13 @@ import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 type DeckGroup = {
-  deckId: string | null
+  deckId: string
   deckName: string
   words: VocabularyBankEntry[]
 }
 
 function getStudyBatch(words: VocabularyBankEntry[]): VocabularyBankEntry[] {
   const size = parseInt(localStorage.getItem('study_size') ?? '20', 10)
-  // Only use words with 2+ letters (single-letter words aren't useful for spelling)
   const eligible = words.filter(w => w.word.trim().length >= 2)
   const shuffled = [...eligible].sort(() => Math.random() - 0.5)
   return size === 0 ? shuffled : shuffled.slice(0, size)
@@ -30,27 +29,37 @@ export function SpellingPage() {
 
   async function load() {
     if (!user) return
-    const { entries } = await getStudentVocab(user.id)
 
-    // Fetch deck names
-    const deckIds = [...new Set(entries.map(v => v.deck_id).filter(Boolean) as string[])]
-    const deckNameMap: Record<string, string> = {}
-    if (deckIds.length > 0) {
-      const { data: deckData } = await supabase
-        .from('vocabulary_decks')
-        .select('id, name')
-        .in('id', deckIds)
-      for (const d of deckData ?? []) deckNameMap[d.id] = d.name
+    // Read the explicit deck assignments — only decks the teacher deliberately assigned
+    const { data: assignments } = await supabase
+      .from('student_spelling_assignments')
+      .select('deck_id, vocabulary_decks(name)')
+      .eq('student_id', user.id)
+
+    if (!assignments || assignments.length === 0) {
+      setDecks([])
+      setLoading(false)
+      return
     }
 
-    // Group by deck
+    const assignedDeckIds = new Set(assignments.map(a => a.deck_id))
+    const deckNameMap: Record<string, string> = {}
+    for (const a of assignments) {
+      const name = (a as any).vocabulary_decks?.name
+      if (name) deckNameMap[a.deck_id] = name
+    }
+
+    // Load student vocabulary and filter to assigned decks only
+    const { entries } = await getStudentVocab(user.id)
+    const filtered = entries.filter(e => e.deck_id && assignedDeckIds.has(e.deck_id))
+
     const grouped: Record<string, DeckGroup> = {}
-    for (const entry of entries) {
-      const key = entry.deck_id ?? '__none__'
+    for (const entry of filtered) {
+      const key = entry.deck_id!
       if (!grouped[key]) {
         grouped[key] = {
-          deckId: entry.deck_id,
-          deckName: entry.deck_id ? (deckNameMap[entry.deck_id] ?? 'Unknown Deck') : 'Other',
+          deckId: key,
+          deckName: deckNameMap[key] ?? 'Unknown Deck',
           words: [],
         }
       }
@@ -79,7 +88,6 @@ export function SpellingPage() {
     setSessionDone(true)
   }
 
-  // Active game
   if (activeWords && !sessionDone) {
     return (
       <SpellingGame
@@ -90,7 +98,6 @@ export function SpellingPage() {
     )
   }
 
-  // Session complete
   if (sessionDone && activeWords) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
@@ -126,7 +133,7 @@ export function SpellingPage() {
           {decks.map(deck => {
             const eligible = deck.words.filter(w => w.word.trim().length >= 2)
             return (
-              <Card key={deck.deckId ?? '__none__'}>
+              <Card key={deck.deckId}>
                 <CardContent className="py-4 space-y-3">
                   <div>
                     <h2 className="font-semibold text-gray-900">{deck.deckName}</h2>
@@ -136,7 +143,7 @@ export function SpellingPage() {
                     onClick={() => startDeck(deck)}
                     className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors"
                   >
-                    Start Spelling
+                    Start Spelling Bee
                   </button>
                 </CardContent>
               </Card>
