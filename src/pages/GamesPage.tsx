@@ -8,6 +8,7 @@ import {
   type Puzzle,
   type PuzzleProgress,
 } from '@/lib/api/puzzles'
+import { getStudentVocab } from '@/lib/api/lessons'
 import { Card, CardContent } from '@/components/ui/card'
 import { TrainPuzzle } from '@/components/puzzle/TrainPuzzle'
 import { SpellingGame } from '@/components/spelling/SpellingGame'
@@ -134,48 +135,53 @@ export function GamesPage() {
   async function loadSpelling() {
     if (!user) return
 
-    const { data } = await supabase
-      .from('vocabulary_bank')
-      .select('*, deck:vocabulary_decks!deck_id(name)')
+    // Only show decks explicitly assigned by the teacher
+    const { data: assignments } = await supabase
+      .from('student_spelling_assignments')
+      .select('deck_id, vocabulary_decks(name)')
       .eq('student_id', user.id)
-      .not('deck_id', 'is', null)
-      .order('created_at', { ascending: false })
 
-    const entries = (data ?? []) as (VocabularyBankEntry & { deck?: { name: string } | null })[]
-
-    const grouped: Record<string, SpellingDeck> = {}
-    for (const entry of entries) {
-      const key = entry.deck_id!
-      if (!grouped[key]) {
-        grouped[key] = {
-          deckId: key,
-          deckName: entry.deck?.name ?? 'Vocabulary Deck',
-          words: [],
-        }
+    if (!assignments || assignments.length === 0) {
+      setSpellingDecks([])
+      setSpellingLoading(false)
+    } else {
+      const assignedDeckIds = new Set(assignments.map((a: any) => a.deck_id as string))
+      const deckNameMap: Record<string, string> = {}
+      for (const a of assignments as any[]) {
+        if (a.vocabulary_decks?.name) deckNameMap[a.deck_id] = a.vocabulary_decks.name
       }
-      grouped[key].words.push(entry)
-    }
 
-    const decks = Object.values(grouped).filter(g =>
-      g.words.some(w => w.word.trim().length >= 2)
-    )
+      // getStudentVocab merges definition_ja/reading from vocabulary_deck_words
+      const { entries } = await getStudentVocab(user.id)
+      const filtered = entries.filter(e => e.deck_id && assignedDeckIds.has(e.deck_id))
 
-    setSpellingDecks(decks)
-    setSpellingLoading(false)
+      const grouped: Record<string, SpellingDeck> = {}
+      for (const entry of filtered) {
+        const key = entry.deck_id!
+        if (!grouped[key]) {
+          grouped[key] = { deckId: key, deckName: deckNameMap[key] ?? 'Vocabulary Deck', words: [] }
+        }
+        grouped[key].words.push(entry)
+      }
 
-    // Check for saved session
-    const raw = localStorage.getItem(spellingKey(user.id))
-    if (raw) {
-      try {
-        const session: SpellingSession = JSON.parse(raw)
-        const deck = decks.find(dk => dk.deckId === session.deckId)
-        if (deck && session.wordIds.length > 0) {
-          setSpellingSavedSession(session)
-        } else {
+      const decks = Object.values(grouped).filter(g => g.words.some(w => w.word.trim().length >= 2))
+      setSpellingDecks(decks)
+      setSpellingLoading(false)
+
+      // Check for saved session
+      const raw = localStorage.getItem(spellingKey(user.id))
+      if (raw) {
+        try {
+          const session: SpellingSession = JSON.parse(raw)
+          const deck = decks.find((dk: SpellingDeck) => dk.deckId === session.deckId)
+          if (deck && session.wordIds.length > 0) {
+            setSpellingSavedSession(session)
+          } else {
+            localStorage.removeItem(spellingKey(user.id))
+          }
+        } catch {
           localStorage.removeItem(spellingKey(user.id))
         }
-      } catch {
-        localStorage.removeItem(spellingKey(user.id))
       }
     }
   }
