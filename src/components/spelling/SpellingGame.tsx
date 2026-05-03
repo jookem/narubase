@@ -415,17 +415,17 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
           {currentPhase === 'drag' ? '🧩 Arrange the letters' : '⌨️ Type the word'}
         </div>
 
-        {/* Japanese translation — always shown if available */}
-        {currentWord.definition_ja && (
+        {/* Japanese translation */}
+        {currentWord.definition_ja ? (
           <p className="text-white text-center text-xl font-semibold max-w-xs leading-snug">
             {currentWord.definition_ja}
           </p>
-        )}
-        {/* English definition as secondary hint */}
-        {currentWord.definition_en && (
-          <p className="text-gray-400 text-center text-sm max-w-xs leading-snug">
+        ) : currentWord.definition_en ? (
+          <p className="text-gray-300 text-center text-base max-w-xs leading-snug">
             {currentWord.definition_en}
           </p>
+        ) : (
+          <p className="text-gray-600 text-center text-sm italic">No definition added yet</p>
         )}
 
         {/* TTS */}
