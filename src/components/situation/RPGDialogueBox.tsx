@@ -41,7 +41,7 @@ function VRMPortrait({
 }) {
   return (
     <div className={`flex flex-col items-center gap-1.5 pointer-events-none transition-all duration-300 ${dim ? 'opacity-35' : 'opacity-100'}`}>
-      <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden ring-2 bg-slate-900 transition-all duration-300 ${dim ? 'ring-white/20' : 'ring-white/60'}`}>
+      <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden ring-2 transition-all duration-300 ${dim ? 'ring-white/20' : 'ring-white/60'}`}>
         <VRMViewer
           url={url}
           expression={expression}
@@ -120,7 +120,7 @@ export function RPGDialogueBox({
 
       {/* Scene */}
       <div
-        className="flex-1 relative overflow-hidden flex items-end justify-between px-6 pb-5"
+        className="flex-1 relative overflow-hidden flex items-center justify-between px-6"
         style={{
           backgroundColor: background.color,
           backgroundImage: background.imageUrl ? `url(${background.imageUrl})` : undefined,

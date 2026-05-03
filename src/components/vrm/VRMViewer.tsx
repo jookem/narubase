@@ -286,9 +286,9 @@ export function VRMViewer({
           controls.target.set(cameraOffsetX, centerY, 0)
           camera.position.set(cameraOffsetX, centerY, camZ)
         } else if (framing === 'head') {
-          // Tight crop: chin-ish (82%) to just above hair/accessories (108%)
-          const frameBottom = box.min.y + height * 0.82
-          const frameTop    = box.min.y + height * 1.08
+          // Neck (79%) to just above hair/accessories (102%) — head fills top of circle
+          const frameBottom = box.min.y + height * 0.79
+          const frameTop    = box.min.y + height * 1.02
           const centerY     = (frameBottom + frameTop) / 2
           const halfH       = (frameTop - frameBottom) / 2
           const camZ        = halfH / Math.tan(Math.PI / 12)
