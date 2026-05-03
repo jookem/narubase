@@ -246,9 +246,9 @@ export function VRMViewer({
       url,
       gltf => {
         const vrm = gltf.userData.vrm as VRM
-        // removeUnnecessaryVertices is an optional optimisation pass that can
-        // freeze the main thread for 500ms–2s on detailed models — skip it.
-        VRMUtils.combineSkeletons(gltf.scene)
+        // Both removeUnnecessaryVertices and combineSkeletons are optional
+        // optimisation passes that can freeze the main thread for 500ms–5s+
+        // on complex models (O(n²) bone-mapping in combineSkeletons). Skip both.
         if ((vrm.meta as any)?.metaVersion === '0') VRMUtils.rotateVRM0(vrm)
         scene.add(vrm.scene)
         vrmRef.current = vrm
