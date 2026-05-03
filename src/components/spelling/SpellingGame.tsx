@@ -166,6 +166,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
   const [activeDrag, setActiveDrag] = useState<{ tile: LetterTile } | null>(null)
   const [shaking, setShaking] = useState(false)
   const [wordDone, setWordDone] = useState(false)
+  const [gaveUp, setGaveUp] = useState(false)
   const [typeInput, setTypeInput] = useState('')
   const [typeWrong, setTypeWrong] = useState(false)
   const [showTransition, setShowTransition] = useState(false)
@@ -196,6 +197,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
       setTypeWrong(false)
     }
     setWordDone(false)
+    setGaveUp(false)
     speak(w.word)
   }
 
@@ -331,6 +333,19 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
     }
   }
 
+  function handleGiveUp() {
+    setGaveUp(true)
+    setWordDone(true)
+    if (currentPhase === 'drag') {
+      setSlots(currentWord.word.toLowerCase().split('').map((l, i) => ({ id: `${i}:${l}`, letter: l })))
+      setPool([])
+    }
+  }
+
+  function handleSkip() {
+    advance()
+  }
+
   function isSlotCorrect(slotIdx: number) {
     return slots[slotIdx]?.letter === currentWord.word.toLowerCase()[slotIdx]
   }
@@ -400,15 +415,16 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
           {currentPhase === 'drag' ? '🧩 Arrange the letters' : '⌨️ Type the word'}
         </div>
 
-        {/* Definition hint */}
-        {currentWord.definition_en && (
-          <p className="text-gray-300 text-center text-base max-w-xs leading-snug">
-            {currentWord.definition_en}
+        {/* Japanese translation — always shown if available */}
+        {currentWord.definition_ja && (
+          <p className="text-white text-center text-xl font-semibold max-w-xs leading-snug">
+            {currentWord.definition_ja}
           </p>
         )}
-        {!currentWord.definition_en && currentWord.definition_ja && (
-          <p className="text-gray-300 text-center text-base max-w-xs">
-            {currentWord.definition_ja}
+        {/* English definition as secondary hint */}
+        {currentWord.definition_en && (
+          <p className="text-gray-400 text-center text-sm max-w-xs leading-snug">
+            {currentWord.definition_en}
           </p>
         )}
 
@@ -479,18 +495,40 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
           </div>
         )}
 
-        {/* Check / Correct */}
+        {/* Check / Correct / Give Up result */}
         {wordDone ? (
-          <p className="text-green-400 font-bold text-xl">✓ Correct!</p>
+          <div className="flex flex-col items-center gap-3">
+            {gaveUp ? (
+              <p className="text-orange-400 font-bold text-xl">💡 {currentWord.word}</p>
+            ) : (
+              <p className="text-green-400 font-bold text-xl">✓ Correct!</p>
+            )}
+            <button
+              onClick={advance}
+              className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90 transition-colors"
+            >
+              Next →
+            </button>
+          </div>
         ) : (
-          <button
-            onClick={currentPhase === 'drag' ? checkDrag : checkType}
-            disabled={currentPhase === 'type' && !typeInput.trim()}
-            className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90
-              disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Check
-          </button>
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onClick={currentPhase === 'drag' ? checkDrag : checkType}
+              disabled={currentPhase === 'type' && !typeInput.trim()}
+              className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90
+                disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Check
+            </button>
+            <div className="flex items-center gap-4">
+              <button onClick={handleSkip} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
+                Skip →
+              </button>
+              <button onClick={handleGiveUp} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
+                Give Up
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
