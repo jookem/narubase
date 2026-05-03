@@ -26,7 +26,7 @@ interface Props {
   orbitControls?: boolean
   showGrid?: boolean
   facingDirection?: 'left' | 'right'
-  framing?: 'full' | 'bust'
+  framing?: 'full' | 'bust' | 'head'
   /** Shift camera & target horizontally in world units. Positive = character appears left of centre. */
   cameraOffsetX?: number
   transparent?: boolean
@@ -283,6 +283,15 @@ export function VRMViewer({
           const halfH       = (frameTop - frameBottom) / 2
           const camZ        = halfH / Math.tan(Math.PI / 12) // tan(15°) for 30° FOV
           // cameraOffsetX shifts camera & target together so character appears off-centre
+          controls.target.set(cameraOffsetX, centerY, 0)
+          camera.position.set(cameraOffsetX, centerY, camZ)
+        } else if (framing === 'head') {
+          // Tight crop: chin-ish (82%) to just above hair/accessories (108%)
+          const frameBottom = box.min.y + height * 0.82
+          const frameTop    = box.min.y + height * 1.08
+          const centerY     = (frameBottom + frameTop) / 2
+          const halfH       = (frameTop - frameBottom) / 2
+          const camZ        = halfH / Math.tan(Math.PI / 12)
           controls.target.set(cameraOffsetX, centerY, 0)
           camera.position.set(cameraOffsetX, centerY, camZ)
         } else {
