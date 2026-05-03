@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { getStudentVocab } from '@/lib/api/lessons'
 import { Card, CardContent } from '@/components/ui/card'
 import { SpellingGame } from '@/components/spelling/SpellingGame'
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
@@ -29,13 +30,7 @@ export function SpellingPage() {
 
   async function load() {
     if (!user) return
-    const { data } = await supabase
-      .from('vocabulary_bank')
-      .select('*')
-      .eq('student_id', user.id)
-      .order('created_at', { ascending: false })
-
-    const entries: VocabularyBankEntry[] = data ?? []
+    const { entries } = await getStudentVocab(user.id)
 
     // Fetch deck names
     const deckIds = [...new Set(entries.map(v => v.deck_id).filter(Boolean) as string[])]
