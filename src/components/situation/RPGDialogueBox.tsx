@@ -41,7 +41,7 @@ function VRMPortrait({
 }) {
   return (
     <div className={`flex flex-col items-center gap-1.5 pointer-events-none transition-all duration-300 ${dim ? 'opacity-35' : 'opacity-100'}`}>
-      <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden ring-2 transition-all duration-300 ${dim ? 'ring-white/20' : 'ring-white/60'}`}>
+      <div className={`w-full aspect-square rounded-full overflow-hidden ring-2 transition-all duration-300 ${dim ? 'ring-white/20' : 'ring-white/60'}`}>
         <VRMViewer
           url={url}
           expression={expression}
@@ -76,7 +76,7 @@ function FallbackPortrait({
   return (
     <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${dim ? 'opacity-35 scale-95' : 'opacity-100 scale-100'}`}>
       <div
-        className="w-28 h-28 sm:w-36 sm:h-36 rounded-full ring-2 ring-white/40 shadow-2xl flex items-center justify-center text-white text-4xl sm:text-5xl font-bold"
+        className="w-full aspect-square rounded-full ring-2 ring-white/40 shadow-2xl flex items-center justify-center text-white text-4xl sm:text-5xl font-bold"
         style={{ backgroundColor: color }}
       >
         {initial}
@@ -120,7 +120,7 @@ export function RPGDialogueBox({
 
       {/* Scene */}
       <div
-        className="flex-1 relative overflow-hidden flex items-center justify-between px-6"
+        className="flex-1 relative overflow-hidden flex items-center"
         style={{
           backgroundColor: background.color,
           backgroundImage: background.imageUrl ? `url(${background.imageUrl})` : undefined,
@@ -130,8 +130,8 @@ export function RPGDialogueBox({
       >
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900/70 to-transparent pointer-events-none" />
 
-        {/* NPC — left, faces right toward student */}
-        <div className="relative z-10">
+        {/* NPC — left half, faces right toward student */}
+        <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
           {npc?.vrm_url ? (
             <VRMPortrait
               url={npc.vrm_url}
@@ -151,8 +151,8 @@ export function RPGDialogueBox({
           )}
         </div>
 
-        {/* Student — right, faces left toward NPC */}
-        <div className="relative z-10">
+        {/* Student — right half, faces left toward NPC */}
+        <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
           {studentVrmUrl ? (
             <VRMPortrait
               url={studentVrmUrl}
