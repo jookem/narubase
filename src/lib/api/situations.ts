@@ -209,9 +209,18 @@ export async function createSituation(
   return { situation: row as Situation }
 }
 
+export async function listBackgroundUrls(): Promise<string[]> {
+  const { data } = await supabase
+    .from('situations')
+    .select('background_image_url')
+    .not('background_image_url', 'is', null)
+  const urls = (data ?? []).map(r => r.background_image_url as string).filter(Boolean)
+  return [...new Set(urls)]
+}
+
 export async function updateSituation(
   id: string,
-  data: Partial<Pick<Situation, 'title' | 'description' | 'npc_id' | 'background_color' | 'difficulty' | 'age_groups' | 'is_active'>>,
+  data: Partial<Pick<Situation, 'title' | 'description' | 'npc_id' | 'background_color' | 'background_image_url' | 'difficulty' | 'age_groups' | 'is_active'>>,
 ): Promise<{ error?: string }> {
   const { error } = await supabase.from('situations').update(data).eq('id', id)
   return error ? { error: error.message } : {}

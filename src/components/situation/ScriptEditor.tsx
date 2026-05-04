@@ -11,6 +11,7 @@ import {
   updateSituation,
   upsertSituationScript,
   getSituationScript,
+  listBackgroundUrls,
   type SituationNpc,
   type Situation,
   type DialogueNode,
@@ -207,6 +208,66 @@ function NpcPickerPanel({
   )
 }
 
+// ── Background picker ─────────────────────────────────────────────────
+
+function BackgroundPicker({
+  color,
+  imageUrl,
+  onColorChange,
+  onImageSelect,
+}: {
+  color: string
+  imageUrl: string | null
+  onColorChange: (c: string) => void
+  onImageSelect: (url: string | null) => void
+}) {
+  const [urls, setUrls] = useState<string[]>([])
+
+  useEffect(() => {
+    listBackgroundUrls().then(setUrls)
+  }, [])
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500">Colour</label>
+          <input type="color" value={color} onChange={e => onColorChange(e.target.value)}
+            className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
+          <span className="text-xs text-gray-400 font-mono">{color}</span>
+        </div>
+        {imageUrl && (
+          <button onClick={() => onImageSelect(null)}
+            className="text-xs text-red-400 hover:text-red-600 transition-colors">
+            Remove image
+          </button>
+        )}
+      </div>
+
+      {urls.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {urls.map(url => (
+            <button
+              key={url}
+              onClick={() => onImageSelect(imageUrl === url ? null : url)}
+              className={`relative w-20 h-12 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                imageUrl === url ? 'border-brand ring-2 ring-brand/30' : 'border-gray-200 hover:border-gray-400'
+              }`}
+            >
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              {imageUrl === url && (
+                <div className="absolute inset-0 bg-brand/20 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Dialogue line row ──────────────────────────────────────────────────
 
 function LineRow({
@@ -336,6 +397,7 @@ function LineEditorView({
   const [npcId, setNpcId] = useState<string | null>(situation.npc_id)
   const [difficulty, setDifficulty] = useState(situation.difficulty)
   const [bgColor, setBgColor] = useState(situation.background_color)
+  const [bgImageUrl, setBgImageUrl] = useState<string | null>(situation.background_image_url ?? null)
   const [showNpcPicker, setShowNpcPicker] = useState(false)
   const [loadingScript, setLoadingScript] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -363,7 +425,7 @@ function LineEditorView({
     const nodes = linesToNodes(validLines)
 
     const [situationResult, scriptResult] = await Promise.all([
-      updateSituation(situation.id, { title: title.trim(), npc_id: npcId, difficulty, background_color: bgColor }),
+      updateSituation(situation.id, { title: title.trim(), npc_id: npcId, difficulty, background_color: bgColor, background_image_url: bgImageUrl }),
       upsertSituationScript(situation.id, nodes),
     ])
 
@@ -458,14 +520,15 @@ function LineEditorView({
           </div>
         </div>
 
-        {/* Background colour */}
-        <div>
+        {/* Background */}
+        <div className="w-full">
           <p className="text-xs text-gray-500 mb-1">Background</p>
-          <div className="flex items-center gap-2">
-            <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-              className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
-            <span className="text-xs text-gray-400 font-mono">{bgColor}</span>
-          </div>
+          <BackgroundPicker
+            color={bgColor}
+            imageUrl={bgImageUrl}
+            onColorChange={setBgColor}
+            onImageSelect={setBgImageUrl}
+          />
         </div>
       </div>
 
@@ -522,6 +585,7 @@ function NewSituationForm({
   const [npcId, setNpcId] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner')
   const [bgColor, setBgColor] = useState('#e0f2fe')
+  const [bgImageUrl, setBgImageUrl] = useState<string | null>(null)
   const [showNpcPicker, setShowNpcPicker] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -538,6 +602,9 @@ function NewSituationForm({
       difficulty,
       age_groups: ['children', 'teens', 'adults'],
     })
+    if (!error && situation && bgImageUrl) {
+      await updateSituation(situation.id, { background_image_url: bgImageUrl })
+    }
     if (error || !situation) { toast.error(error ?? 'Failed to create'); setCreating(false); return }
     onCreated(situation)
   }
@@ -602,13 +669,14 @@ function NewSituationForm({
           </div>
 
           {/* Background */}
-          <div>
+          <div className="w-full">
             <p className="text-xs text-gray-500 mb-1">Background</p>
-            <div className="flex items-center gap-2">
-              <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-                className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
-              <span className="text-xs text-gray-400 font-mono">{bgColor}</span>
-            </div>
+            <BackgroundPicker
+              color={bgColor}
+              imageUrl={bgImageUrl}
+              onColorChange={setBgColor}
+              onImageSelect={setBgImageUrl}
+            />
           </div>
         </div>
       </div>
