@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import type { SituationNpc, DialogueNode } from '@/lib/api/situations'
 import { VRMViewer, type VRMExpression } from '@/components/vrm/VRMViewer'
 
@@ -24,13 +25,33 @@ interface Props {
   onComplete: () => void
 }
 
+// ── Responsive hook ───────────────────────────────────────────────────
+// Desktop = sm breakpoint (640px), matching Tailwind's default sm.
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' ? window.matchMedia('(min-width: 640px)').matches : false,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener('change', h)
+    return () => mq.removeEventListener('change', h)
+  }, [])
+  return isDesktop
+}
+
+// ── Desktop constants ─────────────────────────────────────────────────
+// cameraOffsetX shifts camera & target so each character renders on the
+// correct half of the shared full-screen canvas.
+
+const NPC_OFFSET     =  0.28
+const STUDENT_OFFSET = -0.28
+
+// ── VRM portrait ──────────────────────────────────────────────────────
+
 function VRMPortrait({
-  url,
-  label,
-  dim,
-  expression,
-  facingDirection,
-  animationMap,
+  url, label, dim, expression, facingDirection, animationMap, side, isDesktop,
 }: {
   url: string
   label: string
@@ -38,7 +59,34 @@ function VRMPortrait({
   expression: VRMExpression
   facingDirection: 'left' | 'right'
   animationMap?: Record<string, string>
+  side: 'left' | 'right'
+  isDesktop: boolean
 }) {
+  if (isDesktop) {
+    const offset = side === 'left' ? NPC_OFFSET : STUDENT_OFFSET
+    return (
+      <div className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${dim ? 'opacity-30' : 'opacity-100'}`}>
+        <span className={`absolute top-3 ${side === 'left' ? 'left-3' : 'right-3'} z-10 text-[11px] font-medium text-white/80 bg-black/60 px-2.5 py-0.5 rounded-full whitespace-nowrap backdrop-blur-sm`}>
+          {label}
+        </span>
+        <VRMViewer
+          url={url}
+          expression={expression}
+          animationMap={animationMap}
+          autoBlink
+          orbitControls={false}
+          showGrid={false}
+          facingDirection={facingDirection}
+          framing="bust"
+          cameraOffsetX={offset}
+          transparent
+          className="w-full h-full"
+        />
+      </div>
+    )
+  }
+
+  // Mobile — circular head portrait
   return (
     <div className={`flex flex-col items-center gap-1.5 pointer-events-none transition-all duration-300 ${dim ? 'opacity-35' : 'opacity-100'}`}>
       <div className={`w-full aspect-square rounded-full overflow-hidden ring-2 transition-all duration-300 ${dim ? 'ring-white/20' : 'ring-white/60'}`}>
@@ -62,21 +110,38 @@ function VRMPortrait({
   )
 }
 
+// ── Fallback portrait (no VRM) ────────────────────────────────────────
+
 function FallbackPortrait({
-  color,
-  initial,
-  label,
-  dim,
+  color, initial, label, dim, side, isDesktop,
 }: {
   color: string
   initial: string
   label: string
   dim: boolean
+  side: 'left' | 'right'
+  isDesktop: boolean
 }) {
+  if (isDesktop) {
+    return (
+      <div className={`absolute bottom-6 ${side === 'left' ? 'left-6' : 'right-6'} flex flex-col items-center gap-1.5 transition-all duration-300 ${dim ? 'opacity-30 scale-95' : 'opacity-100 scale-100'}`}>
+        <span className="text-[11px] font-medium text-white/80 bg-black/60 px-2.5 py-0.5 rounded-full whitespace-nowrap backdrop-blur-sm">
+          {label}
+        </span>
+        <div
+          className="w-24 h-24 rounded-full border-4 border-white/20 shadow-2xl flex items-center justify-center text-white text-4xl font-bold"
+          style={{ backgroundColor: color }}
+        >
+          {initial}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${dim ? 'opacity-35 scale-95' : 'opacity-100 scale-100'}`}>
       <div
-        className="w-full aspect-square rounded-full ring-2 ring-white/40 shadow-2xl flex items-center justify-center text-white text-4xl sm:text-5xl font-bold"
+        className="w-full aspect-square rounded-full ring-2 ring-white/40 shadow-2xl flex items-center justify-center text-white text-4xl font-bold"
         style={{ backgroundColor: color }}
       >
         {initial}
@@ -87,6 +152,8 @@ function FallbackPortrait({
     </div>
   )
 }
+
+// ── Main component ────────────────────────────────────────────────────
 
 export function RPGDialogueBox({
   npc,
@@ -102,6 +169,7 @@ export function RPGDialogueBox({
   isEnd,
   onComplete,
 }: Props) {
+  const isDesktop = useIsDesktop()
   const isNpcTurn    = currentNode.speaker === 'npc'
   const isStudentTurn = currentNode.speaker === 'student'
 
@@ -120,7 +188,7 @@ export function RPGDialogueBox({
 
       {/* Scene */}
       <div
-        className="flex-1 relative overflow-hidden flex items-center"
+        className={`flex-1 relative overflow-hidden ${isDesktop ? '' : 'flex items-center'}`}
         style={{
           backgroundColor: background.color,
           backgroundImage: background.imageUrl ? `url(${background.imageUrl})` : undefined,
@@ -128,11 +196,11 @@ export function RPGDialogueBox({
           backgroundPosition: 'center',
         }}
       >
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900/70 to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900/70 to-transparent pointer-events-none z-10" />
 
-        {/* NPC — left half, faces right toward student */}
-        <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
-          {npc?.vrm_url ? (
+        {/* NPC */}
+        {isDesktop ? (
+          npc?.vrm_url ? (
             <VRMPortrait
               url={npc.vrm_url}
               label={npc.name ?? 'NPC'}
@@ -140,6 +208,8 @@ export function RPGDialogueBox({
               expression={npcExpression}
               facingDirection="right"
               animationMap={npcAnimationMap}
+              side="left"
+              isDesktop
             />
           ) : (
             <FallbackPortrait
@@ -147,13 +217,39 @@ export function RPGDialogueBox({
               initial={npc?.name?.[0] ?? 'N'}
               label={npc?.name ?? 'NPC'}
               dim={isStudentTurn}
+              side="left"
+              isDesktop
             />
-          )}
-        </div>
+          )
+        ) : (
+          <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
+            {npc?.vrm_url ? (
+              <VRMPortrait
+                url={npc.vrm_url}
+                label={npc.name ?? 'NPC'}
+                dim={isStudentTurn}
+                expression={npcExpression}
+                facingDirection="right"
+                animationMap={npcAnimationMap}
+                side="left"
+                isDesktop={false}
+              />
+            ) : (
+              <FallbackPortrait
+                color={npc?.placeholder_color ?? '#6366f1'}
+                initial={npc?.name?.[0] ?? 'N'}
+                label={npc?.name ?? 'NPC'}
+                dim={isStudentTurn}
+                side="left"
+                isDesktop={false}
+              />
+            )}
+          </div>
+        )}
 
-        {/* Student — right half, faces left toward NPC */}
-        <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
-          {studentVrmUrl ? (
+        {/* Student */}
+        {isDesktop ? (
+          studentVrmUrl ? (
             <VRMPortrait
               url={studentVrmUrl}
               label={studentName}
@@ -161,6 +257,8 @@ export function RPGDialogueBox({
               expression={studentExpression}
               facingDirection="left"
               animationMap={studentAnimationMap}
+              side="right"
+              isDesktop
             />
           ) : (
             <FallbackPortrait
@@ -168,9 +266,35 @@ export function RPGDialogueBox({
               initial={studentName?.[0] ?? 'S'}
               label={studentName}
               dim={isNpcTurn}
+              side="right"
+              isDesktop
             />
-          )}
-        </div>
+          )
+        ) : (
+          <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
+            {studentVrmUrl ? (
+              <VRMPortrait
+                url={studentVrmUrl}
+                label={studentName}
+                dim={isNpcTurn}
+                expression={studentExpression}
+                facingDirection="left"
+                animationMap={studentAnimationMap}
+                side="right"
+                isDesktop={false}
+              />
+            ) : (
+              <FallbackPortrait
+                color="#f59e0b"
+                initial={studentName?.[0] ?? 'S'}
+                label={studentName}
+                dim={isNpcTurn}
+                side="right"
+                isDesktop={false}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Dialogue box */}
