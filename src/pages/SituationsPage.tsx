@@ -6,6 +6,7 @@ import { listSituations, listVrmAnimations } from '@/lib/api/situations'
 import type { VRMExpression } from '@/components/vrm/VRMViewer'
 import { Upload, ImageIcon } from 'lucide-react'
 import { VRMViewer } from '@/components/vrm/VRMViewer'
+import { ScriptEditorSection } from '@/components/situation/ScriptEditor'
 
 // ── Storage helpers ────────────────────────────────────────────────
 
@@ -576,21 +577,23 @@ function BackgroundSection() {
 // ── Shared manager (used by MaterialsPage) ────────────────────────
 
 export function SituationsManager() {
-  const [tab, setTab] = useState<'npcs' | 'animations' | 'backgrounds' | 'situations'>('npcs')
+  const [tab, setTab] = useState<'npcs' | 'animations' | 'backgrounds' | 'situations' | 'scripts'>('npcs')
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-4 gap-1 bg-gray-100 rounded-xl p-1">
-        <Tab label="🎭 Characters"   active={tab === 'npcs'}        onClick={() => setTab('npcs')} />
-        <Tab label="🎬 Animations"   active={tab === 'animations'}  onClick={() => setTab('animations')} />
-        <Tab label="🖼️ Backgrounds"  active={tab === 'backgrounds'} onClick={() => setTab('backgrounds')} />
-        <Tab label="⚙️ Situations"   active={tab === 'situations'}  onClick={() => setTab('situations')} />
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+        <Tab label="🎭 Characters"  active={tab === 'npcs'}        onClick={() => setTab('npcs')} />
+        <Tab label="🎬 Animations"  active={tab === 'animations'}  onClick={() => setTab('animations')} />
+        <Tab label="🖼️ Backgrounds" active={tab === 'backgrounds'} onClick={() => setTab('backgrounds')} />
+        <Tab label="⚙️ Situations"  active={tab === 'situations'}  onClick={() => setTab('situations')} />
+        <Tab label="✏️ Dialogues"   active={tab === 'scripts'}     onClick={() => setTab('scripts')} />
       </div>
 
       {tab === 'npcs'        && <NpcSection />}
       {tab === 'animations'  && <AnimationSection />}
       {tab === 'backgrounds' && <BackgroundSection />}
       {tab === 'situations'  && <SituationsSection />}
+      {tab === 'scripts'     && <ScriptEditorSection />}
     </div>
   )
 }

@@ -165,6 +165,81 @@ export async function generateSituationTurn(
   return data as LlmTurn
 }
 
+export async function listNpcs(): Promise<SituationNpc[]> {
+  const { data } = await supabase.from('situation_npcs').select('*').order('name')
+  return (data ?? []) as SituationNpc[]
+}
+
+export async function createNpc(
+  name: string,
+  role: string,
+  color: string,
+): Promise<{ npc?: SituationNpc; error?: string }> {
+  const { data, error } = await supabase
+    .from('situation_npcs')
+    .insert({ name, role, placeholder_color: color })
+    .select()
+    .single()
+  if (error) return { error: error.message }
+  return { npc: data as SituationNpc }
+}
+
+export async function listMySituations(teacherId: string): Promise<Situation[]> {
+  const { data } = await supabase
+    .from('situations')
+    .select('*, npc:situation_npcs(*)')
+    .eq('created_by', teacherId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as Situation[]
+}
+
+export async function createSituation(
+  teacherId: string,
+  data: Pick<Situation, 'title' | 'description' | 'npc_id' | 'background_color' | 'difficulty' | 'age_groups'>,
+): Promise<{ situation?: Situation; error?: string }> {
+  const { data: row, error } = await supabase
+    .from('situations')
+    .insert({ ...data, created_by: teacherId, mode: 'scripted', is_active: true })
+    .select('*, npc:situation_npcs(*)')
+    .single()
+  if (error) return { error: error.message }
+  await supabase
+    .from('situation_scripts')
+    .insert({ situation_id: row.id, script: { nodes: [] } })
+  return { situation: row as Situation }
+}
+
+export async function updateSituation(
+  id: string,
+  data: Partial<Pick<Situation, 'title' | 'description' | 'npc_id' | 'background_color' | 'difficulty' | 'age_groups' | 'is_active'>>,
+): Promise<{ error?: string }> {
+  const { error } = await supabase.from('situations').update(data).eq('id', id)
+  return error ? { error: error.message } : {}
+}
+
+export async function upsertSituationScript(
+  situationId: string,
+  nodes: DialogueNode[],
+): Promise<{ error?: string }> {
+  const { data: existing } = await supabase
+    .from('situation_scripts')
+    .select('id')
+    .eq('situation_id', situationId)
+    .maybeSingle()
+
+  if (existing) {
+    const { error } = await supabase
+      .from('situation_scripts')
+      .update({ script: { nodes } })
+      .eq('situation_id', situationId)
+    return error ? { error: error.message } : {}
+  }
+  const { error } = await supabase
+    .from('situation_scripts')
+    .insert({ situation_id: situationId, script: { nodes } })
+  return error ? { error: error.message } : {}
+}
+
 export async function saveSituationSession(
   studentId: string,
   situationId: string,
