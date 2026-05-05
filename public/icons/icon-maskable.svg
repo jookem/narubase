@@ -11,8 +11,8 @@
       C635.9,390.4,530.3,337.4,400,337.4z"/>
     <path fill="#3D3DB4" stroke="#FFFFFF" stroke-width="22"
       d="M164.1,455.4v147.4c0,65.1,105.6,118,235.9,118s235.9-52.9,235.9-118V455.4"/>
-    <!-- Middle ring line: blue stroke so it's visible on white background -->
-    <path fill="none" stroke="#3D3DB4" stroke-width="22" stroke-miterlimit="10"
+    <!-- Middle ring line: white stroke, sits on blue cylinder so it's visible -->
+    <path fill="none" stroke="#FFFFFF" stroke-width="22" stroke-miterlimit="10"
       d="M635.9,529.1c0,65.1-105.6,118-235.9,118s-235.9-52.9-235.9-118"/>
     <path fill="#3D3DB4" stroke="#FFFFFF" stroke-width="22"
       d="M635.9,455.4c0,65.1-105.6,118-235.9,118s-235.9-52.9-235.9-118s105.6-118,235.9-118S635.9,390.4,635.9,455.4z"/>
