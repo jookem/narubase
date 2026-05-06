@@ -94,7 +94,7 @@ export function LessonCard({ lesson, notes, readOnly = false }: Props) {
             className="text-xs text-gray-400 hover:text-brand"
             title="Full lesson editor"
           >
-            ↗
+            {readOnly ? '↗' : 'View Notes'}
           </Link>
         </div>
       </div>
