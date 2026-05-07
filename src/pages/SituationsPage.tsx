@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import type { SituationNpc, Situation, VrmGender } from '@/lib/api/situations'
 import { listSituations, listVrmAnimations } from '@/lib/api/situations'
@@ -458,7 +459,7 @@ function AnimationSection() {
 
 // ── Situations section ────────────────────────────────────────────
 
-type SituationMode = 'scripted' | 'hybrid' | 'llm'
+type SituationMode = 'scripted' | 'hybrid' | 'llm' | 'duo'
 
 function SituationsSection() {
   const [situations, setSituations] = useState<Situation[]>([])
@@ -490,24 +491,38 @@ function SituationsSection() {
       {situations.map(situation => (
         <div key={situation.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-gray-900">{situation.title}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm text-gray-900">{situation.title}</p>
+              {situation.mode === 'duo' && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium shrink-0">🎭 Duo</span>
+              )}
+            </div>
             <p className="text-xs text-gray-400 mt-0.5 truncate">{situation.description}</p>
           </div>
-          <div className="flex gap-1 shrink-0">
-            {(['scripted', 'llm'] as SituationMode[]).map(mode => (
-              <button
-                key={mode}
-                onClick={() => handleModeChange(situation, mode)}
-                disabled={saving === situation.id}
-                className={`px-3 py-1.5 text-xs rounded-lg capitalize font-medium transition-colors ${
-                  situation.mode === mode
-                    ? mode === 'llm' ? 'bg-violet-600 text-white' : 'bg-brand text-white'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
+          <div className="flex items-center gap-2 shrink-0">
+            {situation.mode === 'duo' ? (
+              <Link
+                to={`/duo/${situation.id}`}
+                className="px-3 py-1.5 text-xs rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors"
               >
-                {mode === 'llm' ? '✨ LLM' : 'Scripted'}
-              </button>
-            ))}
+                Open Session
+              </Link>
+            ) : (
+              (['scripted', 'llm'] as SituationMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => handleModeChange(situation, mode)}
+                  disabled={saving === situation.id}
+                  className={`px-3 py-1.5 text-xs rounded-lg capitalize font-medium transition-colors ${
+                    situation.mode === mode
+                      ? mode === 'llm' ? 'bg-violet-600 text-white' : 'bg-brand text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {mode === 'llm' ? '✨ LLM' : 'Scripted'}
+                </button>
+              ))
+            )}
           </div>
         </div>
       ))}

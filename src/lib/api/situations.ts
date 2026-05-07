@@ -41,7 +41,7 @@ export interface Situation {
   background_color: string
   background_image_url: string | null
   difficulty: 'beginner' | 'intermediate' | 'advanced'
-  mode: 'scripted' | 'hybrid' | 'llm'
+  mode: 'scripted' | 'hybrid' | 'llm' | 'duo'
   is_active: boolean
   created_by: string | null
   created_at: string
@@ -50,7 +50,7 @@ export interface Situation {
 
 export interface DialogueNode {
   id: string
-  speaker: 'npc' | 'student'
+  speaker: string
   text?: string
   expression?: 'neutral' | 'speaking' | 'positive' | 'confused' | 'thinking'
   next?: string | null
@@ -60,7 +60,7 @@ export interface DialogueNode {
 export interface SituationScript {
   id: string
   situation_id: string
-  script: { nodes: DialogueNode[] }
+  script: { nodes: DialogueNode[]; duo_roles?: [string, string] }
 }
 
 export async function listSituations(
@@ -228,7 +228,7 @@ export async function updateSituation(
 
 export async function upsertSituationScript(
   situationId: string,
-  nodes: DialogueNode[],
+  script: { nodes: DialogueNode[]; duo_roles?: [string, string] },
 ): Promise<{ error?: string }> {
   const { data: existing } = await supabase
     .from('situation_scripts')
@@ -239,14 +239,31 @@ export async function upsertSituationScript(
   if (existing) {
     const { error } = await supabase
       .from('situation_scripts')
-      .update({ script: { nodes } })
+      .update({ script })
       .eq('situation_id', situationId)
     return error ? { error: error.message } : {}
   }
   const { error } = await supabase
     .from('situation_scripts')
-    .insert({ situation_id: situationId, script: { nodes } })
+    .insert({ situation_id: situationId, script })
   return error ? { error: error.message } : {}
+}
+
+export async function createDuoSituation(
+  teacherId: string,
+  data: Pick<Situation, 'title' | 'background_color' | 'difficulty' | 'age_groups'>,
+  duoRoles: [string, string],
+): Promise<{ situation?: Situation; error?: string }> {
+  const { data: row, error } = await supabase
+    .from('situations')
+    .insert({ ...data, description: '', npc_id: null, created_by: teacherId, mode: 'duo', is_active: true })
+    .select('*, npc:situation_npcs(*)')
+    .single()
+  if (error) return { error: error.message }
+  await supabase
+    .from('situation_scripts')
+    .insert({ situation_id: row.id, script: { nodes: [], duo_roles: duoRoles } })
+  return { situation: row as Situation }
 }
 
 export async function saveSituationSession(

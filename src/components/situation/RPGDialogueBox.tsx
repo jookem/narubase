@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { SituationNpc, DialogueNode } from '@/lib/api/situations'
 import { VRMViewer, type VRMExpression } from '@/components/vrm/VRMViewer'
+import { KaraokeLineSpeaker } from './KaraokeLineSpeaker'
 
 const EXPR_MAP: Record<string, VRMExpression> = {
   neutral:  'neutral',
@@ -8,6 +9,14 @@ const EXPR_MAP: Record<string, VRMExpression> = {
   positive: 'happy',
   confused: 'surprised',
   thinking: 'relaxed',
+}
+
+export interface DuoConfig {
+  myRole: string
+  partnerRole: string
+  partnerVrmUrl?: string | null
+  partnerAnimationMap?: Record<string, string>
+  onKaraokeAdvance: () => void
 }
 
 interface Props {
@@ -23,6 +32,7 @@ interface Props {
   onSelectOption: (index: number) => void
   isEnd: boolean
   onComplete: () => void
+  duo?: DuoConfig
 }
 
 // ── Responsive hook ───────────────────────────────────────────────────
@@ -168,13 +178,17 @@ export function RPGDialogueBox({
   onSelectOption,
   isEnd,
   onComplete,
+  duo,
 }: Props) {
   const isDesktop = useIsDesktop()
-  const isNpcTurn    = currentNode.speaker === 'npc'
-  const isStudentTurn = currentNode.speaker === 'student'
+  const isNpcTurn     = currentNode.speaker === 'npc'
+  const isStudentTurn = !duo && currentNode.speaker === 'student'
+  const isMyDuoTurn   = !!duo && currentNode.speaker === duo.myRole
+  const isPartnerTurn = !!duo && currentNode.speaker === duo.partnerRole
 
   const npcExpression: VRMExpression     = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
-  const studentExpression: VRMExpression = isStudentTurn ? 'surprised' : 'neutral'
+  const studentExpression: VRMExpression = (isStudentTurn || isMyDuoTurn) ? 'surprised' : 'neutral'
+  const partnerExpression: VRMExpression = isPartnerTurn ? 'surprised' : 'neutral'
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
@@ -198,32 +212,58 @@ export function RPGDialogueBox({
       >
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900/70 to-transparent pointer-events-none z-10" />
 
-        {/* NPC */}
-        {isDesktop ? (
-          npc?.vrm_url ? (
-            <VRMPortrait
-              url={npc.vrm_url}
-              label={npc.name ?? 'NPC'}
-              dim={isStudentTurn}
-              expression={npcExpression}
-              facingDirection="right"
-              animationMap={npcAnimationMap}
-              side="left"
-              isDesktop
-            />
+        {/* Left character: NPC (standard) or partner (duo) */}
+        {duo ? (
+          isDesktop ? (
+            duo.partnerVrmUrl ? (
+              <VRMPortrait
+                url={duo.partnerVrmUrl}
+                label={duo.partnerRole}
+                dim={isMyDuoTurn || isNpcTurn}
+                expression={partnerExpression}
+                facingDirection="right"
+                animationMap={duo.partnerAnimationMap}
+                side="left"
+                isDesktop
+              />
+            ) : (
+              <FallbackPortrait
+                color="#6366f1"
+                initial={duo.partnerRole[0] ?? 'P'}
+                label={duo.partnerRole}
+                dim={isMyDuoTurn || isNpcTurn}
+                side="left"
+                isDesktop
+              />
+            )
           ) : (
-            <FallbackPortrait
-              color={npc?.placeholder_color ?? '#6366f1'}
-              initial={npc?.name?.[0] ?? 'N'}
-              label={npc?.name ?? 'NPC'}
-              dim={isStudentTurn}
-              side="left"
-              isDesktop
-            />
+            <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
+              {duo.partnerVrmUrl ? (
+                <VRMPortrait
+                  url={duo.partnerVrmUrl}
+                  label={duo.partnerRole}
+                  dim={isMyDuoTurn || isNpcTurn}
+                  expression={partnerExpression}
+                  facingDirection="right"
+                  animationMap={duo.partnerAnimationMap}
+                  side="left"
+                  isDesktop={false}
+                />
+              ) : (
+                <FallbackPortrait
+                  color="#6366f1"
+                  initial={duo.partnerRole[0] ?? 'P'}
+                  label={duo.partnerRole}
+                  dim={isMyDuoTurn || isNpcTurn}
+                  side="left"
+                  isDesktop={false}
+                />
+              )}
+            </div>
           )
         ) : (
-          <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
-            {npc?.vrm_url ? (
+          isDesktop ? (
+            npc?.vrm_url ? (
               <VRMPortrait
                 url={npc.vrm_url}
                 label={npc.name ?? 'NPC'}
@@ -232,7 +272,7 @@ export function RPGDialogueBox({
                 facingDirection="right"
                 animationMap={npcAnimationMap}
                 side="left"
-                isDesktop={false}
+                isDesktop
               />
             ) : (
               <FallbackPortrait
@@ -241,19 +281,43 @@ export function RPGDialogueBox({
                 label={npc?.name ?? 'NPC'}
                 dim={isStudentTurn}
                 side="left"
-                isDesktop={false}
+                isDesktop
               />
-            )}
-          </div>
+            )
+          ) : (
+            <div className="w-1/2 flex justify-center items-center relative z-10 px-4">
+              {npc?.vrm_url ? (
+                <VRMPortrait
+                  url={npc.vrm_url}
+                  label={npc.name ?? 'NPC'}
+                  dim={isStudentTurn}
+                  expression={npcExpression}
+                  facingDirection="right"
+                  animationMap={npcAnimationMap}
+                  side="left"
+                  isDesktop={false}
+                />
+              ) : (
+                <FallbackPortrait
+                  color={npc?.placeholder_color ?? '#6366f1'}
+                  initial={npc?.name?.[0] ?? 'N'}
+                  label={npc?.name ?? 'NPC'}
+                  dim={isStudentTurn}
+                  side="left"
+                  isDesktop={false}
+                />
+              )}
+            </div>
+          )
         )}
 
-        {/* Student */}
+        {/* Right character: me (always) */}
         {isDesktop ? (
           studentVrmUrl ? (
             <VRMPortrait
               url={studentVrmUrl}
               label={studentName}
-              dim={isNpcTurn}
+              dim={isNpcTurn || isPartnerTurn}
               expression={studentExpression}
               facingDirection="left"
               animationMap={studentAnimationMap}
@@ -265,7 +329,7 @@ export function RPGDialogueBox({
               color="#f59e0b"
               initial={studentName?.[0] ?? 'S'}
               label={studentName}
-              dim={isNpcTurn}
+              dim={isNpcTurn || isPartnerTurn}
               side="right"
               isDesktop
             />
@@ -276,7 +340,7 @@ export function RPGDialogueBox({
               <VRMPortrait
                 url={studentVrmUrl}
                 label={studentName}
-                dim={isNpcTurn}
+                dim={isNpcTurn || isPartnerTurn}
                 expression={studentExpression}
                 facingDirection="left"
                 animationMap={studentAnimationMap}
@@ -288,7 +352,7 @@ export function RPGDialogueBox({
                 color="#f59e0b"
                 initial={studentName?.[0] ?? 'S'}
                 label={studentName}
-                dim={isNpcTurn}
+                dim={isNpcTurn || isPartnerTurn}
                 side="right"
                 isDesktop={false}
               />
@@ -354,6 +418,33 @@ export function RPGDialogueBox({
                 {opt.text}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Duo: my karaoke turn */}
+        {isMyDuoTurn && currentNode.text && duo && (
+          <KaraokeLineSpeaker
+            text={currentNode.text}
+            speakerName={duo.myRole}
+            onPassed={duo.onKaraokeAdvance}
+          />
+        )}
+
+        {/* Duo: waiting for partner */}
+        {isPartnerTurn && duo && (
+          <div className="px-5 pt-4 pb-5 flex items-center gap-3">
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  className="w-2 h-2 bg-indigo-400/60 rounded-full animate-bounce"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                />
+              ))}
+            </div>
+            <p className="text-sm text-slate-400">
+              Waiting for <span className="text-white font-medium">{duo.partnerRole}</span> to speak…
+            </p>
           </div>
         )}
       </div>

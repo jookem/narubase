@@ -26,6 +26,7 @@ import { PendingApprovalPage } from '@/pages/PendingApprovalPage'
 import { AdminTeachersPage } from '@/pages/AdminTeachersPage'
 import { SituationsPage } from '@/pages/SituationsPage'
 import { MaterialsPage } from '@/pages/MaterialsPage'
+import { DuoSessionPage } from '@/pages/DuoSessionPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth()
@@ -69,6 +70,7 @@ function AppRoutes() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin/teachers" element={<AdminTeachersPage />} />
         <Route path="/situations" element={<SituationsPage />} />
+        <Route path="/duo/:situationId" element={<DuoSessionPage />} />
         <Route path="/materials" element={<MaterialsPage />} />
       </Route>
 
