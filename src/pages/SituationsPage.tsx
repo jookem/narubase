@@ -322,6 +322,7 @@ const ANIM_EXPRESSIONS = [
   { id: 'angry',     label: 'Angry',     emoji: '😠' },
   { id: 'surprised', label: 'Surprised', emoji: '😲' },
   { id: 'relaxed',   label: 'Relaxed',   emoji: '😌' },
+  { id: 'thinking',  label: 'Thinking',  emoji: '🤔' },
 ] as const
 const ANIM_GENDERS: VrmGender[] = ['male', 'female', 'neutral']
 

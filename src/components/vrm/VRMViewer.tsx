@@ -8,7 +8,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { retargetMixamoClip } from '@/lib/mixamoRetarget'
 
 export type VRMExpression =
-  | 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'relaxed'
+  | 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'relaxed' | 'thinking'
   | 'blink' | 'blinkLeft' | 'blinkRight'
 
 export interface VRMViewerHandle {
@@ -36,7 +36,7 @@ interface Props {
   viewerRef?: React.MutableRefObject<VRMViewerHandle | null>
 }
 
-const EXPRESSIONS: VRMExpression[] = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'relaxed']
+const EXPRESSIONS: VRMExpression[] = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'relaxed', 'thinking']
 
 export function VRMViewer({
   url,

@@ -8,7 +8,7 @@ const EXPR_MAP: Record<string, VRMExpression> = {
   speaking: 'neutral',
   positive: 'happy',
   confused: 'surprised',
-  thinking: 'relaxed',
+  thinking: 'thinking',
 }
 
 export interface DuoConfig {
