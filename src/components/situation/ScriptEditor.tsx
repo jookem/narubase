@@ -18,6 +18,30 @@ import {
   type DialogueNode,
 } from '@/lib/api/situations'
 
+// ── Student list hook ──────────────────────────────────────────────────
+
+interface StudentOption { id: string; name: string }
+
+function useTeacherStudents(teacherId: string | undefined): StudentOption[] {
+  const [students, setStudents] = useState<StudentOption[]>([])
+  useEffect(() => {
+    if (!teacherId) return
+    supabase
+      .from('teacher_student_relationships')
+      .select('student:profiles!teacher_student_relationships_student_id_fkey(id, full_name, display_name)')
+      .eq('teacher_id', teacherId)
+      .eq('status', 'active')
+      .then(({ data }) => {
+        const list = (data ?? []).map((r: any) => ({
+          id: r.student.id,
+          name: (r.student.display_name || r.student.full_name) as string,
+        }))
+        setStudents(list)
+      })
+  }, [teacherId])
+  return students
+}
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 type DialogueExpression = 'neutral' | 'speaking' | 'positive' | 'confused' | 'thinking'
@@ -425,6 +449,8 @@ function LineEditorView({
   onBack: () => void
   onSaved: (updated: Situation) => void
 }) {
+  const { user } = useAuth()
+  const students = useTeacherStudents(user?.id)
   const isDuo = situation.mode === 'duo'
   const [lines, setLines] = useState<EditorLine[]>([])
   const [duoRoles, setDuoRoles] = useState<[string, string]>(['', ''])
@@ -520,22 +546,30 @@ function LineEditorView({
       {isDuo && (
         <div className="flex gap-3 p-4 bg-purple-50 border border-purple-200 rounded-xl">
           <div className="flex-1">
-            <label className="text-xs text-purple-600 font-medium block mb-1">Student A name</label>
-            <input
+            <label className="text-xs text-purple-600 font-medium block mb-1">Student A</label>
+            <select
               value={duoRoles[0]}
               onChange={e => setDuoRoles([e.target.value, duoRoles[1]])}
-              placeholder="e.g. Yuki"
               className="w-full text-sm border border-purple-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
-            />
+            >
+              <option value="">Pick student…</option>
+              {students.filter(s => s.name !== duoRoles[1]).map(s => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
           </div>
           <div className="flex-1">
-            <label className="text-xs text-teal-600 font-medium block mb-1">Student B name</label>
-            <input
+            <label className="text-xs text-teal-600 font-medium block mb-1">Student B</label>
+            <select
               value={duoRoles[1]}
               onChange={e => setDuoRoles([duoRoles[0], e.target.value])}
-              placeholder="e.g. Hana"
               className="w-full text-sm border border-teal-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white"
-            />
+            >
+              <option value="">Pick student…</option>
+              {students.filter(s => s.name !== duoRoles[0]).map(s => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
           </div>
         </div>
       )}
@@ -670,6 +704,8 @@ function NewSituationForm({
   onCancel: () => void
   teacherId: string
 }) {
+  const { user } = useAuth()
+  const students = useTeacherStudents(user?.id)
   const [isDuo, setIsDuo] = useState(false)
   const [duoRoleA, setDuoRoleA] = useState('')
   const [duoRoleB, setDuoRoleB] = useState('')
@@ -750,26 +786,34 @@ function NewSituationForm({
           />
         </div>
 
-        {/* Duo student names */}
+        {/* Duo student pickers */}
         {isDuo && (
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs text-purple-600 font-medium block mb-1">Student A name</label>
-              <input
+              <label className="text-xs text-purple-600 font-medium block mb-1">Student A</label>
+              <select
                 value={duoRoleA}
                 onChange={e => setDuoRoleA(e.target.value)}
-                placeholder="e.g. Yuki"
-                className="w-full text-sm border border-purple-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
-              />
+                className="w-full text-sm border border-purple-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
+              >
+                <option value="">Pick student…</option>
+                {students.filter(s => s.name !== duoRoleB).map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
             </div>
             <div className="flex-1">
-              <label className="text-xs text-teal-600 font-medium block mb-1">Student B name</label>
-              <input
+              <label className="text-xs text-teal-600 font-medium block mb-1">Student B</label>
+              <select
                 value={duoRoleB}
                 onChange={e => setDuoRoleB(e.target.value)}
-                placeholder="e.g. Hana"
-                className="w-full text-sm border border-teal-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300"
-              />
+                className="w-full text-sm border border-teal-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white"
+              >
+                <option value="">Pick student…</option>
+                {students.filter(s => s.name !== duoRoleA).map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
             </div>
           </div>
         )}
