@@ -440,7 +440,7 @@ function LineRow({
 
 // ── Line editor (for one situation) ───────────────────────────────────
 
-function LineEditorView({
+export function LineEditorView({
   situation, npcs, onNpcsChange, onBack, onSaved,
 }: {
   situation: Situation
