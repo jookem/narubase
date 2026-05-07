@@ -47,7 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (event === 'SIGNED_IN') {
         setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
+        if (session?.user) {
+          setLoading(true)
+          fetchProfile(session.user.id)
+        }
         return
       }
 
@@ -58,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchProfile(userId: string) {
+  async function fetchProfile(userId: string, attempt = 0) {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -67,9 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single()
       if (error) throw error
       setProfile(data as Profile | null)
-    } catch {
+      setLoading(false)
+      initializedRef.current = true
+    } catch (err) {
+      // Retry once after 1 s — the PostgREST layer sometimes hasn't
+      // propagated the new JWT yet when this fires right after SIGNED_IN.
+      if (attempt === 0) {
+        setTimeout(() => fetchProfile(userId, 1), 1000)
+        return
+      }
+      console.error('[AuthContext] fetchProfile failed:', err)
       setProfile(null)
-    } finally {
       setLoading(false)
       initializedRef.current = true
     }
