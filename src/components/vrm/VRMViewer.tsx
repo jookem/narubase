@@ -110,6 +110,7 @@ export function VRMViewer({
     if (!canvas) return
 
     let cancelled = false
+    let compileTimeout: ReturnType<typeof setTimeout> | null = null
 
     // ── Renderer ──────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
@@ -310,23 +311,25 @@ export function VRMViewer({
           switchAnim(desiredAnimUrlRef.current)
         }
 
-        // Pre-warm GPU: compileAsync uses KHR_parallel_shader_compile off the
-        // main thread when the extension is available, avoiding the freeze that
-        // happens when shaders compile synchronously on the first render call.
-        if (!cancelled) setLoadPct(95)  // download done, GPU prep next
+        if (!cancelled) setLoadPct(95)
 
+        let revealed = false
         const doReveal = () => {
-          if (cancelled) return
+          if (revealed || cancelled) return
+          revealed = true
+          if (compileTimeout) { clearTimeout(compileTimeout); compileTimeout = null }
           vrmLoaded = true
           prevTime = performance.now()
           setLoadPct(null)
           setLoading(false)
           onLoad?.(vrm)
         }
+
         if (typeof (renderer as any).compileAsync === 'function') {
-          ;(renderer as any).compileAsync(scene, camera).then(doReveal)
+          // 8-second safety net — if compileAsync hangs or rejects, reveal anyway
+          compileTimeout = setTimeout(doReveal, 8_000)
+          ;(renderer as any).compileAsync(scene, camera).then(doReveal).catch(doReveal)
         } else {
-          // Fallback: force GPU upload synchronously while spinner is still visible
           renderer.render(scene, camera)
           doReveal()
         }
@@ -449,6 +452,7 @@ export function VRMViewer({
 
     return () => {
       cancelled = true
+      if (compileTimeout) clearTimeout(compileTimeout)
       cancelAnimationFrame(rafRef.current)
       ro.disconnect()
       controls.dispose()
