@@ -78,16 +78,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
         navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
-        ],
+        // Do NOT cache Supabase API/auth responses — caching auth token
+        // endpoints causes stale credentials to be served on PWA resume
+        // when the network is briefly unavailable, leading to profile-fetch
+        // failures and the app hanging on load.
       },
     }),
   ],

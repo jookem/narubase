@@ -16,16 +16,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  // Track whether we've completed the first load so subsequent auth events
-  // (token refresh, tab focus) never flip loading back to true.
   const initializedRef = useRef(false)
+  // Track the last user ID we loaded a profile for so SIGNED_IN events that fire
+  // for the already-active user (cross-tab sync, PWA resume) don't reset the UI.
+  const activeUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     // Initial session load — runs once on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
+      const u = session?.user ?? null
+      setUser(u)
+      activeUserIdRef.current = u?.id ?? null
+      if (u) {
+        fetchProfile(u.id)
       } else {
         setLoading(false)
         initializedRef.current = true
@@ -42,13 +45,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null)
         setLoading(false)
         initializedRef.current = false
+        activeUserIdRef.current = null
         return
       }
 
       if (event === 'SIGNED_IN') {
+        const incomingId = session?.user?.id ?? null
         setUser(session?.user ?? null)
         if (session?.user) {
-          setLoading(true)
+          // Only show a loading state if this is a genuinely new sign-in.
+          // SIGNED_IN also fires during cross-tab sync and PWA background-resume;
+          // in those cases the profile is already loaded and resetting loading
+          // would cause a visible flash / hang.
+          const isNewUser = incomingId !== activeUserIdRef.current || !initializedRef.current
+          activeUserIdRef.current = incomingId
+          if (isNewUser) setLoading(true)
           fetchProfile(session.user.id)
         }
         return
