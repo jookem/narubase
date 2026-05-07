@@ -1,14 +1,18 @@
+import { useEffect } from 'react'
 import { useSpeechKaraoke, PASS_THRESHOLD } from '@/hooks/useSpeechKaraoke'
 
 interface Props {
   text: string
   speakerName: string
   onPassed: () => void
+  onListeningChange?: (listening: boolean) => void
 }
 
-export function KaraokeLineSpeaker({ text, speakerName, onPassed }: Props) {
+export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningChange }: Props) {
   const { tokens, matchedCount, listening, transcript, passed, isSupported, startListening, stopListening, reset } =
     useSpeechKaraoke(text, onPassed)
+
+  useEffect(() => { onListeningChange?.(listening) }, [listening])
 
   const pct = tokens.length > 0 ? matchedCount / tokens.length : 0
   const failed = !listening && transcript.length > 0 && !passed

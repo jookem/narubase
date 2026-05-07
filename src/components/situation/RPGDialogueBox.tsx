@@ -17,6 +17,7 @@ export interface DuoConfig {
   partnerVrmUrl?: string | null
   partnerAnimationMap?: Record<string, string>
   onKaraokeAdvance: () => void
+  onSpeakerListeningChange?: (listening: boolean) => void
 }
 
 interface Props {
@@ -181,13 +182,17 @@ export function RPGDialogueBox({
   duo,
 }: Props) {
   const isDesktop = useIsDesktop()
+  const [isSpeaking, setIsSpeaking] = useState(false)
+
   const isNpcTurn     = currentNode.speaker === 'npc'
   const isStudentTurn = !duo && currentNode.speaker === 'student'
   const isMyDuoTurn   = !!duo && currentNode.speaker === duo.myRole
   const isPartnerTurn = !!duo && currentNode.speaker === duo.partnerRole
 
   const npcExpression: VRMExpression     = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
-  const studentExpression: VRMExpression = (isStudentTurn || isMyDuoTurn) ? 'surprised' : 'neutral'
+  const studentExpression: VRMExpression = isMyDuoTurn
+    ? (isSpeaking ? 'happy' : 'surprised')
+    : (isStudentTurn ? 'surprised' : 'neutral')
   const partnerExpression: VRMExpression = isPartnerTurn ? 'surprised' : 'neutral'
 
   return (
@@ -427,6 +432,10 @@ export function RPGDialogueBox({
             text={currentNode.text}
             speakerName={duo.myRole}
             onPassed={duo.onKaraokeAdvance}
+            onListeningChange={listening => {
+              setIsSpeaking(listening)
+              duo.onSpeakerListeningChange?.(listening)
+            }}
           />
         )}
 
