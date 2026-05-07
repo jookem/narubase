@@ -44,7 +44,7 @@ function useTeacherStudents(teacherId: string | undefined): StudentOption[] {
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-type DialogueExpression = 'neutral' | 'speaking' | 'positive' | 'confused' | 'thinking'
+type DialogueExpression = 'neutral' | 'speaking' | 'positive' | 'confused' | 'thinking' | 'sad' | 'angry' | 'surprised' | 'relaxed'
 
 type EditorLine = {
   id: string
@@ -57,11 +57,15 @@ type EditorLine = {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 const EXPR_OPTIONS: { id: DialogueExpression; emoji: string; label: string }[] = [
-  { id: 'neutral',  emoji: '😐', label: 'Neutral'  },
-  { id: 'speaking', emoji: '💬', label: 'Speaking' },
-  { id: 'positive', emoji: '😊', label: 'Happy'    },
-  { id: 'confused', emoji: '😕', label: 'Confused' },
-  { id: 'thinking', emoji: '🤔', label: 'Thinking' },
+  { id: 'neutral',   emoji: '😐', label: 'Neutral'   },
+  { id: 'speaking',  emoji: '💬', label: 'Speaking'  },
+  { id: 'positive',  emoji: '😊', label: 'Happy'     },
+  { id: 'sad',       emoji: '😢', label: 'Sad'       },
+  { id: 'angry',     emoji: '😠', label: 'Angry'     },
+  { id: 'surprised', emoji: '😲', label: 'Surprised' },
+  { id: 'relaxed',   emoji: '😌', label: 'Relaxed'   },
+  { id: 'confused',  emoji: '😕', label: 'Confused'  },
+  { id: 'thinking',  emoji: '🤔', label: 'Thinking'  },
 ]
 
 function uid() {
@@ -356,8 +360,8 @@ function LineRow({
           )}
         </div>
 
-        {/* Expression picker — NPC only */}
-        {isNpc && (
+        {/* Expression picker — NPC and student choice lines */}
+        {(isNpc || (!isDuoLine && !isNpc)) && (
           <div className="flex gap-0.5">
             {EXPR_OPTIONS.map(ex => (
               <button

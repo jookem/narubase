@@ -4,11 +4,16 @@ import { VRMViewer, type VRMExpression } from '@/components/vrm/VRMViewer'
 import { KaraokeLineSpeaker } from './KaraokeLineSpeaker'
 
 const EXPR_MAP: Record<string, VRMExpression> = {
-  neutral:  'neutral',
-  speaking: 'neutral',
-  positive: 'happy',
-  confused: 'surprised',
-  thinking: 'thinking',
+  neutral:   'neutral',
+  speaking:  'neutral',
+  positive:  'happy',
+  happy:     'happy',
+  sad:       'sad',
+  angry:     'angry',
+  surprised: 'surprised',
+  confused:  'confused',
+  relaxed:   'relaxed',
+  thinking:  'thinking',
 }
 
 export interface DuoConfig {
@@ -192,7 +197,9 @@ export function RPGDialogueBox({
   const npcExpression: VRMExpression     = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
   const studentExpression: VRMExpression = isMyDuoTurn
     ? (isSpeaking ? 'happy' : 'surprised')
-    : (isStudentTurn ? 'surprised' : 'neutral')
+    : isStudentTurn
+    ? (EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'surprised')
+    : 'neutral'
   const partnerExpression: VRMExpression = isPartnerTurn ? 'surprised' : 'neutral'
 
   return (

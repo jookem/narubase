@@ -8,7 +8,7 @@ import { retargetMixamoClip } from '@/lib/mixamoRetarget'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type VRMExpression = 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'relaxed' | 'thinking'
+type VRMExpression = 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'confused' | 'relaxed' | 'thinking'
 
 interface WorkerConfig {
   autoBlink: boolean
@@ -39,9 +39,10 @@ class FakeElement extends EventTarget {
 }
 
 // ── Module-level state ────────────────────────────────────────────────────
+let offscreenCanvas: OffscreenCanvas | null = null
 
 const fakeElement = new FakeElement()
-const EXPRESSIONS: VRMExpression[] = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'relaxed', 'thinking']
+const EXPRESSIONS: VRMExpression[] = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'confused', 'relaxed', 'thinking']
 const FRAME_MS = 1000 / 30
 
 let renderer: THREE.WebGLRenderer | null = null
@@ -83,20 +84,23 @@ self.onmessage = (e: MessageEvent) => {
     case 'pointer':      handlePointer(msg);         break
     case 'wheel':        handleWheel(msg);           break
     case 'contextmenu':  fakeElement.dispatchEvent(new Event('contextmenu')); break
-    case 'resize':       handleResize(msg.w, msg.h); break
+    case 'resize':       handleResize(msg);           break
     case 'dispose':      handleDispose();            break
   }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
 
-function handleInit(msg: { canvas: OffscreenCanvas; url: string; expression: string; animationMap: Record<string, string>; config: WorkerConfig }) {
+function handleInit(msg: { canvas: OffscreenCanvas; url: string; expression: string; animationMap: Record<string, string>; config: WorkerConfig; cssW: number; cssH: number }) {
   const { canvas, url, config } = msg
+  offscreenCanvas = canvas
   animMap = msg.animationMap
   autoBlink = config.autoBlink
 
+  // Canvas intrinsic size is already DPR-scaled by the main thread before transfer.
+  // Use setPixelRatio(1) so Three.js doesn't scale again.
   renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
-  renderer.setPixelRatio(Math.min(self.devicePixelRatio ?? 1, 2))
+  renderer.setPixelRatio(1)
   renderer.setSize(canvas.width, canvas.height, false)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
@@ -122,8 +126,10 @@ function handleInit(msg: { canvas: OffscreenCanvas; url: string; expression: str
     scene.add(grid)
   }
 
-  fakeElement.clientWidth  = canvas.width
-  fakeElement.clientHeight = canvas.height
+  // OrbitControls uses clientWidth/Height for rotation normalisation — use CSS
+  // pixels (not physical pixels) so mouse deltas stay correctly proportioned.
+  fakeElement.clientWidth  = msg.cssW
+  fakeElement.clientHeight = msg.cssH
   controls = new OrbitControls(camera, fakeElement as unknown as HTMLElement)
   controls.target.set(0, 1.1, 0)
   controls.enableDamping   = true
@@ -364,11 +370,13 @@ function handleWheel(msg: { deltaY: number }) {
 
 // ── Resize / dispose ──────────────────────────────────────────────────────
 
-function handleResize(w: number, h: number) {
-  fakeElement.clientWidth  = w
-  fakeElement.clientHeight = h
-  renderer?.setSize(w, h, false)
-  if (camera) { camera.aspect = w / (h || 1); camera.updateProjectionMatrix() }
+function handleResize(msg: { w: number; h: number; cssW: number; cssH: number }) {
+  // Resize the OffscreenCanvas to the new physical pixel dimensions
+  if (offscreenCanvas) { offscreenCanvas.width = msg.w; offscreenCanvas.height = msg.h }
+  fakeElement.clientWidth  = msg.cssW
+  fakeElement.clientHeight = msg.cssH
+  renderer?.setSize(msg.w, msg.h, false)
+  if (camera) { camera.aspect = msg.w / (msg.h || 1); camera.updateProjectionMatrix() }
 }
 
 function handleDispose() {

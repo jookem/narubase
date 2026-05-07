@@ -322,6 +322,7 @@ const ANIM_EXPRESSIONS = [
   { id: 'sad',       label: 'Sad',       emoji: '😢' },
   { id: 'angry',     label: 'Angry',     emoji: '😠' },
   { id: 'surprised', label: 'Surprised', emoji: '😲' },
+  { id: 'confused',  label: 'Confused',  emoji: '😕' },
   { id: 'relaxed',   label: 'Relaxed',   emoji: '😌' },
   { id: 'thinking',  label: 'Thinking',  emoji: '🤔' },
 ] as const

@@ -49,6 +49,7 @@ const PREVIEW_EXPRESSIONS: { id: VRMExpression; emoji: string; label: string }[]
   { id: 'neutral',   emoji: '😐', label: 'Neutral' },
   { id: 'happy',     emoji: '😊', label: 'Happy' },
   { id: 'surprised', emoji: '😲', label: 'Surprised' },
+  { id: 'confused',  emoji: '😕', label: 'Confused' },
   { id: 'relaxed',   emoji: '😌', label: 'Relaxed' },
   { id: 'sad',       emoji: '😢', label: 'Sad' },
   { id: 'angry',     emoji: '😠', label: 'Angry' },

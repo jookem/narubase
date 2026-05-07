@@ -8,7 +8,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { retargetMixamoClip } from '@/lib/mixamoRetarget'
 
 export type VRMExpression =
-  | 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'relaxed' | 'thinking'
+  | 'neutral' | 'happy' | 'angry' | 'sad' | 'surprised' | 'confused' | 'relaxed' | 'thinking'
   | 'blink' | 'blinkLeft' | 'blinkRight'
 
 export interface VRMViewerHandle {
@@ -130,6 +130,15 @@ export function VRMViewer({
     setLoading(true); setLoadPct(null); setError(null)
     let cancelled = false
 
+    // Bake actual layout size × DPR into the canvas intrinsic dimensions before
+    // transferring — otherwise the OffscreenCanvas starts at 300×150 (default)
+    // and the worker renders at that low resolution, scaled up blurry by CSS.
+    const dpr  = Math.min(window.devicePixelRatio, 2)
+    const cssW = canvas.clientWidth  || 300
+    const cssH = canvas.clientHeight || 150
+    canvas.width  = Math.round(cssW * dpr)
+    canvas.height = Math.round(cssH * dpr)
+
     const worker = new Worker(new URL('./vrm.worker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
 
@@ -142,6 +151,7 @@ export function VRMViewer({
         expression: expression ?? 'neutral',
         animationMap: animationMap ?? {},
         config: { autoBlink, orbitControls, showGrid, facingDirection, framing, cameraOffsetX },
+        cssW, cssH,
       },
       [offscreen],
     )
@@ -178,8 +188,9 @@ export function VRMViewer({
     canvas.addEventListener('contextmenu', onCtx)
 
     const ro = new ResizeObserver(() => {
-      const w = canvas.clientWidth, h = canvas.clientHeight
-      if (w && h) worker.postMessage({ type: 'resize', w, h })
+      const dpr  = Math.min(window.devicePixelRatio, 2)
+      const cssW = canvas.clientWidth, cssH = canvas.clientHeight
+      if (cssW && cssH) worker.postMessage({ type: 'resize', w: Math.round(cssW * dpr), h: Math.round(cssH * dpr), cssW, cssH })
     })
     ro.observe(canvas)
 
