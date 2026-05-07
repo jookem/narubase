@@ -52,6 +52,7 @@ const PREVIEW_EXPRESSIONS: { id: VRMExpression; emoji: string; label: string }[]
   { id: 'relaxed',   emoji: '😌', label: 'Relaxed' },
   { id: 'sad',       emoji: '😢', label: 'Sad' },
   { id: 'angry',     emoji: '😠', label: 'Angry' },
+  { id: 'thinking',  emoji: '🤔', label: 'Thinking' },
 ]
 
 export function SituationSimulator() {
