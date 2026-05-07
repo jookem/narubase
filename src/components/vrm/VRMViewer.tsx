@@ -307,6 +307,8 @@ export function VRMViewer({
           switchAnim(desiredAnimUrlRef.current)
         }
 
+        vrmLoaded = true
+        prevTime = performance.now()
         setLoading(false)
         onLoad?.(vrm)
       },
@@ -326,10 +328,21 @@ export function VRMViewer({
 
     let prevTime = performance.now()
     let elapsed = 0
+    let lastFrameTime = 0
+    let vrmLoaded = false
+    const FRAME_MS = 1000 / 30  // cap at 30fps
 
     // ── Animation loop ────────────────────────────────────────
     function animate(timestamp: number) {
       rafRef.current = requestAnimationFrame(animate)
+
+      // Skip all rendering until VRM is in scene to keep main thread free during loading
+      if (!vrmLoaded) return
+
+      // Cap at 30fps — halves GPU work and gives the main thread more breathing room
+      if (timestamp - lastFrameTime < FRAME_MS) return
+      lastFrameTime = timestamp
+
       const delta = Math.min((timestamp - prevTime) / 1000, 0.1)
       prevTime = timestamp
       elapsed += delta

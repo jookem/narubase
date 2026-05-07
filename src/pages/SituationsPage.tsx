@@ -131,6 +131,7 @@ const NPC_EXPRESSIONS: { id: VRMExpression; emoji: string }[] = [
   { id: 'angry',     emoji: '😠' },
   { id: 'surprised', emoji: '😲' },
   { id: 'relaxed',   emoji: '😌' },
+  { id: 'thinking',  emoji: '🤔' },
 ]
 
 function NpcCard({ npc, onUpdate }: { npc: SituationNpc; onUpdate: (updated: SituationNpc) => void }) {
