@@ -13,31 +13,47 @@ import { VocabLesson } from '@/components/vocab/VocabLesson'
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-function getStudyBatch<T>(arr: T[]): T[] {
+// Mulberry32 PRNG seeded from a string via FNV-1a hash.
+// Returns a function that produces deterministic floats in [0, 1).
+function seedRng(seed: string): () => number {
+  let h = 2166136261 >>> 0
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 16777619) >>> 0
+  }
+  return () => {
+    h = (h + 0x6D2B79F5) | 0
+    let t = Math.imul(h ^ (h >>> 15), 1 | h)
+    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function shuffleSeeded<T>(arr: T[], rng: () => number): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function getStudyBatch<T>(arr: T[], rng: () => number): T[] {
   const size = parseInt(localStorage.getItem('study_size') ?? '20', 10)
-  const shuffled = [...arr].sort(() => Math.random() - 0.5)
+  const shuffled = shuffleSeeded(arr, rng)
   return size === 0 ? shuffled : shuffled.slice(0, size)
 }
 
 const CATEGORY_SESSION_SIZE = 12
 
-function fisherYates<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
 /** Returns up to CATEGORY_SESSION_SIZE words prioritising lowest mastery.
- *  Words within each mastery tier are shuffled randomly so the selection
- *  is never the first-N alphabetically, and the final order is also shuffled. */
-function getCategoryBatch(words: VocabularyBankEntry[]): VocabularyBankEntry[] {
+ *  Words within each mastery tier are shuffled so the selection is never
+ *  the first-N alphabetically, and the final order is also shuffled. */
+function getCategoryBatch(words: VocabularyBankEntry[], rng: () => number): VocabularyBankEntry[] {
   const byTier = [0, 1, 2, 3].flatMap(level =>
-    fisherYates(words.filter(w => w.mastery_level === level))
+    shuffleSeeded(words.filter(w => w.mastery_level === level), rng)
   )
-  return fisherYates(byTier.slice(0, CATEGORY_SESSION_SIZE))
+  return shuffleSeeded(byTier.slice(0, CATEGORY_SESSION_SIZE), rng)
 }
 
 function MasteryBar({ words }: { words: VocabularyBankEntry[] }) {
@@ -138,6 +154,12 @@ export function VocabularyPage() {
   const [studyCards, setStudyCards] = useState<VocabularyBankEntry[] | null>(null)
   const [session, setSession] = useState<Session | null>(null)
 
+  // Seed changes once per calendar day per user so the selection is stable
+  // within a day but fresh each morning.
+  const today = new Date().toLocaleDateString('en-CA')
+  const uid = user?.id ?? ''
+  function dailyRng(ns: string) { return seedRng(`${today}:${uid}:${ns}`) }
+
   function startSession(words: VocabularyBankEntry[], name: string) {
     setSession({ words, name, stage: 'grid' })
   }
@@ -177,7 +199,7 @@ export function VocabularyPage() {
     })
     if (due.length === 0) return
     autoLaunched.current = true
-    setStudyCards(getStudyBatch(due))
+    setStudyCards(getStudyBatch(due, dailyRng('review')))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, vocab])
 
@@ -261,7 +283,7 @@ export function VocabularyPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {dueForReview.length > 0 && (
               <button
-                onClick={() => setStudyCards(getStudyBatch(dueForReview))}
+                onClick={() => setStudyCards(getStudyBatch(dueForReview, dailyRng('review')))}
                 className="px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
               >
                 復習 ({reviewCount})
@@ -269,7 +291,7 @@ export function VocabularyPage() {
             )}
             {vocab.length > 0 && (
               <button
-                onClick={() => startSession(getStudyBatch(vocab), '全部学習')}
+                onClick={() => startSession(getStudyBatch(vocab, dailyRng('all')), '全部学習')}
                 className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors"
               >
                 全部学習
@@ -375,7 +397,7 @@ export function VocabularyPage() {
           return (
             <div className="space-y-3">
               {catGroups.map(([category, words]) => {
-                const batch = getCategoryBatch(words)
+                const batch = getCategoryBatch(words, dailyRng(`cat:${category}`))
                 const isCapped = words.length > CATEGORY_SESSION_SIZE
                 const sessions = Math.ceil(words.length / CATEGORY_SESSION_SIZE)
                 return (
@@ -454,7 +476,7 @@ export function VocabularyPage() {
                       復習が必要 / Review Due ({due.length})
                     </h2>
                     <button
-                      onClick={() => setStudyCards(getStudyBatch(due))}
+                      onClick={() => setStudyCards(getStudyBatch(due, dailyRng('mastery:review')))}
                       className="text-xs text-gray-400 hover:text-brand transition-colors"
                     >
                       Study this group →
@@ -478,7 +500,7 @@ export function VocabularyPage() {
                       {MASTERY_LABELS_EN[level]} ({items.length})
                     </h2>
                     <button
-                      onClick={() => setStudyCards(getStudyBatch(items))}
+                      onClick={() => setStudyCards(getStudyBatch(items, dailyRng(`mastery:${level}`)))}
                       className="text-xs text-gray-400 hover:text-brand transition-colors"
                     >
                       Study this group →
