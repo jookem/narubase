@@ -108,6 +108,8 @@ export function VRMViewer({
     const canvas = canvasRef.current
     if (!canvas) return
 
+    let cancelled = false
+
     // ── Renderer ──────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -307,10 +309,23 @@ export function VRMViewer({
           switchAnim(desiredAnimUrlRef.current)
         }
 
-        vrmLoaded = true
-        prevTime = performance.now()
-        setLoading(false)
-        onLoad?.(vrm)
+        // Pre-warm GPU: compileAsync uses KHR_parallel_shader_compile off the
+        // main thread when the extension is available, avoiding the freeze that
+        // happens when shaders compile synchronously on the first render call.
+        const doReveal = () => {
+          if (cancelled) return
+          vrmLoaded = true
+          prevTime = performance.now()
+          setLoading(false)
+          onLoad?.(vrm)
+        }
+        if (typeof (renderer as any).compileAsync === 'function') {
+          ;(renderer as any).compileAsync(scene, camera).then(doReveal)
+        } else {
+          // Fallback: force GPU upload synchronously while spinner is still visible
+          renderer.render(scene, camera)
+          doReveal()
+        }
       },
       undefined,
       () => {
@@ -424,6 +439,7 @@ export function VRMViewer({
     ro.observe(canvas)
 
     return () => {
+      cancelled = true
       cancelAnimationFrame(rafRef.current)
       ro.disconnect()
       controls.dispose()
