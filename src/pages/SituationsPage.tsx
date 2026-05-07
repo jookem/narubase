@@ -130,6 +130,7 @@ const NPC_EXPRESSIONS: { id: VRMExpression; emoji: string }[] = [
   { id: 'sad',       emoji: '😢' },
   { id: 'angry',     emoji: '😠' },
   { id: 'surprised', emoji: '😲' },
+  { id: 'confused',  emoji: '😕' },
   { id: 'relaxed',   emoji: '😌' },
   { id: 'thinking',  emoji: '🤔' },
 ]
