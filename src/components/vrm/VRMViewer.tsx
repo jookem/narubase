@@ -67,6 +67,7 @@ export function VRMViewer({
   const animationMapRef = useRef<Record<string, string>>(animationMap ?? {})
 
   const [loading, setLoading] = useState(true)
+  const [loadPct, setLoadPct] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Keep animationMapRef and desiredAnimUrl in sync when props change
@@ -312,10 +313,13 @@ export function VRMViewer({
         // Pre-warm GPU: compileAsync uses KHR_parallel_shader_compile off the
         // main thread when the extension is available, avoiding the freeze that
         // happens when shaders compile synchronously on the first render call.
+        if (!cancelled) setLoadPct(95)  // download done, GPU prep next
+
         const doReveal = () => {
           if (cancelled) return
           vrmLoaded = true
           prevTime = performance.now()
+          setLoadPct(null)
           setLoading(false)
           onLoad?.(vrm)
         }
@@ -327,7 +331,12 @@ export function VRMViewer({
           doReveal()
         }
       },
-      undefined,
+      (event: ProgressEvent) => {
+        if (cancelled) return
+        if (event.lengthComputable && event.total > 0) {
+          setLoadPct(Math.min(90, Math.round(event.loaded / event.total * 90)))
+        }
+      },
       () => {
         const msg = 'Failed to load VRM file'
         setError(msg)
@@ -460,7 +469,21 @@ export function VRMViewer({
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
           <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/60 text-sm">Loading VRM…</p>
+          <p className="text-white/60 text-sm">
+            {loadPct === null
+              ? 'Loading VRM…'
+              : loadPct >= 95
+              ? 'Preparing…'
+              : `Loading… ${loadPct}%`}
+          </p>
+          {loadPct !== null && (
+            <div className="w-28 h-1 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-brand rounded-full transition-all duration-200"
+                style={{ width: `${loadPct}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
       {error && (
