@@ -84,8 +84,8 @@ export function VRMStage() {
     setExpression('neutral')
   }
 
-  function handleLoad(vrm: VRM) {
-    setMeta(extractMeta(vrm))
+  function handleLoad(vrm: VRM | null) {
+    if (vrm) setMeta(extractMeta(vrm))
   }
 
   return (
