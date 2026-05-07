@@ -578,16 +578,44 @@ function DeckEditor({
                   return a.localeCompare(b)
                 })
 
+                // Find modal (most common) question count for imbalance detection
+                const countFreq = new Map<number, number>()
+                for (const [, gp] of catGroups) countFreq.set(gp.length, (countFreq.get(gp.length) ?? 0) + 1)
+                let modalCount = 0, maxFreq = 0
+                for (const [cnt, freq] of countFreq) {
+                  if (freq > maxFreq || (freq === maxFreq && cnt > modalCount)) { maxFreq = freq; modalCount = cnt }
+                }
+                const unbalancedCount = catGroups.filter(([, gp]) => gp.length !== modalCount).length
+                const allCounts = catGroups.map(([, gp]) => gp.length)
+                const minCount = Math.min(...allCounts)
+                const maxCount = Math.max(...allCounts)
+
                 return (
                   <div className="space-y-4">
+                    {/* Balance summary banner */}
+                    {catGroups.length > 1 && (
+                      <div className={`text-xs rounded-lg px-3 py-2 flex items-center gap-2 ${unbalancedCount > 0 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                        <span className="font-medium">{catGroups.length} categories</span>
+                        <span>·</span>
+                        {unbalancedCount === 0
+                          ? <span>✓ {modalCount} questions each</span>
+                          : <span>⚠ {minCount}–{maxCount} questions · {unbalancedCount} categor{unbalancedCount !== 1 ? 'ies' : 'y'} off ({modalCount} expected)</span>
+                        }
+                      </div>
+                    )}
+
                     {catGroups.map(([category, groupPoints]) => {
                       const missing = groupPoints.filter(p => !p.sentence_with_blank)
+                      const isOff = catGroups.length > 1 && groupPoints.length !== modalCount
                       return (
                         <div key={category} className="space-y-1">
                           {/* Category header */}
                           <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
                             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{category}</h3>
-                            <span className="text-xs text-gray-400">{groupPoints.length}</span>
+                            <span className={`text-xs font-medium ${isOff ? 'text-amber-600' : 'text-gray-400'}`}>{groupPoints.length}</span>
+                            {isOff && (
+                              <span className="text-xs text-amber-500">≠ {modalCount}</span>
+                            )}
                             {missing.length > 0 && (
                               <span className="text-xs text-orange-500">{missing.length} missing sentence</span>
                             )}
