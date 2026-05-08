@@ -326,6 +326,11 @@ function DeckEditor({
     })
   }
 
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set())
+  function toggleCat(cat: string) {
+    setCollapsedCats(prev => { const next = new Set(prev); next.has(cat) ? next.delete(cat) : next.add(cat); return next })
+  }
+
   // Inline edit
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editFields, setEditFields] = useState({ sentence: '', answer: '', hint: '', answer_ja: '', distractors: '', category: '' })
@@ -607,11 +612,16 @@ function DeckEditor({
                     {catGroups.map(([category, groupPoints]) => {
                       const missing = groupPoints.filter(p => !p.sentence_with_blank)
                       const isOff = catGroups.length > 1 && groupPoints.length !== modalCount
+                      const collapsed = collapsedCats.has(category)
                       return (
                         <div key={category} className="space-y-1">
                           {/* Category header */}
-                          <div className="flex items-center gap-2 pb-1 border-b border-gray-100">
-                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{category}</h3>
+                          <button
+                            onClick={() => toggleCat(category)}
+                            className="w-full flex items-center gap-2 pb-1 border-b border-gray-100 text-left hover:border-gray-300 transition-colors"
+                          >
+                            <span className={`text-xs transition-transform duration-150 text-gray-400 ${collapsed ? '' : 'rotate-90'}`}>▶</span>
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">{category}</h3>
                             <span className={`text-xs font-medium ${isOff ? 'text-amber-600' : 'text-gray-400'}`}>{groupPoints.length}</span>
                             {isOff && (
                               <span className="text-xs text-amber-500">≠ {modalCount}</span>
@@ -619,9 +629,9 @@ function DeckEditor({
                             {missing.length > 0 && (
                               <span className="text-xs text-orange-500">{missing.length} missing sentence</span>
                             )}
-                          </div>
+                          </button>
 
-                          {groupPoints.map(p => (
+                          {!collapsed && groupPoints.map(p => (
                             <div key={p.id} className="border-b border-gray-100 last:border-0">
                               {editingId === p.id ? (
                                 <div className="py-2 space-y-1.5">
