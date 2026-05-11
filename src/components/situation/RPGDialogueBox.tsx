@@ -194,13 +194,14 @@ export function RPGDialogueBox({
   const isMyDuoTurn   = !!duo && currentNode.speaker === duo.myRole
   const isPartnerTurn = !!duo && currentNode.speaker === duo.partnerRole
 
-  const npcExpression: VRMExpression     = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
+  const nodeExpr: VRMExpression          = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
+  const npcExpression: VRMExpression     = nodeExpr
   const studentExpression: VRMExpression = isMyDuoTurn
-    ? (isSpeaking ? 'happy' : 'surprised')
+    ? (isSpeaking ? 'happy' : nodeExpr)
     : isStudentTurn
-    ? (EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'surprised')
+    ? nodeExpr
     : 'neutral'
-  const partnerExpression: VRMExpression = isPartnerTurn ? 'surprised' : 'neutral'
+  const partnerExpression: VRMExpression = isPartnerTurn ? nodeExpr : 'neutral'
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col">

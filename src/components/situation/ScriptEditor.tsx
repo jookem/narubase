@@ -360,8 +360,8 @@ function LineRow({
           )}
         </div>
 
-        {/* Expression picker — NPC and student choice lines */}
-        {(isNpc || (!isDuoLine && !isNpc)) && (
+        {/* Expression picker — NPC and duo lines */}
+        {(isNpc || isDuoLine) && (
           <div className="flex gap-0.5">
             {EXPR_OPTIONS.map(ex => (
               <button
