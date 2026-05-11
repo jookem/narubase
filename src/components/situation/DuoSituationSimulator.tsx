@@ -10,7 +10,6 @@ import {
   type VrmGender,
 } from '@/lib/api/situations'
 import { RPGDialogueBox } from './RPGDialogueBox'
-import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 import { toast } from 'sonner'
 
 interface PartnerPresence {
@@ -44,7 +43,7 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
 
   const [currentNodeId, setCurrentNodeId] = useState('start')
   const [transcript, setTranscript] = useState<Array<{ speaker: string; text: string }>>([])
-  const [phase, setPhase] = useState<'waiting' | 'playing' | 'complete'>('waiting')
+  const [phase, setPhase] = useState<'waiting' | 'playing'>('waiting')
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
@@ -126,10 +125,10 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
   }
 
   async function handleComplete(fromPartner: boolean) {
-    setPhase('complete')
-    if (!fromPartner && user && activeSituation) {
-      await saveSituationSession(user.id, activeSituation.id, null, transcript)
+    if (!fromPartner && user) {
+      await saveSituationSession(user.id, situation.id, null, transcript)
     }
+    onExit()
   }
 
   const activeSituation = situation
@@ -157,21 +156,6 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
         <p className="text-xs text-gray-600 max-w-xs text-center">
           Both students need to open this page to begin the scene.
         </p>
-      </div>
-    )
-  }
-
-  // ── Complete screen ─────────────────────────────────────────────
-
-  if (phase === 'complete') {
-    return (
-      <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-4">
-        <CelebrationScreen
-          title="Scene Complete!"
-          subtitle={`Great job in "${situation.title}"!`}
-          onClose={onExit}
-          closeLabel="Back to Situations"
-        />
       </div>
     )
   }
