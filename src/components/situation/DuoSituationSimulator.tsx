@@ -31,8 +31,11 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
 
   const myName = profile?.display_name ?? profile?.full_name ?? ''
   const myRoleIdx = duoRoles.findIndex(r => r.toLowerCase() === myName.toLowerCase())
-  const myRole = myRoleIdx >= 0 ? duoRoles[myRoleIdx] : duoRoles[0]
-  const partnerRole = myRoleIdx === 0 ? duoRoles[1] : duoRoles[0]
+  const myRole    = myRoleIdx >= 0 ? duoRoles[myRoleIdx] : duoRoles[0]
+  const partnerRole = myRoleIdx === 1 ? duoRoles[0] : duoRoles[1]
+
+  // role A (index 0) always on LEFT, role B (index 1) always on RIGHT — consistent across both screens
+  const iAmRoleB = myRoleIdx === 1
 
   const [myVrmUrl, setMyVrmUrl] = useState<string | null>(null)
   const [myAnimationMap, setMyAnimationMap] = useState<Record<string, string>>({})
@@ -177,14 +180,20 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
 
   const isEnd = !currentNode.next
 
+  // left slot = role A (duoRoles[0]), right slot = role B (duoRoles[1])
+  const leftVrmUrl  = iAmRoleB ? (partner?.vrmUrl ?? null)    : myVrmUrl
+  const leftAnim    = iAmRoleB ? (partner?.animationMap ?? {}) : myAnimationMap
+  const rightVrmUrl = iAmRoleB ? myVrmUrl                     : (partner?.vrmUrl ?? null)
+  const rightAnim   = iAmRoleB ? myAnimationMap               : (partner?.animationMap ?? {})
+
   return (
     <RPGDialogueBox
       npc={null}
-      studentVrmUrl={myVrmUrl}
-      studentName={myRole}
+      studentVrmUrl={rightVrmUrl}
+      studentName={duoRoles[1]}
       currentNode={currentNode}
       background={{ color: situation.background_color, imageUrl: situation.background_image_url }}
-      studentAnimationMap={myAnimationMap}
+      studentAnimationMap={rightAnim}
       onExit={onExit}
       onContinue={() => advance(currentNode)}
       onSelectOption={() => {}}
@@ -193,8 +202,9 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
       duo={{
         myRole,
         partnerRole,
-        partnerVrmUrl: partner?.vrmUrl ?? null,
-        partnerAnimationMap: partner?.animationMap,
+        leftRole: duoRoles[0],
+        partnerVrmUrl: leftVrmUrl,
+        partnerAnimationMap: leftAnim,
         onKaraokeAdvance: () => advance(currentNode),
       }}
     />

@@ -19,6 +19,7 @@ const EXPR_MAP: Record<string, VRMExpression> = {
 export interface DuoConfig {
   myRole: string
   partnerRole: string
+  leftRole: string
   partnerVrmUrl?: string | null
   partnerAnimationMap?: Record<string, string>
   onKaraokeAdvance: () => void
@@ -194,14 +195,22 @@ export function RPGDialogueBox({
   const isMyDuoTurn   = !!duo && currentNode.speaker === duo.myRole
   const isPartnerTurn = !!duo && currentNode.speaker === duo.partnerRole
 
-  const nodeExpr: VRMExpression          = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
-  const npcExpression: VRMExpression     = nodeExpr
-  const studentExpression: VRMExpression = isMyDuoTurn
-    ? (isSpeaking ? 'happy' : nodeExpr)
-    : isStudentTurn
-    ? nodeExpr
-    : 'neutral'
-  const partnerExpression: VRMExpression = isPartnerTurn ? nodeExpr : 'neutral'
+  const nodeExpr: VRMExpression = EXPR_MAP[currentNode.expression ?? 'neutral'] ?? 'neutral'
+  const npcExpression: VRMExpression = nodeExpr
+
+  const leftSpeaking  = !!duo && currentNode.speaker === duo.leftRole
+  const rightSpeaking = !!duo && !leftSpeaking && currentNode.speaker !== 'npc'
+  const iAmLeft       = !!duo && duo.myRole === duo.leftRole
+  const leftDim       = duo ? !leftSpeaking  : isStudentTurn
+  const rightDim      = duo ? !rightSpeaking : isNpcTurn
+
+  const partnerExpression: VRMExpression = duo
+    ? (leftSpeaking ? (iAmLeft && isSpeaking ? 'happy' : nodeExpr) : 'neutral')
+    : nodeExpr
+
+  const studentExpression: VRMExpression = duo
+    ? (rightSpeaking ? (!iAmLeft && isSpeaking ? 'happy' : nodeExpr) : 'neutral')
+    : isStudentTurn ? nodeExpr : 'neutral'
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
@@ -231,8 +240,8 @@ export function RPGDialogueBox({
             duo.partnerVrmUrl ? (
               <VRMPortrait
                 url={duo.partnerVrmUrl}
-                label={duo.partnerRole}
-                dim={isMyDuoTurn || isNpcTurn}
+                label={duo.leftRole}
+                dim={leftDim}
                 expression={partnerExpression}
                 facingDirection="right"
                 animationMap={duo.partnerAnimationMap}
@@ -242,9 +251,9 @@ export function RPGDialogueBox({
             ) : (
               <FallbackPortrait
                 color="#6366f1"
-                initial={duo.partnerRole[0] ?? 'P'}
-                label={duo.partnerRole}
-                dim={isMyDuoTurn || isNpcTurn}
+                initial={duo.leftRole[0] ?? 'P'}
+                label={duo.leftRole}
+                dim={leftDim}
                 side="left"
                 isDesktop
               />
@@ -254,8 +263,8 @@ export function RPGDialogueBox({
               {duo.partnerVrmUrl ? (
                 <VRMPortrait
                   url={duo.partnerVrmUrl}
-                  label={duo.partnerRole}
-                  dim={isMyDuoTurn || isNpcTurn}
+                  label={duo.leftRole}
+                  dim={leftDim}
                   expression={partnerExpression}
                   facingDirection="right"
                   animationMap={duo.partnerAnimationMap}
@@ -265,9 +274,9 @@ export function RPGDialogueBox({
               ) : (
                 <FallbackPortrait
                   color="#6366f1"
-                  initial={duo.partnerRole[0] ?? 'P'}
-                  label={duo.partnerRole}
-                  dim={isMyDuoTurn || isNpcTurn}
+                  initial={duo.leftRole[0] ?? 'P'}
+                  label={duo.leftRole}
+                  dim={leftDim}
                   side="left"
                   isDesktop={false}
                 />
@@ -280,7 +289,7 @@ export function RPGDialogueBox({
               <VRMPortrait
                 url={npc.vrm_url}
                 label={npc.name ?? 'NPC'}
-                dim={isStudentTurn}
+                dim={leftDim}
                 expression={npcExpression}
                 facingDirection="right"
                 animationMap={npcAnimationMap}
@@ -292,7 +301,7 @@ export function RPGDialogueBox({
                 color={npc?.placeholder_color ?? '#6366f1'}
                 initial={npc?.name?.[0] ?? 'N'}
                 label={npc?.name ?? 'NPC'}
-                dim={isStudentTurn}
+                dim={leftDim}
                 side="left"
                 isDesktop
               />
@@ -303,7 +312,7 @@ export function RPGDialogueBox({
                 <VRMPortrait
                   url={npc.vrm_url}
                   label={npc.name ?? 'NPC'}
-                  dim={isStudentTurn}
+                  dim={leftDim}
                   expression={npcExpression}
                   facingDirection="right"
                   animationMap={npcAnimationMap}
@@ -315,7 +324,7 @@ export function RPGDialogueBox({
                   color={npc?.placeholder_color ?? '#6366f1'}
                   initial={npc?.name?.[0] ?? 'N'}
                   label={npc?.name ?? 'NPC'}
-                  dim={isStudentTurn}
+                  dim={leftDim}
                   side="left"
                   isDesktop={false}
                 />
@@ -330,7 +339,7 @@ export function RPGDialogueBox({
             <VRMPortrait
               url={studentVrmUrl}
               label={studentName}
-              dim={isNpcTurn || isPartnerTurn}
+              dim={rightDim}
               expression={studentExpression}
               facingDirection="left"
               animationMap={studentAnimationMap}
@@ -342,7 +351,7 @@ export function RPGDialogueBox({
               color="#f59e0b"
               initial={studentName?.[0] ?? 'S'}
               label={studentName}
-              dim={isNpcTurn || isPartnerTurn}
+              dim={rightDim}
               side="right"
               isDesktop
             />
@@ -353,7 +362,7 @@ export function RPGDialogueBox({
               <VRMPortrait
                 url={studentVrmUrl}
                 label={studentName}
-                dim={isNpcTurn || isPartnerTurn}
+                dim={rightDim}
                 expression={studentExpression}
                 facingDirection="left"
                 animationMap={studentAnimationMap}
@@ -365,7 +374,7 @@ export function RPGDialogueBox({
                 color="#f59e0b"
                 initial={studentName?.[0] ?? 'S'}
                 label={studentName}
-                dim={isNpcTurn || isPartnerTurn}
+                dim={rightDim}
                 side="right"
                 isDesktop={false}
               />

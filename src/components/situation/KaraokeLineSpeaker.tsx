@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSpeechKaraoke, PASS_THRESHOLD } from '@/hooks/useSpeechKaraoke'
 
 interface Props {
@@ -8,14 +8,33 @@ interface Props {
   onListeningChange?: (listening: boolean) => void
 }
 
+const MAX_ATTEMPTS = 2
+
 export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningChange }: Props) {
-  const { tokens, matchedCount, listening, transcript, passed, isSupported, startListening, stopListening, reset } =
+  const { tokens, matchedCount, listening, transcript, passed, isSupported, startListening, stopListening, reset, forcePass } =
     useSpeechKaraoke(text, onPassed)
 
   useEffect(() => { onListeningChange?.(listening) }, [listening])
 
   const pct = tokens.length > 0 ? matchedCount / tokens.length : 0
   const failed = !listening && transcript.length > 0 && !passed
+
+  // Track failed attempts and auto-advance after MAX_ATTEMPTS
+  const [attempts, setAttempts] = useState(0)
+  const prevFailedRef = useRef(false)
+  useEffect(() => {
+    if (failed && !prevFailedRef.current) {
+      setAttempts(a => {
+        const next = a + 1
+        if (next >= MAX_ATTEMPTS) forcePass()
+        return next
+      })
+    }
+    prevFailedRef.current = failed
+  }, [failed])
+
+  // Reset attempt counter when sentence changes
+  useEffect(() => { setAttempts(0) }, [text])
 
   return (
     <div className="px-5 pt-4 pb-5 space-y-4">
@@ -85,6 +104,13 @@ export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningCha
                 Try again
               </button>
             )}
+
+            <button
+              onClick={forcePass}
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Skip →
+            </button>
           </>
         )}
 
@@ -104,9 +130,9 @@ export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningCha
         </p>
       )}
 
-      {failed && (
+      {failed && attempts < MAX_ATTEMPTS && (
         <p className="text-center text-xs text-gray-500">
-          Need {Math.round(PASS_THRESHOLD * 100)}% of words — try again
+          Need {Math.round(PASS_THRESHOLD * 100)}% of words — try again ({MAX_ATTEMPTS - attempts} left)
         </p>
       )}
     </div>

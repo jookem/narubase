@@ -95,5 +95,11 @@ export function useSpeechKaraoke(sentence: string, onPassed?: () => void) {
     bestRef.current = 0
   }
 
-  return { tokens, matchedCount, listening, transcript, passed, isSupported, startListening, stopListening, reset }
+  function forcePass() {
+    recRef.current?.stop()
+    setPassed(true)
+    onPassedRef.current?.()
+  }
+
+  return { tokens, matchedCount, listening, transcript, passed, isSupported, startListening, stopListening, reset, forcePass }
 }
