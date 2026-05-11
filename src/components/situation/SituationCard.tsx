@@ -33,6 +33,11 @@ export function SituationCard({ situation, emoji, onSelect, disabled }: Props) {
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${difficultyBadge[situation.difficulty]}`}>
               {situation.difficulty}
             </span>
+            {situation.mode === 'duo' && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-purple-200 bg-purple-50 text-purple-700">
+                🎭 Duo
+              </span>
+            )}
           </div>
           <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{situation.description}</p>
           {situation.npc && (

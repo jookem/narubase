@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -58,6 +59,7 @@ const PREVIEW_EXPRESSIONS: { id: VRMExpression; emoji: string; label: string }[]
 
 export function SituationSimulator() {
   const { user, profile } = useAuth()
+  const navigate = useNavigate()
 
   const [situations, setSituations] = useState<Situation[]>([])
   const [loading, setLoading] = useState(true)
@@ -168,6 +170,11 @@ export function SituationSimulator() {
   }
 
   async function handleSituationSelect(situation: Situation) {
+    if (situation.mode === 'duo') {
+      navigate(`/duo/${situation.id}`)
+      return
+    }
+
     setScriptLoading(true)
 
     if (situation.mode === 'llm') {
