@@ -52,10 +52,32 @@ export function StudentDetailPage() {
     if (!user || !studentId) return
     const loadId = ++loadIdRef.current
 
+    // Fetch group lesson IDs where this student is a secondary participant first,
+    // so we can include them in the main lessons query via OR.
+    const { data: participations } = await supabase
+      .from('lesson_participants')
+      .select('lesson_id')
+      .eq('student_id', studentId)
+
+    if (loadId !== loadIdRef.current) return
+
+    const participantIds = (participations ?? []).map((p: any) => p.lesson_id)
+
+    const lessonsSelect = '*, lesson_notes(*), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))'
+    const lessonsBase = supabase.from('lessons').select(lessonsSelect)
+      .eq('teacher_id', user.id)
+      .neq('status', 'cancelled')
+      .order('scheduled_start', { ascending: false })
+      .limit(10)
+
+    const lessonsQuery = participantIds.length > 0
+      ? lessonsBase.or(`student_id.eq.${studentId},id.in.(${participantIds.join(',')})`)
+      : lessonsBase.eq('student_id', studentId)
+
     const [studentResult, goalsResult, lessonsResult, snapshotsResult, detailsResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', studentId).single(),
       supabase.from('student_goals').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('lessons').select('*, lesson_notes(*), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))').eq('teacher_id', user.id).eq('student_id', studentId).neq('status', 'cancelled').order('scheduled_start', { ascending: false }).limit(10),
+      lessonsQuery,
       supabase.from('progress_snapshots').select('*').eq('student_id', studentId).eq('teacher_id', user.id).order('snapshot_date', { ascending: false }),
       supabase.from('student_details').select('*').eq('student_id', studentId).maybeSingle(),
     ])
@@ -489,7 +511,7 @@ export function StudentDetailPage() {
                         {lesson.group_name ?? 'Group'}
                       </span>
                     )}
-                    {lesson.lesson_notes && (
+                    {(lesson.lesson_notes ?? []).some((n: any) => n.student_id === null || n.student_id === studentId) && (
                       <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">Notes</span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
