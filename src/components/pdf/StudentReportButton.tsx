@@ -27,6 +27,33 @@ export function StudentReportButton({ student, details, goals, latestSnapshot, t
         .eq('status', 'completed')
         .order('scheduled_start', { ascending: false })
 
+      // Fetch image attachments for all lessons and generate signed URLs
+      const lessonIds = (lessons ?? []).map((l: any) => l.id)
+      const attachmentsByLesson: Record<string, { url: string; file_name: string }[]> = {}
+
+      if (lessonIds.length > 0) {
+        const { data: attachmentRows } = await supabase
+          .from('lesson_attachments')
+          .select('*')
+          .in('lesson_id', lessonIds)
+          .ilike('mime_type', 'image/%')
+          .order('created_at')
+
+        if (attachmentRows?.length) {
+          await Promise.all(
+            attachmentRows.map(async (a: any) => {
+              const { data: urlData } = await supabase.storage
+                .from('lesson-attachments')
+                .createSignedUrl(a.storage_path, 3600)
+              const url = urlData?.signedUrl
+              if (!url) return
+              if (!attachmentsByLesson[a.lesson_id]) attachmentsByLesson[a.lesson_id] = []
+              attachmentsByLesson[a.lesson_id].push({ url, file_name: a.file_name })
+            })
+          )
+        }
+      }
+
       const blob = await pdf(
         <StudentReportPDF
           student={student}
@@ -34,6 +61,7 @@ export function StudentReportButton({ student, details, goals, latestSnapshot, t
           goals={goals}
           latestSnapshot={latestSnapshot}
           lessons={lessons ?? []}
+          attachmentsByLesson={attachmentsByLesson}
           teacherName={teacherName}
         />
       ).toBlob()

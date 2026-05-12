@@ -1,4 +1,4 @@
-import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, View, Text, StyleSheet, Image } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { registerFonts } from './fonts'
 
@@ -86,6 +86,9 @@ const s = StyleSheet.create({
 
   noNotes: { fontSize: 8.5, color: '#9CA3AF', fontStyle: 'italic' },
 
+  imgGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  img: { width: 155, height: 115, borderRadius: 3, objectFit: 'cover' },
+
   footer: { position: 'absolute', bottom: 18, left: 36, right: 36, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 5 },
   footerText: { fontSize: 7, color: GRAY },
 })
@@ -110,6 +113,7 @@ type Props = {
   latestSnapshot: any
   lessons: any[]
   teacherName: string
+  attachmentsByLesson: Record<string, { url: string; file_name: string }[]>
 }
 
 function pickNotes(lesson: any, studentId: string) {
@@ -126,7 +130,7 @@ function pickNotes(lesson: any, studentId: string) {
     : (studentNote ?? groupNote ?? arr[0])
 }
 
-export function StudentReportPDF({ student, details: d, goals, latestSnapshot, lessons, teacherName }: Props) {
+export function StudentReportPDF({ student, details: d, goals, latestSnapshot, lessons, teacherName, attachmentsByLesson }: Props) {
   const isAdult = d?.grade === 'adult' || d?.grade === 'university' || d?.grade === 'other'
   const activeGoals = goals.filter(g => g.status === 'active')
   const otherGoals = goals.filter(g => g.status !== 'active')
@@ -271,8 +275,9 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
           const notes = pickNotes(lesson, student.id)
           const vocab: any[] = notes?.vocabulary ?? []
           const grammar: any[] = notes?.grammar_points ?? []
+          const images = attachmentsByLesson[lesson.id] ?? []
           const hasContent = notes?.summary || vocab.length > 0 || grammar.length > 0
-            || notes?.homework || notes?.strengths || notes?.areas_to_focus
+            || notes?.homework || notes?.strengths || notes?.areas_to_focus || images.length > 0
 
           return (
             <View key={lesson.id} style={s.lessonCard}>
@@ -360,6 +365,17 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
                     <View style={s.privateBox}>
                       <Text style={s.subLabel}>Private Notes</Text>
                       <Text style={s.body}>{notes.teacher_notes}</Text>
+                    </View>
+                  )}
+
+                  {images.length > 0 && (
+                    <View style={{ marginTop: 6 }}>
+                      <Text style={s.subLabel}>Images ({images.length})</Text>
+                      <View style={s.imgGrid}>
+                        {images.map((img, i) => (
+                          <Image key={i} src={img.url} style={s.img} />
+                        ))}
+                      </View>
                     </View>
                   )}
                 </>
