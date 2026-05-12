@@ -8,21 +8,29 @@ export function registerFonts() {
   if (registered) return
   registered = true
 
-  // Latin subset — English labels, dates, headings
+  // Noto Sans JP has no true italic — register regular as the italic fallback for both weights
+  const latinR = `${BASE}/noto-sans-jp-latin-400-normal.woff2`
+  const latinB = `${BASE}/noto-sans-jp-latin-700-normal.woff2`
+  const jpR    = `${BASE}/noto-sans-jp-japanese-400-normal.woff2`
+  const jpB    = `${BASE}/noto-sans-jp-japanese-700-normal.woff2`
+
   Font.register({
     family: 'NotoJP-Latin',
     fonts: [
-      { src: `${BASE}/noto-sans-jp-latin-400-normal.woff2`, fontWeight: 400 },
-      { src: `${BASE}/noto-sans-jp-latin-700-normal.woff2`, fontWeight: 700 },
+      { src: latinR, fontWeight: 400 },
+      { src: latinB, fontWeight: 700 },
+      { src: latinR, fontWeight: 400, fontStyle: 'italic' },
+      { src: latinB, fontWeight: 700, fontStyle: 'italic' },
     ],
   })
 
-  // Japanese subset — lesson notes, vocabulary, grammar (may contain kanji/kana)
   Font.register({
     family: 'NotoJP',
     fonts: [
-      { src: `${BASE}/noto-sans-jp-japanese-400-normal.woff2`, fontWeight: 400 },
-      { src: `${BASE}/noto-sans-jp-japanese-700-normal.woff2`, fontWeight: 700 },
+      { src: jpR, fontWeight: 400 },
+      { src: jpB, fontWeight: 700 },
+      { src: jpR, fontWeight: 400, fontStyle: 'italic' },
+      { src: jpB, fontWeight: 700, fontStyle: 'italic' },
     ],
   })
 
