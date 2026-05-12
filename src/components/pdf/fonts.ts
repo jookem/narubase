@@ -9,10 +9,10 @@ export function registerFonts() {
   registered = true
 
   // Noto Sans JP has no true italic — register regular as the italic fallback for both weights
-  const latinR = `${BASE}/noto-sans-jp-latin-400-normal.woff2`
-  const latinB = `${BASE}/noto-sans-jp-latin-700-normal.woff2`
-  const jpR    = `${BASE}/noto-sans-jp-japanese-400-normal.woff2`
-  const jpB    = `${BASE}/noto-sans-jp-japanese-700-normal.woff2`
+  const latinR = `${BASE}/noto-sans-jp-latin-400-normal.woff`
+  const latinB = `${BASE}/noto-sans-jp-latin-700-normal.woff`
+  const jpR    = `${BASE}/noto-sans-jp-japanese-400-normal.woff`
+  const jpB    = `${BASE}/noto-sans-jp-japanese-700-normal.woff`
 
   Font.register({
     family: 'NotoJP-Latin',
