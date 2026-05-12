@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
 import { StudentProfilePDF } from '@/components/pdf/StudentProfilePDF'
+import { StudentReportButton } from '@/components/pdf/StudentReportButton'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
@@ -170,7 +171,15 @@ export function StudentDetailPage() {
               />
             }
             filename={`${student.full_name.replace(/\s+/g, '-').toLowerCase()}-profile.pdf`}
-            label="Export PDF"
+            label="Profile PDF"
+          />
+          <StudentReportButton
+            student={student}
+            details={details}
+            goals={goals}
+            latestSnapshot={snapshots[0] ?? null}
+            teacherName={profile?.full_name ?? ''}
+            teacherId={user!.id}
           />
         </div>
       </div>
