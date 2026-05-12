@@ -23,7 +23,7 @@ export function StudentReportButton({ student, details, goals, latestSnapshot, t
         .select('*, lesson_notes(*), lesson_participants(student:profiles!lesson_participants_student_id_fkey(full_name))')
         .eq('teacher_id', teacherId)
         .eq('student_id', student.id)
-        .neq('status', 'cancelled')
+        .eq('status', 'completed')
         .order('scheduled_start', { ascending: false })
 
       const blob = await pdf(

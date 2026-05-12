@@ -1,5 +1,8 @@
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
 import { format } from 'date-fns'
+import { registerFonts } from './fonts'
+
+registerFonts()
 
 const BRAND = '#3D3DB4'
 const BRAND_LIGHT = '#EEF0FC'
@@ -11,18 +14,18 @@ const ORANGE_LIGHT = '#FFF7ED'
 const ORANGE = '#EA580C'
 
 const s = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, color: DARK, padding: 36, paddingBottom: 44 },
+  page: { fontFamily: 'NotoSansJP', fontSize: 10, color: DARK, padding: 36, paddingBottom: 44 },
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: BRAND },
   headerLeft: { flex: 1 },
-  schoolName: { fontSize: 7, color: BRAND, fontFamily: 'Helvetica-Bold', letterSpacing: 1.5, marginBottom: 2 },
-  studentName: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: BRAND, marginBottom: 2 },
+  schoolName: { fontSize: 7, color: BRAND, fontWeight: 700, letterSpacing: 1.5, marginBottom: 2 },
+  studentName: { fontSize: 18, fontWeight: 700, color: BRAND, marginBottom: 2 },
   studentMeta: { fontSize: 9, color: GRAY },
   headerRight: { alignItems: 'flex-end' },
   metaLine: { fontSize: 8, color: GRAY, textAlign: 'right', marginBottom: 1 },
 
   section: { marginBottom: 10 },
-  sectionLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: GRAY, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4, paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  sectionLabel: { fontSize: 7, fontWeight: 700, color: GRAY, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4, paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
 
   row2: { flexDirection: 'row', gap: 14 },
   col: { flex: 1 },
@@ -33,7 +36,7 @@ const s = StyleSheet.create({
   goalItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   goalTitle: { fontSize: 9, color: DARK, flex: 1 },
   goalDate: { fontSize: 8, color: GRAY, marginLeft: 6 },
-  goalBadge: { fontSize: 7, paddingVertical: 2, paddingHorizontal: 5, borderRadius: 8, fontFamily: 'Helvetica-Bold' },
+  goalBadge: { fontSize: 7, fontWeight: 700, paddingVertical: 2, paddingHorizontal: 5, borderRadius: 8 },
   badgeActive: { backgroundColor: BRAND_LIGHT, color: BRAND },
   badgeAchieved: { backgroundColor: GREEN_LIGHT, color: GREEN },
   badgeOther: { backgroundColor: '#F3F4F6', color: GRAY },
@@ -43,37 +46,35 @@ const s = StyleSheet.create({
   skillBarBg: { flex: 1, height: 6, backgroundColor: '#E5E7EB', borderRadius: 3, marginHorizontal: 7 },
   skillBarFill: { height: 6, backgroundColor: BRAND, borderRadius: 3 },
   skillScore: { fontSize: 9, color: DARK, width: 18, textAlign: 'right' },
-  cefrBadge: { backgroundColor: BRAND, color: '#FFFFFF', fontSize: 8, fontFamily: 'Helvetica-Bold', paddingVertical: 2, paddingHorizontal: 7, borderRadius: 3, alignSelf: 'flex-start', marginBottom: 6 },
+  cefrBadge: { backgroundColor: BRAND, color: '#FFFFFF', fontSize: 8, fontWeight: 700, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 3, alignSelf: 'flex-start', marginBottom: 6 },
   notesBox: { backgroundColor: '#F9FAFB', padding: 7, borderRadius: 3, fontSize: 9, color: DARK, lineHeight: 1.4 },
 
-  // Divider between profile and lesson history
   historyDivider: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 10, paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: BRAND },
-  historyTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: BRAND },
+  historyTitle: { fontSize: 12, fontWeight: 700, color: BRAND },
   historyCount: { fontSize: 8, color: GRAY },
 
-  // Lesson card — no wrap:false so long cards can split across pages naturally
   lessonCard: { marginBottom: 10, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 5, padding: 8 },
   lessonCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  lessonDate: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: DARK },
+  lessonDate: { fontSize: 10, fontWeight: 700, color: DARK },
   lessonTime: { fontSize: 8, color: GRAY, marginTop: 1 },
   badgeRow: { flexDirection: 'row', gap: 3, alignItems: 'center' },
-  badge: { fontSize: 7, paddingVertical: 2, paddingHorizontal: 5, borderRadius: 8, fontFamily: 'Helvetica-Bold' },
+  badge: { fontSize: 7, fontWeight: 700, paddingVertical: 2, paddingHorizontal: 5, borderRadius: 8 },
   badgeCompleted: { backgroundColor: GREEN_LIGHT, color: GREEN },
   badgeScheduled: { backgroundColor: BRAND_LIGHT, color: BRAND },
   badgeType: { backgroundColor: '#F3F4F6', color: GRAY },
   badgeGroup: { backgroundColor: '#F3E8FF', color: '#7C3AED' },
 
-  subLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: GRAY, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 },
+  subLabel: { fontSize: 7, fontWeight: 700, color: GRAY, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 },
   body: { fontSize: 9, color: DARK, lineHeight: 1.45 },
 
   vocabItem: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 3, backgroundColor: BRAND_LIGHT, padding: 4, borderRadius: 3 },
-  vocabWord: { fontFamily: 'Helvetica-Bold', color: BRAND, fontSize: 9 },
+  vocabWord: { fontWeight: 700, color: BRAND, fontSize: 9 },
   vocabDash: { color: GRAY, marginHorizontal: 3 },
   vocabDef: { color: DARK, fontSize: 9, flex: 1 },
   vocabExample: { fontSize: 7.5, color: GRAY, fontStyle: 'italic', marginTop: 1 },
 
   grammarItem: { backgroundColor: GREEN_LIGHT, padding: 4, borderRadius: 3, marginBottom: 3 },
-  grammarPoint: { fontFamily: 'Helvetica-Bold', color: GREEN, fontSize: 9, marginBottom: 1 },
+  grammarPoint: { fontWeight: 700, color: GREEN, fontSize: 9, marginBottom: 1 },
   grammarExp: { color: DARK, fontSize: 8 },
 
   sideBySide: { flexDirection: 'row', gap: 8, marginTop: 5 },
@@ -109,6 +110,20 @@ type Props = {
   teacherName: string
 }
 
+function pickNotes(lesson: any, studentId: string) {
+  const arr: any[] = Array.isArray(lesson.lesson_notes)
+    ? lesson.lesson_notes
+    : lesson.lesson_notes ? [lesson.lesson_notes] : []
+  if (arr.length === 0) return null
+  // Group lesson: show the shared note (student_id IS NULL)
+  // Individual lesson: show the per-student note, fall back to shared
+  const groupNote = arr.find((n: any) => n.student_id === null)
+  const studentNote = arr.find((n: any) => n.student_id === studentId)
+  return lesson.is_group
+    ? (groupNote ?? studentNote ?? arr[0])
+    : (studentNote ?? groupNote ?? arr[0])
+}
+
 export function StudentReportPDF({ student, details: d, goals, latestSnapshot, lessons, teacherName }: Props) {
   const isAdult = d?.grade === 'adult' || d?.grade === 'university' || d?.grade === 'other'
   const activeGoals = goals.filter(g => g.status === 'active')
@@ -123,19 +138,16 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
       ]
     : []
 
-  const sortedLessons = [...lessons].sort(
-    (a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()
-  )
+  // Only completed lessons, newest first
+  const completedLessons = lessons
+    .filter(l => l.status === 'completed')
+    .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime())
 
   return (
     <Document>
-      {/*
-        Single Page — react-pdf auto-overflows content to new A4 pages.
-        No forced page break between profile and lesson history.
-      */}
       <Page size="A4" style={s.page}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={s.header}>
           <View style={s.headerLeft}>
             <Text style={s.schoolName}>NARUBASE</Text>
@@ -145,13 +157,12 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
           <View style={s.headerRight}>
             <Text style={s.metaLine}>Teacher: {teacherName}</Text>
             <Text style={s.metaLine}>Generated: {format(new Date(), 'MMM d, yyyy')}</Text>
-            <Text style={s.metaLine}>{lessons.length} lesson{lessons.length !== 1 ? 's' : ''} recorded</Text>
+            <Text style={s.metaLine}>{completedLessons.length} completed lesson{completedLessons.length !== 1 ? 's' : ''}</Text>
           </View>
         </View>
 
-        {/* ── Profile: two-column layout ── */}
+        {/* Profile — two columns */}
         <View style={s.row2}>
-          {/* Left column */}
           <View style={s.col}>
             {d && (d.age || d.grade || d.school_name || d.occupation) && (
               <View style={s.section}>
@@ -198,7 +209,6 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
             )}
           </View>
 
-          {/* Right column */}
           <View style={s.col}>
             {latestSnapshot && (
               <View style={s.section}>
@@ -245,21 +255,18 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
           </View>
         </View>
 
-        {/* ── Lesson History divider ── */}
+        {/* Lesson history divider */}
         <View style={s.historyDivider}>
           <Text style={s.historyTitle}>Lesson History</Text>
-          <Text style={s.historyCount}>{lessons.length} lesson{lessons.length !== 1 ? 's' : ''}, newest first</Text>
+          <Text style={s.historyCount}>{completedLessons.length} completed lesson{completedLessons.length !== 1 ? 's' : ''}, newest first</Text>
         </View>
 
-        {sortedLessons.length === 0 && (
-          <Text style={s.noNotes}>No lessons recorded yet.</Text>
+        {completedLessons.length === 0 && (
+          <Text style={s.noNotes}>No completed lessons recorded yet.</Text>
         )}
 
-        {sortedLessons.map(lesson => {
-          const notes = Array.isArray(lesson.lesson_notes)
-            ? lesson.lesson_notes[0]
-            : lesson.lesson_notes
-
+        {completedLessons.map(lesson => {
+          const notes = pickNotes(lesson, student.id)
           const vocab: any[] = notes?.vocabulary ?? []
           const grammar: any[] = notes?.grammar_points ?? []
           const hasContent = notes?.summary || vocab.length > 0 || grammar.length > 0
@@ -267,7 +274,6 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
 
           return (
             <View key={lesson.id} style={s.lessonCard}>
-              {/* Card header — keep on same page as at least the first line of content */}
               <View style={s.lessonCardHeader} wrap={false}>
                 <View>
                   <Text style={s.lessonDate}>
@@ -281,9 +287,6 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
                 </View>
                 <View style={s.badgeRow}>
                   <Text style={[s.badge, s.badgeType]}>{lesson.lesson_type}</Text>
-                  <Text style={[s.badge, lesson.status === 'completed' ? s.badgeCompleted : s.badgeScheduled]}>
-                    {lesson.status}
-                  </Text>
                   {lesson.is_group && (
                     <Text style={[s.badge, s.badgeGroup]}>{lesson.group_name ?? 'group'}</Text>
                   )}
@@ -363,7 +366,6 @@ export function StudentReportPDF({ student, details: d, goals, latestSnapshot, l
           )
         })}
 
-        {/* Footer repeats on every page */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>NaruBase · Confidential</Text>
           <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${student.full_name} · p. ${pageNumber} / ${totalPages}`} />
