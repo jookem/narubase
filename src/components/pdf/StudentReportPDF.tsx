@@ -14,7 +14,9 @@ const ORANGE_LIGHT = '#FFF7ED'
 const ORANGE = '#EA580C'
 
 const s = StyleSheet.create({
-  page: { fontFamily: 'NotoSansJP', fontSize: 10, color: DARK, padding: 36, paddingBottom: 44 },
+  // Latin font is the page default (covers all English structural text).
+  // Content that may contain Japanese uses fontFamily: 'NotoJP' explicitly.
+  page: { fontFamily: 'NotoJP-Latin', fontSize: 10, color: DARK, padding: 36, paddingBottom: 44 },
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: BRAND },
   headerLeft: { flex: 1 },
@@ -47,7 +49,7 @@ const s = StyleSheet.create({
   skillBarFill: { height: 6, backgroundColor: BRAND, borderRadius: 3 },
   skillScore: { fontSize: 9, color: DARK, width: 18, textAlign: 'right' },
   cefrBadge: { backgroundColor: BRAND, color: '#FFFFFF', fontSize: 8, fontWeight: 700, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 3, alignSelf: 'flex-start', marginBottom: 6 },
-  notesBox: { backgroundColor: '#F9FAFB', padding: 7, borderRadius: 3, fontSize: 9, color: DARK, lineHeight: 1.4 },
+  notesBox: { fontFamily: 'NotoJP', backgroundColor: '#F9FAFB', padding: 7, borderRadius: 3, fontSize: 9, color: DARK, lineHeight: 1.4 },
 
   historyDivider: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 10, paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: BRAND },
   historyTitle: { fontSize: 12, fontWeight: 700, color: BRAND },
@@ -65,15 +67,15 @@ const s = StyleSheet.create({
   badgeGroup: { backgroundColor: '#F3E8FF', color: '#7C3AED' },
 
   subLabel: { fontSize: 7, fontWeight: 700, color: GRAY, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 },
-  body: { fontSize: 9, color: DARK, lineHeight: 1.45 },
+  body: { fontFamily: 'NotoJP', fontSize: 9, color: DARK, lineHeight: 1.45 },
 
-  vocabItem: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 3, backgroundColor: BRAND_LIGHT, padding: 4, borderRadius: 3 },
+  vocabItem: { fontFamily: 'NotoJP', flexDirection: 'row', flexWrap: 'wrap', marginBottom: 3, backgroundColor: BRAND_LIGHT, padding: 4, borderRadius: 3 },
   vocabWord: { fontWeight: 700, color: BRAND, fontSize: 9 },
   vocabDash: { color: GRAY, marginHorizontal: 3 },
   vocabDef: { color: DARK, fontSize: 9, flex: 1 },
   vocabExample: { fontSize: 7.5, color: GRAY, fontStyle: 'italic', marginTop: 1 },
 
-  grammarItem: { backgroundColor: GREEN_LIGHT, padding: 4, borderRadius: 3, marginBottom: 3 },
+  grammarItem: { fontFamily: 'NotoJP', backgroundColor: GREEN_LIGHT, padding: 4, borderRadius: 3, marginBottom: 3 },
   grammarPoint: { fontWeight: 700, color: GREEN, fontSize: 9, marginBottom: 1 },
   grammarExp: { color: DARK, fontSize: 8 },
 

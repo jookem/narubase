@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { StudentReportPDF } from './StudentReportPDF'
 
 type Props = {
@@ -43,6 +44,9 @@ export function StudentReportButton({ student, details, goals, latestSnapshot, t
       a.download = `${student.full_name.replace(/\s+/g, '-').toLowerCase()}-full-report.pdf`
       a.click()
       URL.revokeObjectURL(url)
+    } catch (err: any) {
+      console.error('PDF generation failed:', err)
+      toast.error(`PDF generation failed: ${err?.message ?? 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
