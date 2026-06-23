@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { Link } from 'react-router-dom'
 import { Plus, Trash2, ChevronUp, ChevronDown, ArrowLeft, Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -985,6 +986,14 @@ export function ScriptEditorSection() {
                   <p className="font-semibold text-sm text-gray-900 truncate">{sit.title}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{npc?.name ?? 'No character'} · {sit.difficulty}</p>
                 </div>
+                {sit.mode === 'duo' && (
+                  <Link
+                    to={`/duo/${sit.id}`}
+                    className="px-3 py-1.5 text-xs rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors shrink-0"
+                  >
+                    Open Session
+                  </Link>
+                )}
                 <button
                   onClick={() => setEditingSituation(sit)}
                   className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:border-brand hover:text-brand transition-colors shrink-0"

@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import type { SituationNpc, Situation, VrmGender } from '@/lib/api/situations'
 import { listSituations, listNpcs, listVrmAnimations } from '@/lib/api/situations'
 import type { VRMExpression } from '@/components/vrm/VRMViewer'
 import { Upload, ImageIcon } from 'lucide-react'
 import { VRMViewer } from '@/components/vrm/VRMViewer'
-import { ScriptEditorSection, LineEditorView } from '@/components/situation/ScriptEditor'
+import { ScriptEditorSection } from '@/components/situation/ScriptEditor'
 
 // ── Storage helpers ────────────────────────────────────────────────
 
@@ -467,15 +466,12 @@ type SituationMode = 'scripted' | 'hybrid' | 'llm' | 'duo'
 
 function SituationsSection() {
   const [situations, setSituations] = useState<Situation[]>([])
-  const [npcs, setNpcs] = useState<SituationNpc[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
-  const [editingSituation, setEditingSituation] = useState<Situation | null>(null)
 
   useEffect(() => {
-    Promise.all([listSituations(), listNpcs()]).then(([{ situations: s }, ns]) => {
+    listSituations().then(({ situations: s }) => {
       setSituations(s ?? [])
-      setNpcs(ns)
       setLoading(false)
     })
   }, [])
@@ -489,21 +485,6 @@ function SituationsSection() {
   }
 
   if (loading) return <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />
-
-  if (editingSituation) {
-    return (
-      <LineEditorView
-        situation={editingSituation}
-        npcs={npcs}
-        onNpcsChange={setNpcs}
-        onBack={() => setEditingSituation(null)}
-        onSaved={updated => {
-          setSituations(prev => prev.map(s => s.id === updated.id ? updated : s))
-          setEditingSituation(updated)
-        }}
-      />
-    )
-  }
 
   return (
     <div className="space-y-4">
@@ -522,47 +503,20 @@ function SituationsSection() {
             <p className="text-xs text-gray-400 mt-0.5 truncate">{situation.description}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {situation.mode === 'duo' ? (
-              <>
-                <button
-                  onClick={() => setEditingSituation(situation)}
-                  className="px-3 py-1.5 text-xs rounded-lg font-medium border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition-colors"
-                >
-                  Edit Dialogue
-                </button>
-                <Link
-                  to={`/duo/${situation.id}`}
-                  className="px-3 py-1.5 text-xs rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-                >
-                  Open Session
-                </Link>
-              </>
-            ) : (
-              <>
-                {situation.mode === 'scripted' && (
-                  <button
-                    onClick={() => setEditingSituation(situation)}
-                    className="px-3 py-1.5 text-xs rounded-lg font-medium border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition-colors"
-                  >
-                    Edit Dialogue
-                  </button>
-                )}
-                {(['scripted', 'llm'] as SituationMode[]).map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => handleModeChange(situation, mode)}
-                    disabled={saving === situation.id}
-                    className={`px-3 py-1.5 text-xs rounded-lg capitalize font-medium transition-colors ${
-                      situation.mode === mode
-                        ? mode === 'llm' ? 'bg-violet-600 text-white' : 'bg-brand text-white'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                  >
-                    {mode === 'llm' ? '✨ LLM' : 'Scripted'}
-                  </button>
-                ))}
-              </>
-            )}
+            {situation.mode !== 'duo' && (['scripted', 'llm'] as SituationMode[]).map(mode => (
+              <button
+                key={mode}
+                onClick={() => handleModeChange(situation, mode)}
+                disabled={saving === situation.id}
+                className={`px-3 py-1.5 text-xs rounded-lg capitalize font-medium transition-colors ${
+                  situation.mode === mode
+                    ? mode === 'llm' ? 'bg-violet-600 text-white' : 'bg-brand text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {mode === 'llm' ? '✨ LLM' : 'Scripted'}
+              </button>
+            ))}
           </div>
         </div>
       ))}
@@ -641,7 +595,7 @@ export function SituationsManager() {
         <Tab label="🎬 Animations"  active={tab === 'animations'}  onClick={() => setTab('animations')} />
         <Tab label="🖼️ Backgrounds" active={tab === 'backgrounds'} onClick={() => setTab('backgrounds')} />
         <Tab label="⚙️ Situations"  active={tab === 'situations'}  onClick={() => setTab('situations')} />
-        <Tab label="✏️ Dialogues"   active={tab === 'scripts'}     onClick={() => setTab('scripts')} />
+        <Tab label="✏️ Duo Dialogues" active={tab === 'scripts'}     onClick={() => setTab('scripts')} />
       </div>
 
       {tab === 'npcs'        && <NpcSection />}
