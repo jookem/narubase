@@ -361,6 +361,7 @@ export function KidsGame() {
   function setLetter(i: number) {
     setLetterIndex(i); letterIndexRef.current = i
     setActiveStroke(0); activeStrokeRef.current = 0
+    clearDrawCanvas()
     setTimeout(() => drawGuide(), 40)
   }
   function nextLetter() { setLetter((letterIndex + 1) % 26) }
@@ -610,7 +611,7 @@ export function KidsGame() {
           </div>
           <div style={{ display: 'flex', gap: 8, background: '#FFFFFF', padding: 5, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6', marginBottom: 10 }}>
             {(['upper', 'lower'] as const).map(c => (
-              <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; setTimeout(() => drawGuide(), 40) }}
+              <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 20, padding: '7px 16px', borderRadius: '999px', background: traceCase === c ? '#F2879B' : 'transparent', color: traceCase === c ? '#fff' : '#C7A892', display: 'flex', alignItems: 'center', gap: 4 }}>
                 {c === 'upper' ? 'A' : 'a'} <span style={{ fontSize: 12 }}>{c === 'upper' ? '大もじ' : '小もじ'}</span>
               </button>
