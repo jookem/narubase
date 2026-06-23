@@ -696,18 +696,20 @@ export function LineEditorView({
 
 // ── New situation form ─────────────────────────────────────────────────
 
-function NewSituationForm({
+export function NewSituationForm({
   npcs,
   onNpcsChange,
   onCreated,
   onCancel,
   teacherId,
+  soloOnly = false,
 }: {
   npcs: SituationNpc[]
   onNpcsChange: (npcs: SituationNpc[]) => void
   onCreated: (situation: Situation) => void
   onCancel: () => void
   teacherId: string
+  soloOnly?: boolean
 }) {
   const { user } = useAuth()
   const students = useTeacherStudents(user?.id)
@@ -767,17 +769,19 @@ function NewSituationForm({
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
       <p className="text-sm font-semibold text-gray-800">New Situation</p>
 
-      {/* Mode toggle */}
-      <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-medium w-fit">
-        <button
-          onClick={() => setIsDuo(false)}
-          className={`px-3 py-1.5 transition-colors ${!isDuo ? 'bg-brand text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-        >Standard</button>
-        <button
-          onClick={() => setIsDuo(true)}
-          className={`px-3 py-1.5 transition-colors ${isDuo ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-        >🎭 Duo (karaoke speaking)</button>
-      </div>
+      {/* Mode toggle — hidden when soloOnly */}
+      {!soloOnly && (
+        <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-medium w-fit">
+          <button
+            onClick={() => setIsDuo(false)}
+            className={`px-3 py-1.5 transition-colors ${!isDuo ? 'bg-brand text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+          >Standard</button>
+          <button
+            onClick={() => setIsDuo(true)}
+            className={`px-3 py-1.5 transition-colors ${isDuo ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+          >🎭 Duo (karaoke speaking)</button>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div>

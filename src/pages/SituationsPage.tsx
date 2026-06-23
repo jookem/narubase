@@ -6,7 +6,9 @@ import { listSituations, listNpcs, listVrmAnimations } from '@/lib/api/situation
 import type { VRMExpression } from '@/components/vrm/VRMViewer'
 import { Upload, ImageIcon } from 'lucide-react'
 import { VRMViewer } from '@/components/vrm/VRMViewer'
-import { ScriptEditorSection } from '@/components/situation/ScriptEditor'
+import { ScriptEditorSection, NewSituationForm } from '@/components/situation/ScriptEditor'
+import { useAuth } from '@/contexts/AuthContext'
+import { Plus } from 'lucide-react'
 
 // ── Storage helpers ────────────────────────────────────────────────
 
@@ -465,13 +467,17 @@ function AnimationSection() {
 type SituationMode = 'scripted' | 'hybrid' | 'llm' | 'duo'
 
 function SituationsSection() {
+  const { user } = useAuth()
   const [situations, setSituations] = useState<Situation[]>([])
+  const [npcs, setNpcs] = useState<SituationNpc[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
+  const [showNewForm, setShowNewForm] = useState(false)
 
   useEffect(() => {
-    listSituations().then(({ situations: s }) => {
+    Promise.all([listSituations(), listNpcs()]).then(([{ situations: s }, ns]) => {
       setSituations(s ?? [])
+      setNpcs(ns)
       setLoading(false)
     })
   }, [])
@@ -486,11 +492,38 @@ function SituationsSection() {
 
   if (loading) return <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />
 
+  if (!user) return null
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">
-        Set the conversation mode for each situation. <strong>LLM</strong> uses Claude AI to generate responses in real time — no script needed.
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Set the conversation mode for each situation. <strong>LLM</strong> uses Claude AI to generate responses in real time — no script needed.
+        </p>
+        {!showNewForm && (
+          <button
+            onClick={() => setShowNewForm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors shrink-0 ml-4"
+          >
+            <Plus size={14} /> New Situation
+          </button>
+        )}
+      </div>
+
+      {showNewForm && (
+        <NewSituationForm
+          npcs={npcs}
+          onNpcsChange={setNpcs}
+          teacherId={user.id}
+          soloOnly
+          onCreated={situation => {
+            setSituations(prev => [situation, ...prev])
+            setShowNewForm(false)
+          }}
+          onCancel={() => setShowNewForm(false)}
+        />
+      )}
+
       {situations.filter(s => s.mode !== 'duo').map(situation => (
         <div key={situation.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
           <div className="flex-1 min-w-0">
