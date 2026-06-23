@@ -16,6 +16,7 @@ import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 import { PictureDescription } from '@/components/eiken/PictureDescription'
 import { KaraokeGame } from '@/components/karaoke/KaraokeGame'
 import { SituationSimulator } from '@/components/situation/SituationSimulator'
+import { KidsGame } from '@/components/kids/KidsGame'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 export function GamesPage() {
   const { user } = useAuth()
-  const [tab, setTab] = useState<'train' | 'spelling' | 'picture' | 'karaoke' | 'situation'>('train')
+  const [tab, setTab] = useState<'train' | 'spelling' | 'picture' | 'karaoke' | 'situation' | 'kids'>('train')
 
   // ── Train state ────────────────────────────────────────────────
   const [trainDecks, setTrainDecks] = useState<DeckWithPuzzles[]>([])
@@ -393,12 +394,13 @@ export function GamesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-5">
+      <div className="grid grid-cols-3 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-6">
         <Tab label="🚂 Train" active={tab === 'train'} onClick={() => setTab('train')} />
         <Tab label="🐝 Spelling" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
         <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
         <Tab label="🎤 Karaoke" active={tab === 'karaoke'} onClick={() => setTab('karaoke')} />
         <Tab label="🎭 Situations" active={tab === 'situation'} onClick={() => setTab('situation')} />
+        <Tab label="⭐ Kids" active={tab === 'kids'} onClick={() => setTab('kids')} />
       </div>
 
       {/* ── Train tab ── */}
@@ -563,6 +565,9 @@ export function GamesPage() {
 
       {/* ── Situation Simulator tab ── */}
       {tab === 'situation' && <SituationSimulator />}
+
+      {/* ── Kids Games tab ── */}
+      {tab === 'kids' && <KidsGame />}
 
       {/* ── Spelling Bee tab ── */}
       {tab === 'spelling' && (
