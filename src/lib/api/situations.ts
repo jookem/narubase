@@ -266,6 +266,26 @@ export async function createDuoSituation(
   return { situation: row as Situation }
 }
 
+export async function listStudentDuoSituations(
+  studentName: string,
+): Promise<Situation[]> {
+  const { data } = await supabase
+    .from('situations')
+    .select('*, script:situation_scripts(*)')
+    .eq('mode', 'duo')
+    .eq('is_active', true)
+
+  if (!data) return []
+
+  const name = studentName.toLowerCase()
+  return (data as (Situation & { script: SituationScript[] })[])
+    .filter(s => {
+      const roles = s.script?.[0]?.script?.duo_roles
+      return roles && roles.some((r: string) => r.toLowerCase() === name)
+    })
+    .map(({ script: _script, ...sit }) => sit as Situation)
+}
+
 export async function saveSituationSession(
   studentId: string,
   situationId: string,

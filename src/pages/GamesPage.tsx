@@ -17,6 +17,8 @@ import { PictureDescription } from '@/components/eiken/PictureDescription'
 import { KaraokeGame } from '@/components/karaoke/KaraokeGame'
 import { SituationSimulator } from '@/components/situation/SituationSimulator'
 import { KidsGame } from '@/components/kids/KidsGame'
+import { listStudentDuoSituations, type Situation } from '@/lib/api/situations'
+import { Link } from 'react-router-dom'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -76,8 +78,10 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 // ── Main page ─────────────────────────────────────────────────────
 
 export function GamesPage() {
-  const { user } = useAuth()
-  const [tab, setTab] = useState<'train' | 'spelling' | 'picture' | 'karaoke' | 'situation' | 'kids'>('train')
+  const { user, profile } = useAuth()
+  const [tab, setTab] = useState<'train' | 'spelling' | 'picture' | 'karaoke' | 'situation' | 'kids' | 'duo'>('train')
+  const [duoSituations, setDuoSituations] = useState<Situation[]>([])
+  const [duoLoading, setDuoLoading] = useState(false)
 
   // ── Train state ────────────────────────────────────────────────
   const [trainDecks, setTrainDecks] = useState<DeckWithPuzzles[]>([])
@@ -224,7 +228,17 @@ export function GamesPage() {
     setKaraokeLoading(false)
   }
 
+  async function loadDuo() {
+    if (!user || !profile) return
+    setDuoLoading(true)
+    const name = profile.display_name ?? profile.full_name ?? ''
+    const sits = await listStudentDuoSituations(name)
+    setDuoSituations(sits)
+    setDuoLoading(false)
+  }
+
   useEffect(() => { loadTrain(); loadSpelling(); loadKaraoke() }, [user])
+  useEffect(() => { if (tab === 'duo') loadDuo() }, [tab, user])
 
   // ── Train handlers ─────────────────────────────────────────────
 
@@ -394,13 +408,14 @@ export function GamesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-6">
+      <div className="grid grid-cols-4 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-7">
         <Tab label="🚂 Train" active={tab === 'train'} onClick={() => setTab('train')} />
         <Tab label="🐝 Spelling" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
         <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
         <Tab label="🎤 Karaoke" active={tab === 'karaoke'} onClick={() => setTab('karaoke')} />
         <Tab label="🎭 Situations" active={tab === 'situation'} onClick={() => setTab('situation')} />
         <Tab label="⭐ Kids" active={tab === 'kids'} onClick={() => setTab('kids')} />
+        <Tab label="🎭 Duo" active={tab === 'duo'} onClick={() => setTab('duo')} />
       </div>
 
       {/* ── Train tab ── */}
@@ -568,6 +583,39 @@ export function GamesPage() {
 
       {/* ── Kids Games tab ── */}
       {tab === 'kids' && <KidsGame />}
+
+      {/* ── Duo Sessions tab ── */}
+      {tab === 'duo' && (
+        duoLoading ? (
+          <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
+        ) : duoSituations.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-4xl mb-3">🎭</p>
+              <p className="text-gray-500">デュオセッションはまだありません。</p>
+              <p className="text-sm text-gray-400 mt-1">Your teacher will assign duo sessions here.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {duoSituations.map(sit => (
+              <div key={sit.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-xl shrink-0">🎭</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-gray-900">{sit.title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Duo speaking activity</p>
+                </div>
+                <Link
+                  to={`/duo/${sit.id}`}
+                  className="px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shrink-0"
+                >
+                  Join Session
+                </Link>
+              </div>
+            ))}
+          </div>
+        )
+      )}
 
       {/* ── Spelling Bee tab ── */}
       {tab === 'spelling' && (
