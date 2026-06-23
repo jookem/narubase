@@ -155,6 +155,8 @@ export function KidsGame() {
   const drawCtxRef = useRef<CanvasRenderingContext2D | null>(null)
   const acRef = useRef<AudioContext | null>(null)
   const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wordsQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
+  const spellQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
 
   // Stable refs for values used inside intervals/callbacks
   const screenRef = useRef(screen)
@@ -368,11 +370,20 @@ export function KidsGame() {
   function prevLetter() { setLetter((letterIndex + 25) % 26) }
 
   // ── Tea-Time Words ─────────────────────────────────────────────
+  function nextFromQueue(ref: React.MutableRefObject<{ key: string; indices: number[] }>, poolSize: number, poolKey: string): number {
+    const q = ref.current
+    if (q.key !== poolKey || q.indices.length === 0) {
+      const all = Array.from({ length: poolSize }, (_, i) => i)
+      ref.current = { key: poolKey, indices: shuffleArr(all) }
+    }
+    return ref.current.indices.pop()!
+  }
+
   function setupWords() {
     const useAssigned = assignedVocab.length >= 3
     if (useAssigned) {
       const pool = assignedVocab
-      const ti = Math.floor(Math.random() * pool.length)
+      const ti = nextFromQueue(wordsQueueRef, pool.length, `assigned:${pool.length}`)
       const target = pool[ti]
       const others = shuffleArr(pool.filter((_, k) => k !== ti)).slice(0, 2)
       const opts = shuffleArr([target, ...others]).map(x => x.word)
@@ -382,7 +393,7 @@ export function KidsGame() {
       setScreen('words')
       setTimeout(() => speak(target.word), 350)
     } else {
-      const ti = Math.floor(Math.random() * VOCAB.length)
+      const ti = nextFromQueue(wordsQueueRef, VOCAB.length, `vocab:${VOCAB.length}`)
       const target = VOCAB[ti]
       const others = shuffleArr(VOCAB.filter((_, k) => k !== ti)).slice(0, 2)
       const opts = shuffleArr([target, ...others]).map(x => x[0])
@@ -405,7 +416,7 @@ export function KidsGame() {
       return w.length >= 2 && w.length <= 8 && /^[a-zA-Z]+$/.test(w)
     })
     if (spellable.length > 0) {
-      const ti = Math.floor(Math.random() * spellable.length)
+      const ti = nextFromQueue(spellQueueRef, spellable.length, `assigned:${spellable.length}`)
       const entry = spellable[ti]
       const word = entry.word.trim().toUpperCase()
       const tiles = shuffleArr(word.split('').map((ch, k) => ({ id: k, ch, used: false })))
@@ -415,7 +426,7 @@ export function KidsGame() {
       setScreen('spell')
       setTimeout(() => speak(entry.word), 350)
     } else {
-      const ti = Math.floor(Math.random() * SPELL.length)
+      const ti = nextFromQueue(spellQueueRef, SPELL.length, `spell:${SPELL.length}`)
       const word = SPELL[ti][0].toUpperCase()
       const tiles = shuffleArr(word.split('').map((ch, k) => ({ id: k, ch, used: false })))
       setSWord(word); setSEmoji(SPELL[ti][1]); setSClue(''); setSTiles(tiles)
