@@ -12,7 +12,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'grammar',    label: 'Grammar Decks' },
   { id: 'eiken',      label: 'Eiken Picture Bank' },
   { id: 'puzzles',    label: 'Train Puzzles' },
-  { id: 'situations', label: 'Situations' },
+  { id: 'situations', label: 'Vroid' },
 ]
 
 export function MaterialsPage() {
