@@ -6,7 +6,7 @@ import { listSituations, listNpcs, listVrmAnimations } from '@/lib/api/situation
 import type { VRMExpression } from '@/components/vrm/VRMViewer'
 import { Upload, ImageIcon } from 'lucide-react'
 import { VRMViewer } from '@/components/vrm/VRMViewer'
-import { ScriptEditorSection, NewSituationForm } from '@/components/situation/ScriptEditor'
+import { ScriptEditorSection, NewSituationForm, LineEditorView } from '@/components/situation/ScriptEditor'
 import { useAuth } from '@/contexts/AuthContext'
 import { Plus } from 'lucide-react'
 
@@ -473,6 +473,7 @@ function SituationsSection() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
+  const [editingSituation, setEditingSituation] = useState<Situation | null>(null)
 
   useEffect(() => {
     Promise.all([listSituations(), listNpcs()]).then(([{ situations: s }, ns]) => {
@@ -491,8 +492,22 @@ function SituationsSection() {
   }
 
   if (loading) return <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />
-
   if (!user) return null
+
+  if (editingSituation) {
+    return (
+      <LineEditorView
+        situation={editingSituation}
+        npcs={npcs}
+        onNpcsChange={setNpcs}
+        onBack={() => setEditingSituation(null)}
+        onSaved={updated => {
+          setSituations(prev => prev.map(s => s.id === updated.id ? updated : s))
+          setEditingSituation(updated)
+        }}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -519,6 +534,7 @@ function SituationsSection() {
           onCreated={situation => {
             setSituations(prev => [situation, ...prev])
             setShowNewForm(false)
+            setEditingSituation(situation)
           }}
           onCancel={() => setShowNewForm(false)}
         />
@@ -531,6 +547,14 @@ function SituationsSection() {
             <p className="text-xs text-gray-400 mt-0.5 truncate">{situation.description}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {situation.mode === 'scripted' && (
+              <button
+                onClick={() => setEditingSituation(situation)}
+                className="px-3 py-1.5 text-xs rounded-lg font-medium border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition-colors"
+              >
+                Edit Dialogue
+              </button>
+            )}
             {(['scripted', 'llm'] as SituationMode[]).map(mode => (
               <button
                 key={mode}

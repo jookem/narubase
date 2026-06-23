@@ -968,36 +968,27 @@ export function ScriptEditorSection() {
         />
       )}
 
-      {situations.length === 0 && !showNewForm ? (
+      {situations.filter(s => s.mode === 'duo').length === 0 && !showNewForm ? (
         <div className="text-center py-12 text-gray-400 bg-white border border-gray-200 rounded-xl">
-          <p className="text-4xl mb-2">✏️</p>
-          <p className="text-sm">No custom situations yet.</p>
-          <p className="text-xs mt-1 text-gray-300">Click "New Situation" to write your first dialogue.</p>
+          <p className="text-4xl mb-2">🎭</p>
+          <p className="text-sm">No duo situations yet.</p>
+          <p className="text-xs mt-1 text-gray-300">Click "New Situation" to create a duo dialogue.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {situations.map(sit => {
-            const npc = npcs.find(n => n.id === sit.npc_id)
-            return (
+          {situations.filter(s => s.mode === 'duo').map(sit => (
               <div key={sit.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
-                {npc ? (
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-                    style={{ backgroundColor: npc.placeholder_color }}>{npc.name[0]}</div>
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-300 text-xl shrink-0">?</div>
-                )}
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-sm shrink-0">🎭</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-gray-900 truncate">{sit.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{npc?.name ?? 'No character'} · {sit.difficulty}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{sit.difficulty}</p>
                 </div>
-                {sit.mode === 'duo' && (
-                  <Link
-                    to={`/duo/${sit.id}`}
-                    className="px-3 py-1.5 text-xs rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors shrink-0"
-                  >
-                    Open Session
-                  </Link>
-                )}
+                <Link
+                  to={`/duo/${sit.id}`}
+                  className="px-3 py-1.5 text-xs rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors shrink-0"
+                >
+                  Open Session
+                </Link>
                 <button
                   onClick={() => setEditingSituation(sit)}
                   className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:border-brand hover:text-brand transition-colors shrink-0"
@@ -1005,8 +996,7 @@ export function ScriptEditorSection() {
                   Edit
                 </button>
               </div>
-            )
-          })}
+          ))}
         </div>
       )}
     </div>
