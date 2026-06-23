@@ -703,6 +703,7 @@ export function NewSituationForm({
   onCancel,
   teacherId,
   soloOnly = false,
+  label = 'New Situation',
 }: {
   npcs: SituationNpc[]
   onNpcsChange: (npcs: SituationNpc[]) => void
@@ -710,6 +711,7 @@ export function NewSituationForm({
   onCancel: () => void
   teacherId: string
   soloOnly?: boolean
+  label?: string
 }) {
   const { user } = useAuth()
   const students = useTeacherStudents(user?.id)
@@ -767,7 +769,7 @@ export function NewSituationForm({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-      <p className="text-sm font-semibold text-gray-800">New Situation</p>
+      <p className="text-sm font-semibold text-gray-800">{label}</p>
 
       {/* Mode toggle — hidden when soloOnly */}
       {!soloOnly && (
@@ -949,7 +951,7 @@ export function ScriptEditorSection() {
             onClick={() => setShowNewForm(true)}
             className="flex items-center gap-1.5 px-3 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 transition-colors"
           >
-            <Plus size={14} /> New Situation
+            <Plus size={14} /> New Dialogue
           </button>
         )}
       </div>
@@ -959,6 +961,7 @@ export function ScriptEditorSection() {
           npcs={npcs}
           onNpcsChange={setNpcs}
           teacherId={user.id}
+          label="New Dialogue"
           onCreated={situation => {
             setSituations(prev => [situation, ...prev])
             setShowNewForm(false)
@@ -972,7 +975,7 @@ export function ScriptEditorSection() {
         <div className="text-center py-12 text-gray-400 bg-white border border-gray-200 rounded-xl">
           <p className="text-4xl mb-2">🎭</p>
           <p className="text-sm">No duo situations yet.</p>
-          <p className="text-xs mt-1 text-gray-300">Click "New Situation" to create a duo dialogue.</p>
+          <p className="text-xs mt-1 text-gray-300">Click "New Dialogue" to create a duo dialogue.</p>
         </div>
       ) : (
         <div className="space-y-3">
