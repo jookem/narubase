@@ -352,20 +352,46 @@ export async function assignGrammarDeckToStudent(
   }
   if (!points.length) return { count: 0 }
 
-  // Insert only progress rows — content is always read live from grammar_deck_points
-  const entries = points.map((p: GrammarDeckPoint) => ({
-    student_id: studentId,
-    teacher_id: session.user.id,
-    deck_id: deckId,
-    point: p.point,
-  }))
+  const pointTexts = points.map((p: GrammarDeckPoint) => p.point)
 
-  const { error } = await supabase
-    .from('grammar_bank')
-    .upsert(entries.map(e => ({ ...e, is_active: true })), { onConflict: 'student_id,point' })
+  // Load existing rows for this student so we don't overwrite another deck's deck_id
+  const existingRows: { id: string; point: string; deck_id: string | null; is_active: boolean }[] = []
+  for (let i = 0; i < pointTexts.length; i += 500) {
+    const { data: page } = await supabase
+      .from('grammar_bank')
+      .select('id, point, deck_id, is_active')
+      .eq('student_id', studentId)
+      .in('point', pointTexts.slice(i, i + 500))
+    existingRows.push(...(page ?? []))
+  }
+  const existingByPoint = new Map(existingRows.map(r => [r.point, r]))
 
-  if (error) return { error: error.message }
-  return { count: entries.length }
+  // Reactivate inactive entries (may be from a different deck — update deck_id)
+  const toReactivate = existingRows.filter(r => !r.is_active)
+  for (let i = 0; i < toReactivate.length; i += 50) {
+    await supabase
+      .from('grammar_bank')
+      .update({ deck_id: deckId, is_active: true })
+      .in('id', toReactivate.slice(i, i + 50).map(r => r.id))
+  }
+
+  // Insert only brand-new entries — leave already-active rows untouched
+  const toInsert = points
+    .filter((p: GrammarDeckPoint) => !existingByPoint.has(p.point))
+    .map((p: GrammarDeckPoint) => ({
+      student_id: studentId,
+      teacher_id: session.user.id,
+      deck_id: deckId,
+      point: p.point,
+      is_active: true,
+    }))
+
+  if (toInsert.length > 0) {
+    const { error } = await supabase.from('grammar_bank').insert(toInsert)
+    if (error) return { error: error.message }
+  }
+
+  return { count: toReactivate.length + toInsert.length }
 }
 
 export async function removeGrammarDeckFromStudent(
