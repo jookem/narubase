@@ -153,6 +153,7 @@ export function KidsGame() {
   const drawCanvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const drawCtxRef = useRef<CanvasRenderingContext2D | null>(null)
+  const prevPointRef = useRef<{ x: number; y: number } | null>(null)
   const acRef = useRef<AudioContext | null>(null)
   const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wordsQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
@@ -353,13 +354,23 @@ export function KidsGame() {
     const p = posOf(e), ctx = drawCtxRef.current!
     ctx.lineWidth = 26; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#F2879B'
     ctx.beginPath(); ctx.moveTo(p.x, p.y)
+    prevPointRef.current = p
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
   }
   function traceMove(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current || !drawCtxRef.current) return
-    const p = posOf(e); drawCtxRef.current.lineTo(p.x, p.y); drawCtxRef.current.stroke()
+    const p = posOf(e)
+    const prev = prevPointRef.current
+    if (!prev) { prevPointRef.current = p; return }
+    const ctx = drawCtxRef.current
+    const mid = { x: (prev.x + p.x) / 2, y: (prev.y + p.y) / 2 }
+    ctx.quadraticCurveTo(prev.x, prev.y, mid.x, mid.y)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(mid.x, mid.y)
+    prevPointRef.current = p
   }
-  function traceUp() { drawingRef.current = false }
+  function traceUp() { drawingRef.current = false; prevPointRef.current = null }
 
   // ── Letter navigation ──────────────────────────────────────────
   function setLetter(i: number) {
