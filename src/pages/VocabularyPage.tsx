@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { VocabularyFlashcard } from '@/components/lesson/VocabularyFlashcard'
 import { StudySession } from '@/components/lesson/StudySession'
 import { speak } from '@/lib/tts'
-import { updateVocabMastery, getStudentVocab } from '@/lib/api/lessons'
+import { updateVocabMastery, getStudentVocab, listDecks } from '@/lib/api/lessons'
 import type { VocabularyBankEntry, MasteryLevel } from '@/lib/types/database'
 import { PageError } from '@/components/shared/PageError'
 import { VocabQuizGame } from '@/components/vocab/VocabQuizGame'
@@ -153,6 +153,7 @@ export function VocabularyPage() {
   const [error, setError] = useState<string | null>(null)
   const [studyCards, setStudyCards] = useState<VocabularyBankEntry[] | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [deckMap, setDeckMap] = useState<Map<string, string>>(new Map())
 
   // Seed changes once per calendar day per user so the selection is stable
   // within a day but fresh each morning.
@@ -163,6 +164,7 @@ export function VocabularyPage() {
   function startSession(words: VocabularyBankEntry[], name: string) {
     setSession({ words, name, stage: 'grid' })
   }
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<View>('category')
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -191,6 +193,12 @@ export function VocabularyPage() {
   }, [user])
 
   useEffect(() => {
+    listDecks().then(({ decks }) => {
+      if (decks) setDeckMap(new Map(decks.map(d => [d.id, d.name])))
+    })
+  }, [])
+
+  useEffect(() => {
     if (loading || autoLaunched.current) return
     if (searchParams.get('review') !== 'true') return
     const due = vocab.filter(v => {
@@ -206,16 +214,18 @@ export function VocabularyPage() {
   if (error) return <PageError message={error} onRetry={loadVocab} />
   if (loading) return <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
 
+  const deckEntries = selectedDeckId ? vocab.filter(v => v.deck_id === selectedDeckId) : vocab
+
   const q = search.trim().toLowerCase()
   const filtered = q
-    ? vocab.filter(v =>
+    ? deckEntries.filter(v =>
         v.word?.toLowerCase().includes(q) ||
         v.definition_en?.toLowerCase().includes(q) ||
         v.definition_ja?.toLowerCase().includes(q)
       )
-    : vocab
+    : deckEntries
 
-  const dueForReview = vocab.filter(v => {
+  const dueForReview = deckEntries.filter(v => {
     if (!v.next_review) return v.mastery_level < 3
     return new Date(v.next_review) <= new Date()
   })
@@ -299,6 +309,31 @@ export function VocabularyPage() {
             )}
           </div>
         </div>
+
+        {/* Deck selector — only when multiple decks assigned */}
+        {(() => {
+          const assignedDecks = [...new Set(vocab.map(v => v.deck_id).filter((id): id is string => !!id && deckMap.has(id)))]
+          if (assignedDecks.length < 2) return null
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setSelectedDeckId(null)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${!selectedDeckId ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                All Decks
+              </button>
+              {assignedDecks.map(id => (
+                <button
+                  key={id}
+                  onClick={() => setSelectedDeckId(id)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${selectedDeckId === id ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {deckMap.get(id)}
+                </button>
+              ))}
+            </div>
+          )
+        })()}
 
         {/* Search + view toggle */}
         {vocab.length > 0 && (
@@ -412,6 +447,12 @@ export function VocabularyPage() {
                             : `${words.length}語`}
                         </p>
                         <MasteryBar words={words} />
+                        {(() => {
+                          const names = [...new Set(words.map(w => w.deck_id).filter((id): id is string => !!id && deckMap.has(id)).map(id => deckMap.get(id)!))]
+                          return names.length > 0 ? (
+                            <p className="text-xs text-gray-400 mt-1">📚 {names.join(', ')}</p>
+                          ) : null
+                        })()}
                       </div>
                       <div className="flex flex-col gap-2 shrink-0 items-end">
                         <button

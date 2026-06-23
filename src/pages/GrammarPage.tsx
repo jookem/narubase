@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { listGrammar, listLessonSlides, type GrammarBankEntry, type GrammarLessonSlide } from '@/lib/api/grammar'
+import { listGrammar, listGrammarDecks, listLessonSlides, type GrammarBankEntry, type GrammarLessonSlide } from '@/lib/api/grammar'
 import { Card, CardContent } from '@/components/ui/card'
 import { GrammarSession } from '@/components/grammar/GrammarSession'
 import { GrammarLesson } from '@/components/grammar/GrammarLesson'
@@ -52,6 +52,8 @@ export function GrammarPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<GrammarStudyState | null>(null)
+  const [deckMap, setDeckMap] = useState<Map<string, string>>(new Map())
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<View>('category')
   const [studySize, setStudySizeState] = useState(() =>
@@ -86,6 +88,12 @@ export function GrammarPage() {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [user])
+
+  useEffect(() => {
+    listGrammarDecks().then(({ decks }) => {
+      if (decks) setDeckMap(new Map(decks.map(d => [d.id, d.name])))
+    })
+  }, [])
 
   useEffect(() => {
     if (loading || autoLaunched.current) return
@@ -130,16 +138,18 @@ export function GrammarPage() {
   if (error) return <PageError message={error} onRetry={load} />
   if (loading) return <div className="h-48 bg-gray-200 rounded-lg animate-pulse" />
 
+  const deckEntries = selectedDeckId ? entries.filter(e => e.deck_id === selectedDeckId) : entries
+
   const q = search.trim().toLowerCase()
   const filtered = q
-    ? entries.filter(e =>
+    ? deckEntries.filter(e =>
         e.point?.toLowerCase().includes(q) ||
         e.explanation?.toLowerCase().includes(q) ||
         e.category?.toLowerCase().includes(q)
       )
-    : entries
+    : deckEntries
 
-  const due = entries.filter(e => {
+  const due = deckEntries.filter(e => {
     if (!e.next_review) return e.mastery_level < 3
     return new Date(e.next_review) <= new Date()
   })
@@ -264,6 +274,31 @@ export function GrammarPage() {
           )}
         </div>
 
+        {/* Deck selector — only when multiple decks assigned */}
+        {(() => {
+          const assignedDecks = [...new Set(entries.map(e => e.deck_id).filter((id): id is string => !!id && deckMap.has(id)))]
+          if (assignedDecks.length < 2) return null
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setSelectedDeckId(null)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${!selectedDeckId ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                All Decks
+              </button>
+              {assignedDecks.map(id => (
+                <button
+                  key={id}
+                  onClick={() => setSelectedDeckId(id)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${selectedDeckId === id ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {deckMap.get(id)}
+                </button>
+              ))}
+            </div>
+          )
+        })()}
+
         {/* Search + view toggle */}
         {entries.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -366,7 +401,7 @@ export function GrammarPage() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {categoryMap.get(cat)!.map(e => (
-                      <GrammarCard key={e.id} entry={e} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryMap.get(cat)!)} />
+                      <GrammarCard key={e.id} entry={e} deckName={e.deck_id ? deckMap.get(e.deck_id) : undefined} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryMap.get(cat)!)} />
                     ))}
                   </div>
                 </section>
@@ -410,7 +445,7 @@ export function GrammarPage() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {uncategorized.map(e => (
-                      <GrammarCard key={e.id} entry={e} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />
+                      <GrammarCard key={e.id} entry={e} deckName={e.deck_id ? deckMap.get(e.deck_id) : undefined} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />
                     ))}
                   </div>
                 </section>
@@ -420,7 +455,7 @@ export function GrammarPage() {
               {categories.length === 0 && uncategorized.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {uncategorized.map(e => (
-                    <GrammarCard key={e.id} entry={e} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />
+                    <GrammarCard key={e.id} entry={e} deckName={e.deck_id ? deckMap.get(e.deck_id) : undefined} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />
                   ))}
                 </div>
               )}
@@ -437,7 +472,7 @@ export function GrammarPage() {
                   復習が必要 / Review Due ({due.length})
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {due.map(e => <GrammarCard key={e.id} entry={e} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />)}
+                  {due.map(e => <GrammarCard key={e.id} entry={e} deckName={e.deck_id ? deckMap.get(e.deck_id) : undefined} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />)}
                 </div>
               </section>
             )}
@@ -462,7 +497,7 @@ export function GrammarPage() {
                     })()}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {items.map(e => <GrammarCard key={e.id} entry={e} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />)}
+                    {items.map(e => <GrammarCard key={e.id} entry={e} deckName={e.deck_id ? deckMap.get(e.deck_id) : undefined} onStudy={() => startStudy([e], true)} onLesson={() => startStudy(categoryCards(e))} />)}
                   </div>
                 </section>
               )
@@ -492,7 +527,7 @@ export function GrammarPage() {
   )
 }
 
-function GrammarCard({ entry, onStudy, onLesson }: { entry: GrammarBankEntry; onStudy: () => void; onLesson: () => void }) {
+function GrammarCard({ entry, deckName, onStudy, onLesson }: { entry: GrammarBankEntry; deckName?: string; onStudy: () => void; onLesson: () => void }) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-4 pb-3 space-y-2">
@@ -513,6 +548,9 @@ function GrammarCard({ entry, onStudy, onLesson }: { entry: GrammarBankEntry; on
           <button onClick={onStudy} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
             Practice
           </button>
+          {deckName && (
+            <span className="ml-auto text-xs text-gray-400">📚 {deckName}</span>
+          )}
         </div>
       </CardContent>
     </Card>
