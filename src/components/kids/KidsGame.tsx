@@ -168,6 +168,7 @@ export function KidsGame() {
   useEffect(() => { letterIndexRef.current = letterIndex }, [letterIndex])
   useEffect(() => { traceCaseRef.current = traceCase }, [traceCase])
   useEffect(() => { activeStrokeRef.current = activeStroke }, [activeStroke])
+  useEffect(() => { clearDrawCanvas() }, [letterIndex, traceCase])
 
   // ── Load assigned vocabulary ───────────────────────────────────
   useEffect(() => {
@@ -277,6 +278,7 @@ export function KidsGame() {
         const next = (letterIndexRef.current + 1) % 26
         setLetterIndex(next); letterIndexRef.current = next
         setActiveStroke(0); activeStrokeRef.current = 0
+        clearDrawCanvas()
         setTimeout(() => drawGuide(), 40)
       }
     }, 1150)
