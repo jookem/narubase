@@ -491,19 +491,14 @@ function SituationsSection() {
       <p className="text-sm text-gray-500">
         Set the conversation mode for each situation. <strong>LLM</strong> uses Claude AI to generate responses in real time — no script needed.
       </p>
-      {situations.map(situation => (
+      {situations.filter(s => s.mode !== 'duo').map(situation => (
         <div key={situation.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-semibold text-sm text-gray-900">{situation.title}</p>
-              {situation.mode === 'duo' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium shrink-0">🎭 Duo</span>
-              )}
-            </div>
+            <p className="font-semibold text-sm text-gray-900">{situation.title}</p>
             <p className="text-xs text-gray-400 mt-0.5 truncate">{situation.description}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {situation.mode !== 'duo' && (['scripted', 'llm'] as SituationMode[]).map(mode => (
+            {(['scripted', 'llm'] as SituationMode[]).map(mode => (
               <button
                 key={mode}
                 onClick={() => handleModeChange(situation, mode)}
@@ -594,7 +589,7 @@ export function SituationsManager() {
         <Tab label="🎭 Characters"  active={tab === 'npcs'}        onClick={() => setTab('npcs')} />
         <Tab label="🎬 Animations"  active={tab === 'animations'}  onClick={() => setTab('animations')} />
         <Tab label="🖼️ Backgrounds" active={tab === 'backgrounds'} onClick={() => setTab('backgrounds')} />
-        <Tab label="⚙️ Situations"  active={tab === 'situations'}  onClick={() => setTab('situations')} />
+        <Tab label="⚙️ Solo Situations"  active={tab === 'situations'}  onClick={() => setTab('situations')} />
         <Tab label="✏️ Duo Dialogues" active={tab === 'scripts'}     onClick={() => setTab('scripts')} />
       </div>
 
