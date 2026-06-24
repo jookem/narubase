@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getStudentVocab } from '@/lib/api/lessons'
 import type { VocabularyBankEntry } from '@/lib/types/database'
+import { LikeGame } from './LikeGame'
 
 // ── Data ──────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ const LSTROKES: Record<string, number[][][]> = {
   z:[[[.30,.42],[.62,.42],[.30,.82],[.64,.82]]],
 }
 
-type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell'
+type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like'
 type SlotEntry = { ch: string; tileId: number }
 type Tile = { id: number; ch: string; used: boolean }
 
@@ -595,6 +596,7 @@ export function KidsGame() {
               { key: 'trace' as Screen, title: 'Trace Letters', jp: 'もじをなぞる', skill: '✏️ Writing',  emoji: '✏️', bg: '#FBE7B6' },
               { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
               { key: 'spell' as Screen, title: 'Spelling',      jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
+              { key: 'like'  as Screen, title: 'Like & Dislike',jp: 'すきなもの',   skill: '💬 Speaking',  emoji: '🔮', bg: '#F0E0FF' },
             ] as const).map(s => (
               <button key={s.key}
                 onClick={() => {
@@ -750,6 +752,11 @@ export function KidsGame() {
             🧽 Clear <span style={{ opacity: .7, fontSize: 13 }}>けす</span>
           </button>
         </div>
+      )}
+
+      {/* ═══════════════ LIKE & DISLIKE ═══════════════ */}
+      {screen === 'like' && (
+        <LikeGame onBack={() => setScreen('hub')} />
       )}
 
       {/* ═══════════════ REWARD OVERLAY ═══════════════ */}
