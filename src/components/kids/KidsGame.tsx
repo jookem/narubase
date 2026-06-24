@@ -524,7 +524,7 @@ export function KidsGame() {
     <div style={{ width: '100%', background: BG, fontFamily: FONT, color: '#6B4F3F', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', minHeight: 600 }}>
 
       {/* ── TOP BAR ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 12, flexWrap: 'wrap' }}>
+      {screen !== 'like' && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 12, flexWrap: 'wrap' }}>
         {/* Title / Back */}
         {screen === 'hub' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 22, color: '#F2879B' }}>
@@ -572,10 +572,10 @@ export function KidsGame() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* ── DUO TURN BANNER ── */}
-      {duo && screen !== 'hub' && (
+      {duo && screen !== 'hub' && screen !== 'like' && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '0 20px 8px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 18, padding: '8px 20px', borderRadius: '999px', background: turn === 1 ? '#FBD9E1' : '#E7DCF5', color: turn === 1 ? '#D96C81' : '#7A5AC0', boxShadow: '0 4px 0 rgba(0,0,0,.05)' }}>
             {turn === 1 ? '👧' : '👩'} {turn === 1 ? 'Player 1' : 'Player 2'} <span style={{ opacity: .85, fontWeight: 600, fontSize: 14 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>

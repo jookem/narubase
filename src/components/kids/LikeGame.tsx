@@ -55,8 +55,8 @@ const TOPICS: Record<string, Topic> = {
   Sports: {
     label: 'Sports', jp: 'スポーツ', emoji: '⚽',
     items: [
-      { en: 'soccer',     jp: 'サッカー',     icon: '⚽️' },
-      { en: 'baseball',   jp: 'やきゅう',     icon: '⚾️' },
+      { en: 'soccer',     jp: 'サッカー',     icon: '⚽' },
+      { en: 'baseball',   jp: 'やきゅう',     icon: '⚾' },
       { en: 'basketball', jp: 'バスケ',       icon: '🏀' },
       { en: 'swimming',   jp: 'すいえい',     icon: '🏊' },
       { en: 'tennis',     jp: 'テニス',       icon: '🎾' },
@@ -157,8 +157,9 @@ const SFX = {
 
 // ── Style constants ───────────────────────────────────────────────────────────
 
-const FONT = "'Fredoka', 'M PLUS Rounded 1c', sans-serif"
-const JP   = "'M PLUS Rounded 1c', sans-serif"
+const FONT       = "'Fredoka', 'M PLUS Rounded 1c', sans-serif"
+const JP         = "'M PLUS Rounded 1c', sans-serif"
+const EMOJI_FONT = "'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif"
 const INK  = '#5B4750'
 const INK_SOFT = '#9A8590'
 const SHADOW = 'rgba(120, 80, 95, 0.18)'
@@ -167,17 +168,17 @@ const SHADOW = 'rgba(120, 80, 95, 0.18)'
 
 function ItemFace({ it }: { it: TopicItem }) {
   if (it.swatch) return <div style={{ width: 56, height: 56, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -5px 10px rgba(0,0,0,.12)', flexShrink: 0 }} />
-  return <div style={{ fontSize: 42, lineHeight: 1 }}>{it.icon}</div>
+  return <div style={{ fontSize: 42, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.icon}</div>
 }
 
 function InlineItem({ it }: { it: TopicItem }) {
   if (it.swatch) return <span style={{ display: 'inline-block', width: '0.9em', height: '0.9em', borderRadius: '50%', background: it.swatch, verticalAlign: '-0.08em' }} />
-  return <span>{it.icon}</span>
+  return <span style={{ fontFamily: EMOJI_FONT }}>{it.icon}</span>
 }
 
 function MiniItem({ it }: { it: TopicItem }) {
   if (it.swatch) return <span style={{ display: 'inline-block', width: 32, height: 32, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -3px 6px rgba(0,0,0,.1)', verticalAlign: 'middle' }} title={it.en} />
-  return <span title={it.en} style={{ fontSize: 26 }}>{it.icon}</span>
+  return <span title={it.en} style={{ fontSize: 26, fontFamily: EMOJI_FONT }}>{it.icon}</span>
 }
 
 function Particles({ kind }: { kind: 'hearts' | 'confetti' }) {
@@ -335,7 +336,7 @@ function GameBar({ onHome, onRestart, onTopics, topic, dots, roundIdx, right }: 
       <button style={btn} onClick={onTopics}>🎲</button>
       <div style={{ flex: 1 }} />
       <div style={{ background: '#fff', borderRadius: 999, padding: '5px 12px', fontWeight: 600, fontSize: 14, boxShadow: `0 4px 0 ${SHADOW}`, display: 'flex', alignItems: 'center', gap: 5, fontFamily: FONT }}>
-        {topic.emoji} {topic.label} <span style={{ color: INK_SOFT, fontFamily: JP, fontWeight: 500, fontSize: 12 }}>{topic.jp}</span>
+        <span style={{ fontFamily: EMOJI_FONT }}>{topic.emoji}</span> {topic.label} <span style={{ color: INK_SOFT, fontFamily: JP, fontWeight: 500, fontSize: 12 }}>{topic.jp}</span>
       </div>
       <div style={{ background: '#fff', borderRadius: 999, padding: '5px 10px', boxShadow: `0 4px 0 ${SHADOW}`, display: 'flex', alignItems: 'center', gap: 4 }}>
         {Array.from({ length: dots }).map((_, i) => (
@@ -495,7 +496,7 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome }: { accent
         {Object.entries(TOPICS).map(([key, t]) => (
           <button key={key} onClick={() => { SFX.pop(); onPick(key) }}
             style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '20px 24px', boxShadow: `0 10px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, minWidth: 150 }}>
-            <div style={{ width: 84, height: 84, borderRadius: '50%', background: orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44 }}>{t.emoji}</div>
+            <div style={{ width: 84, height: 84, borderRadius: '50%', background: orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, fontFamily: EMOJI_FONT }}>{t.emoji}</div>
             <div style={{ fontWeight: 700, fontSize: 22, color: col }}>{t.label}</div>
             <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13 }}>{t.jp}</div>
           </button>
