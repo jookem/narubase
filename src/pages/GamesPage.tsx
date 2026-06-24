@@ -414,8 +414,8 @@ export function GamesPage() {
         <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
         <Tab label="🎤 Karaoke" active={tab === 'karaoke'} onClick={() => setTab('karaoke')} />
         <Tab label="🎭 Situations" active={tab === 'situation'} onClick={() => setTab('situation')} />
-        <Tab label="⭐ Kids" active={tab === 'kids'} onClick={() => setTab('kids')} />
         <Tab label="🎭 Duo" active={tab === 'duo'} onClick={() => setTab('duo')} />
+        <Tab label="⭐ Kids" active={tab === 'kids'} onClick={() => setTab('kids')} />
       </div>
 
       {/* ── Train tab ── */}

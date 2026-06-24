@@ -167,8 +167,8 @@ const SHADOW = 'rgba(120, 80, 95, 0.18)'
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
 function ItemFace({ it }: { it: TopicItem }) {
-  if (it.swatch) return <div style={{ width: 56, height: 56, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -5px 10px rgba(0,0,0,.12)', flexShrink: 0 }} />
-  return <div style={{ fontSize: 42, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.icon}</div>
+  if (it.swatch) return <div style={{ width: 44, height: 44, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -4px 8px rgba(0,0,0,.12)', flexShrink: 0 }} />
+  return <div style={{ fontSize: 34, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.icon}</div>
 }
 
 function InlineItem({ it }: { it: TopicItem }) {
@@ -205,9 +205,9 @@ function Particles({ kind }: { kind: 'hearts' | 'confetti' }) {
 function CharPod({ friend, reaction }: { friend: Friend; reaction: string }) {
   const anim = reaction === 'happy' ? 'lg-happy 0.7s ease' : reaction === 'sad' ? 'lg-sad 0.7s ease' : 'lg-bob 2.6s ease-in-out infinite'
   return (
-    <div style={{ position: 'relative', width: 120, height: 120, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: friend.color + '33', boxShadow: `0 10px 0 ${friend.color}44, inset 0 -8px 18px rgba(255,255,255,.5)`, flexShrink: 0 }}>
-      <div style={{ fontSize: 76, lineHeight: 1, animation: anim }}>{friend.emoji}</div>
-      <div style={{ position: 'absolute', bottom: '-0.45em', left: '50%', transform: 'translateX(-50%)', background: '#fff', color: INK, fontWeight: 700, fontSize: 13, padding: '3px 12px', borderRadius: 999, boxShadow: `0 3px 0 ${SHADOW}`, whiteSpace: 'nowrap', fontFamily: FONT }}>
+    <div style={{ position: 'relative', width: 90, height: 90, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: friend.color + '33', boxShadow: `0 8px 0 ${friend.color}44, inset 0 -6px 14px rgba(255,255,255,.5)`, flexShrink: 0 }}>
+      <div style={{ fontSize: 58, lineHeight: 1, animation: anim }}>{friend.emoji}</div>
+      <div style={{ position: 'absolute', bottom: '-0.4em', left: '50%', transform: 'translateX(-50%)', background: '#fff', color: INK, fontWeight: 700, fontSize: 12, padding: '2px 10px', borderRadius: 999, boxShadow: `0 3px 0 ${SHADOW}`, whiteSpace: 'nowrap', fontFamily: FONT }}>
         {friend.name}
       </div>
     </div>
@@ -218,7 +218,7 @@ function SpeechBubble({ variant, children }: { variant: '' | 'like' | 'dislike' 
   const bg    = variant === 'like' ? '#EAFBF2' : variant === 'dislike' ? '#EEF3FA' : variant === 'ask' ? '#F6EEFE' : '#fff'
   const bdCol = variant === 'like' ? '#46C98A' : variant === 'dislike' ? '#8FA9C6' : variant === 'ask' ? '#B07BE8' : '#fff'
   return (
-    <div style={{ position: 'relative', background: bg, borderRadius: 28, padding: '14px 32px', boxShadow: `0 8px 0 ${SHADOW}`, textAlign: 'center', border: `4px solid ${bdCol}`, width: '100%' }}>
+    <div style={{ position: 'relative', background: bg, borderRadius: 22, padding: '10px 22px', boxShadow: `0 6px 0 ${SHADOW}`, textAlign: 'center', border: `4px solid ${bdCol}`, width: '100%' }}>
       <div style={{ position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '13px solid transparent', borderRight: '13px solid transparent', borderBottom: `18px solid ${bdCol}` }} />
       {children}
     </div>
@@ -232,7 +232,7 @@ function CardItem({ it, mode, onReveal, onGuess }: { it: GameItem; mode: 'reveal
   const bg     = decided ? (it.liked ? '#F2FCF7' : '#F4F7FB') : '#fff'
   const shadow = !decided && hov ? `0 11px 0 ${SHADOW}` : `0 7px 0 ${SHADOW}`
 
-  const base: React.CSSProperties = { position: 'relative', background: bg, borderRadius: 22, padding: '12px 8px', boxShadow: shadow, border, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minHeight: 120, justifyContent: 'center', fontFamily: FONT, opacity: decided && !it.liked ? 0.72 : 1, filter: decided && !it.liked ? 'saturate(0.6)' : undefined, transition: 'opacity .3s, filter .3s', transform: !decided && hov ? 'translateY(-4px)' : undefined }
+  const base: React.CSSProperties = { position: 'relative', background: bg, borderRadius: 18, padding: '8px 6px', boxShadow: shadow, border, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minHeight: 90, justifyContent: 'center', fontFamily: FONT, opacity: decided && !it.liked ? 0.72 : 1, filter: decided && !it.liked ? 'saturate(0.6)' : undefined, transition: 'opacity .3s, filter .3s', transform: !decided && hov ? 'translateY(-3px)' : undefined }
 
   if (!decided && mode === 'guess') return (
     <div style={base}>
@@ -331,7 +331,7 @@ interface GameBarProps {
 function GameBar({ onHome, onRestart, onTopics, topic, dots, roundIdx, right }: GameBarProps) {
   const btn: React.CSSProperties = { width: 42, height: 42, borderRadius: '50%', border: 'none', background: '#fff', cursor: 'pointer', fontSize: 18, color: INK, boxShadow: `0 4px 0 ${SHADOW}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, flexShrink: 0 }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', flexWrap: 'wrap' }}>
       <button style={btn} onClick={onHome}>🏠</button>
       <button style={btn} onClick={onTopics}>🎲</button>
       <div style={{ flex: 1 }} />
@@ -449,25 +449,25 @@ function WinPanel({ title, jp, onReplay, onHome, onTopics, players, scores }: { 
 
 function GameHub({ onPick, onBack }: { onPick: (g: 'mind' | 'quiz') => void; onBack: () => void }) {
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 16 }}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
         ← Kids
       </button>
       <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontWeight: 700, fontSize: 40, letterSpacing: -1, background: 'linear-gradient(180deg,#FF7FA8,#EA5C8C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Choose a Game!</h1>
-        <div style={{ fontFamily: JP, fontWeight: 700, color: INK, fontSize: 17, marginTop: 4 }}>どっちであそぶ？</div>
+        <h1 style={{ fontWeight: 700, fontSize: 32, letterSpacing: -1, background: 'linear-gradient(180deg,#FF7FA8,#EA5C8C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Choose a Game!</h1>
+        <div style={{ fontFamily: JP, fontWeight: 700, color: INK, fontSize: 14, marginTop: 2 }}>どっちであそぶ？</div>
       </div>
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
         {([
           { key: 'mind' as const, emoji: '🔮', title: 'Mind Reader', jp: 'こころをよもう',  phrase: '"I like…"\n"I don\'t like…"', orbBg: '#FFE3ED', col: '#EA5C8C' },
           { key: 'quiz' as const, emoji: '🎤', title: 'Yes or No?',  jp: 'クイズであてよう', phrase: '"Do you like…?"\n"Yes, I do / No, I don\'t"', orbBg: '#EEE2FB', col: '#8E5BC9' },
         ]).map(g => (
           <button key={g.key} onClick={() => { SFX.pop(); onPick(g.key) }}
-            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 30, padding: '24px 28px', boxShadow: `0 10px 0 ${SHADOW}`, width: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9 }}>
-            <div style={{ width: 90, height: 90, borderRadius: '50%', background: g.orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>{g.emoji}</div>
-            <div style={{ fontWeight: 700, fontSize: 24, color: g.col }}>{g.title}</div>
-            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13 }}>{g.jp}</div>
-            <div style={{ background: '#FFF1E2', borderRadius: 12, padding: '7px 12px', fontWeight: 600, fontSize: 12, color: INK, textAlign: 'center', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{g.phrase}</div>
+            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '18px 22px', boxShadow: `0 10px 0 ${SHADOW}`, width: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: g.orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>{g.emoji}</div>
+            <div style={{ fontWeight: 700, fontSize: 20, color: g.col }}>{g.title}</div>
+            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 12 }}>{g.jp}</div>
+            <div style={{ background: '#FFF1E2', borderRadius: 12, padding: '6px 10px', fontWeight: 600, fontSize: 11, color: INK, textAlign: 'center', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{g.phrase}</div>
           </button>
         ))}
       </div>
@@ -480,25 +480,25 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome }: { accent
   const col    = accent === 'quiz' ? '#8E5BC9' : '#EA5C8C'
   const orbBg  = accent === 'quiz' ? '#EEE2FB' : '#FFE3ED'
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 16px' }}>
       <button onClick={onHome} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
         🏠 Home
       </button>
       <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontWeight: 700, fontSize: 40, letterSpacing: -1, background: `linear-gradient(180deg,${col},${col})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Pick a Topic!</h1>
-        <div style={{ fontFamily: JP, fontWeight: 700, color: INK, fontSize: 17, marginTop: 4 }}>トピックをえらぼう</div>
+        <h1 style={{ fontWeight: 700, fontSize: 28, letterSpacing: -1, background: `linear-gradient(180deg,${col},${col})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Pick a Topic!</h1>
+        <div style={{ fontFamily: JP, fontWeight: 700, color: INK, fontSize: 14, marginTop: 2 }}>トピックをえらぼう</div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontWeight: 700, color: INK, fontSize: 16, fontFamily: FONT }}>How many players? <span style={{ fontFamily: JP, fontWeight: 500, color: INK_SOFT, fontSize: 13 }}>なんにん？</span></span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <span style={{ fontWeight: 700, color: INK, fontSize: 14, fontFamily: FONT }}>Players: <span style={{ fontFamily: JP, fontWeight: 500, color: INK_SOFT, fontSize: 12 }}>なんにん？</span></span>
         <PlayerToggle value={players} onChange={onSetPlayers} />
       </div>
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         {Object.entries(TOPICS).map(([key, t]) => (
           <button key={key} onClick={() => { SFX.pop(); onPick(key) }}
-            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '20px 24px', boxShadow: `0 10px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, minWidth: 150 }}>
-            <div style={{ width: 84, height: 84, borderRadius: '50%', background: orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, fontFamily: EMOJI_FONT }}>{t.emoji}</div>
-            <div style={{ fontWeight: 700, fontSize: 22, color: col }}>{t.label}</div>
-            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13 }}>{t.jp}</div>
+            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 22, padding: '14px 18px', boxShadow: `0 10px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 120 }}>
+            <div style={{ width: 68, height: 68, borderRadius: '50%', background: orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontFamily: EMOJI_FONT }}>{t.emoji}</div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: col }}>{t.label}</div>
+            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 12 }}>{t.jp}</div>
           </button>
         ))}
       </div>
@@ -609,11 +609,11 @@ function MindReader({ onHome }: { onHome: () => void }) {
           ? <Scoreboard scores={scores} turn={turn} />
           : <div style={{ ...pill, color: '#2FAE75' }}>💗 {foundLikes}/{totalLikes}</div>}
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 16px 20px', minHeight: 0, overflowY: 'auto' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 12px 12px', minHeight: 0, overflowY: 'auto' }}>
         <CharPod friend={friend} reaction={reaction} />
         <div key={popKey} style={{ animation: 'lg-pop .4s ease', width: '100%', maxWidth: 680 }}>
           <SpeechBubble variant={speechVariant}>
-            <div style={{ fontWeight: 700, fontSize: 26, letterSpacing: -0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap', color: sentColor }}>{sentence}</div>
+            <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: -0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap', color: sentColor }}>{sentence}</div>
             <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 15, marginTop: 5 }}>{subJp}</div>
             {current && players === 2 && <div style={{ fontWeight: 700, fontSize: 15, marginTop: 4, color: current.correct ? '#2FAE75' : '#FF7A59' }}>{current.correct ? '⭐ Correct guess!' : '❌ Not quite!'}</div>}
             {showCue && <div style={{ marginTop: 5, fontWeight: 600, color: '#EA5C8C', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 5, animation: 'lg-pulse 1.4s ease-in-out infinite' }}>🗣️ Say it together! みんなでいってみよう！</div>}
@@ -713,7 +713,7 @@ function QuizShow({ onHome }: { onHome: () => void }) {
   const speechVariant = revealed ? (cur.answer ? 'like' : 'dislike') : 'ask'
   const sentColor     = revealed ? (cur.answer ? '#2FAE75' : '#4592cf') : '#8E5BC9'
 
-  const abBase: React.CSSProperties = { flex: 1, background: '#fff', border: '4px solid #fff', borderRadius: 24, cursor: 'pointer', padding: '14px 10px', boxShadow: `0 7px 0 ${SHADOW}`, fontFamily: FONT, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative' }
+  const abBase: React.CSSProperties = { flex: 1, background: '#fff', border: '4px solid #fff', borderRadius: 20, cursor: 'pointer', padding: '10px 8px', boxShadow: `0 6px 0 ${SHADOW}`, fontFamily: FONT, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, position: 'relative' }
   const pill: React.CSSProperties   = { background: '#fff', borderRadius: 999, padding: '5px 12px', fontWeight: 600, fontSize: 14, boxShadow: `0 4px 0 ${SHADOW}`, fontFamily: FONT }
 
   return (
@@ -724,19 +724,19 @@ function QuizShow({ onHome }: { onHome: () => void }) {
           {players === 2 ? <Scoreboard scores={scores} turn={turn} /> : <div style={{ ...pill, color: '#FFC93C' }}>⭐ {stars}</div>}
         </>}
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 16px 20px', overflowY: 'auto' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 12px 12px', overflowY: 'auto' }}>
         <CharPod friend={friend} reaction={reaction} />
         {players === 2 && <TurnBanner turn={turn} />}
         <div key={popKey} style={{ animation: 'lg-pop .4s ease', width: '100%', maxWidth: 680 }}>
           <SpeechBubble variant={speechVariant}>
             {!revealed ? (
               <>
-                <div style={{ fontWeight: 700, fontSize: 26, color: sentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>Do you like <InlineItem it={cur} /> {cur.en}?</div>
+                <div style={{ fontWeight: 700, fontSize: 22, color: sentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>Do you like <InlineItem it={cur} /> {cur.en}?</div>
                 <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 15, marginTop: 5 }}>{cur.jp} はすき？</div>
               </>
             ) : (
               <>
-                <div style={{ fontWeight: 700, fontSize: 26, color: sentColor }}>{cur.answer ? 'Yes, I do!' : "No, I don't!"}</div>
+                <div style={{ fontWeight: 700, fontSize: 22, color: sentColor }}>{cur.answer ? 'Yes, I do!' : "No, I don't!"}</div>
                 <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 15, marginTop: 5 }}>{cur.answer ? 'うん、すき！' : 'ううん、すきじゃない'}</div>
                 <div style={{ marginTop: 5, fontWeight: 600, color: '#EA5C8C', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 5, animation: 'lg-pulse 1.4s ease-in-out infinite' }}>🗣️ Say it together! みんなでいってみよう！</div>
               </>
@@ -752,7 +752,7 @@ function QuizShow({ onHome }: { onHome: () => void }) {
                 style={{ ...abBase, borderColor: isCorrectAns ? '#46C98A' : isWrongGuess ? '#FF7A59' : '#fff', background: isCorrectAns ? '#F1FCF6' : isWrongGuess ? '#FFF0EB' : '#fff' }}>
                 {isCorrectAns && <span style={{ position: 'absolute', top: -16, right: -10, width: 36, height: 36, borderRadius: '50%', background: '#46C98A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: '#fff', boxShadow: `0 4px 0 ${SHADOW}`, animation: 'lg-pop .4s ease' }}>✓</span>}
                 {isWrongGuess && <span style={{ position: 'absolute', top: -16, right: -10, width: 36, height: 36, borderRadius: '50%', background: '#FF7A59', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: '#fff', boxShadow: `0 4px 0 ${SHADOW}`, animation: 'lg-pop .4s ease' }}>✕</span>}
-                <span style={{ fontWeight: 700, fontSize: 22, color: opt.col }}>{opt.label}</span>
+                <span style={{ fontWeight: 700, fontSize: 18, color: opt.col }}>{opt.label}</span>
                 <span style={{ fontFamily: JP, color: INK_SOFT, fontSize: 13 }}>{opt.jp}</span>
               </button>
             )
@@ -783,7 +783,7 @@ export function LikeGame({ onBack }: { onBack: () => void }) {
   const goHome = () => { SFX.pop(); setView('hub') }
 
   return (
-    <div style={{ width: '100%', background: 'radial-gradient(120% 80% at 50% -10%, #FFF9F4 0%, #FFF1E2 55%, #F6E3CF 100%)', fontFamily: FONT, color: INK, display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', minHeight: 620, position: 'relative' }}>
+    <div style={{ width: '100%', background: 'radial-gradient(120% 80% at 50% -10%, #FFF9F4 0%, #FFF1E2 55%, #F6E3CF 100%)', fontFamily: FONT, color: INK, display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', flex: 1, minHeight: 0, position: 'relative' }}>
       {view === 'hub'  && <GameHub onPick={setView} onBack={onBack} />}
       {view === 'mind' && <MindReader onHome={goHome} />}
       {view === 'quiz' && <QuizShow onHome={goHome} />}
