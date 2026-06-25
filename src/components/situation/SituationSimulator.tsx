@@ -106,7 +106,7 @@ export function SituationSimulator() {
     listVrmAnimations(sGender).then(setStudentAnimationMap)
 
     const { situations: s } = await listSituations(group)
-    setSituations(s ?? [])
+    setSituations((s ?? []).filter(sit => sit.mode !== 'duo'))
     setLoading(false)
   }
 

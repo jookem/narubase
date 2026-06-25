@@ -647,9 +647,9 @@ export function KidsGame() {
               <button onClick={() => grantStar(true)} style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>いえた！</span></button>
             </div>
           </div>
-          {/* Single-row scrollable chip strip */}
-          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 5, overflowX: 'auto', width: '100%', paddingBottom: 3 }}>
-            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={{ ...chipStyle(idx), flexShrink: 0 }}>{w[0]}</button>)}
+          {/* Two-row chip grid */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center', width: '100%' }}>
+            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
           </div>
         </div>
       )}
@@ -688,9 +688,9 @@ export function KidsGame() {
             </div>
             <button onClick={nextLetter} style={ARROW_BTN}>›</button>
           </div>
-          {/* Single-row scrollable chip strip */}
-          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 5, overflowX: 'auto', width: '100%', paddingBottom: 3 }}>
-            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={{ ...chipStyle(idx), flexShrink: 0 }}>{w[0]}</button>)}
+          {/* Two-row chip grid */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center', width: '100%' }}>
+            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
           </div>
         </div>
       )}
