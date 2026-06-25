@@ -100,14 +100,14 @@ const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const BG = 'radial-gradient(120% 80% at 50% -10%, #FFFBF4 0%, #FBEFE0 55%, #F6E3CF 100%)'
 
 const ARROW_BTN: React.CSSProperties = {
-  border: 'none', cursor: 'pointer', fontFamily: FONT, width: 64, height: 64,
-  borderRadius: '50%', background: '#FFFFFF', color: '#F2879B', fontSize: 40,
+  border: 'none', cursor: 'pointer', fontFamily: FONT, width: 52, height: 52,
+  borderRadius: '50%', background: '#FFFFFF', color: '#F2879B', fontSize: 32,
   fontWeight: 800, boxShadow: '0 5px 0 #EEDAC6', display: 'flex',
   alignItems: 'center', justifyContent: 'center', lineHeight: '1',
 }
 const BIG_BTN: React.CSSProperties = {
   border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800,
-  fontSize: 20, padding: '16px 26px', borderRadius: '999px', color: '#fff',
+  fontSize: 16, padding: '11px 18px', borderRadius: '999px', color: '#fff',
   display: 'flex', alignItems: 'center', gap: 8,
 }
 
@@ -516,12 +516,12 @@ export function KidsGame() {
   const duo = player === 'duo'
 
   const chipStyle = (idx: number): React.CSSProperties => idx === letterIndex
-    ? { border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, width: 42, height: 42, borderRadius: 14, fontSize: 20, background: '#F2879B', color: '#fff', boxShadow: '0 3px 0 #D96C81' }
-    : { border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, width: 42, height: 42, borderRadius: 14, fontSize: 20, background: '#FFFFFF', color: '#C7A892', boxShadow: '0 3px 0 #EEDAC6' }
+    ? { border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, width: 36, height: 36, borderRadius: 12, fontSize: 17, background: '#F2879B', color: '#fff', boxShadow: '0 3px 0 #D96C81' }
+    : { border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, width: 36, height: 36, borderRadius: 12, fontSize: 17, background: '#FFFFFF', color: '#C7A892', boxShadow: '0 3px 0 #EEDAC6' }
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div style={{ width: '100%', background: BG, fontFamily: FONT, color: '#6B4F3F', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', minHeight: 600 }}>
+    <div style={{ width: '100%', background: BG, fontFamily: FONT, color: '#6B4F3F', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', height: 'calc(100vh - 230px)', minHeight: 480 }}>
 
       {/* ── TOP BAR ── */}
       {screen !== 'like' && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 12, flexWrap: 'wrap' }}>
@@ -623,28 +623,28 @@ export function KidsGame() {
 
       {/* ═══════════════ SING ═══════════════ */}
       {screen === 'sing' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '6px 20px 24px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>Listen and say it! 🎤</div>
-            <div style={{ fontSize: 15, color: '#A98B77' }}>きいて、いってみよう</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 20px 12px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>Listen and say it! 🎤</div>
+            <div style={{ fontSize: 13, color: '#A98B77' }}>きいて、いってみよう</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 32, padding: '22px 40px', boxShadow: '0 10px 0 #EEDAC6', minWidth: 280 }}>
-              <div style={{ fontSize: 130, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 28, padding: '12px 32px', boxShadow: '0 10px 0 #EEDAC6', minWidth: 220 }}>
+              <div style={{ fontSize: 96, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
                 {curLetter}<span style={{ color: '#F6B8C4' }}>{curLetter.toLowerCase()}</span>
               </div>
-              <div style={{ fontSize: 72, margin: '6px 0 2px', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
+              <div style={{ fontSize: 54, margin: '4px 0 2px', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
             </div>
             <button onClick={nextLetter} style={ARROW_BTN}>›</button>
           </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 5px 0 #5E9BC7' }}>🔊 Hear letter <span style={{ opacity: .7, fontSize: 13 }}>もじ</span></button>
-            <button onClick={() => speak(curWord)}   style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 5px 0 #6FA458' }}>🔊 Hear word <span style={{ opacity: .7, fontSize: 13 }}>たんご</span></button>
-            <button onClick={() => grantStar(true)}  style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 5px 0 #D96C81' }}>✓ I said it! <span style={{ opacity: .85, fontSize: 13 }}>いえた！</span></button>
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 5px 0 #5E9BC7' }}>🔊 Hear letter <span style={{ opacity: .7, fontSize: 12 }}>もじ</span></button>
+            <button onClick={() => speak(curWord)}   style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 5px 0 #6FA458' }}>🔊 Hear word <span style={{ opacity: .7, fontSize: 12 }}>たんご</span></button>
+            <button onClick={() => grantStar(true)}  style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 5px 0 #D96C81' }}>✓ I said it! <span style={{ opacity: .85, fontSize: 12 }}>いえた！</span></button>
           </div>
-          <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 7, justifyContent: 'center', maxWidth: 700 }}>
+          <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 700 }}>
             {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
           </div>
         </div>
@@ -652,38 +652,38 @@ export function KidsGame() {
 
       {/* ═══════════════ TRACE ═══════════════ */}
       {screen === 'trace' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '6px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>Trace the letter ✏️</div>
-            <div style={{ fontSize: 15, color: '#A98B77' }}>ゆびで なぞってみよう</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 20px 8px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 6 }}>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>Trace the letter ✏️</div>
+            <div style={{ fontSize: 13, color: '#A98B77' }}>ゆびで なぞってみよう</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, background: '#FFFFFF', padding: 5, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 8, background: '#FFFFFF', padding: 4, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6', marginBottom: 6 }}>
             {(['upper', 'lower'] as const).map(c => (
               <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 20, padding: '7px 16px', borderRadius: '999px', background: traceCase === c ? '#F2879B' : 'transparent', color: traceCase === c ? '#fff' : '#C7A892', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {c === 'upper' ? 'A' : 'a'} <span style={{ fontSize: 12 }}>{c === 'upper' ? '大もじ' : '小もじ'}</span>
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16, padding: '5px 14px', borderRadius: '999px', background: traceCase === c ? '#F2879B' : 'transparent', color: traceCase === c ? '#fff' : '#C7A892', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {c === 'upper' ? 'A' : 'a'} <span style={{ fontSize: 11 }}>{c === 'upper' ? '大もじ' : '小もじ'}</span>
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 13, color: '#A98B77', marginBottom: 8, fontWeight: 600 }}>①②③ Watch the order, then trace — ばんごうの じゅんに かいてね</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 12, color: '#A98B77', marginBottom: 6, fontWeight: 600 }}>①②③ Watch the order, then trace — ばんごうの じゅんに かいてね</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
-            <div style={{ background: '#FFFFFF', borderRadius: 28, padding: 12, boxShadow: '0 8px 0 #EEDAC6' }}>
-              <div style={{ position: 'relative', width: 'min(44vh,360px)', height: 'min(44vh,360px)' }}>
-                <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 18, background: '#FFFDF8' }} />
+            <div style={{ background: '#FFFFFF', borderRadius: 24, padding: 8, boxShadow: '0 8px 0 #EEDAC6' }}>
+              <div style={{ position: 'relative', width: 'min(36vh,280px)', height: 'min(36vh,280px)' }}>
+                <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 16, background: '#FFFDF8' }} />
                 <canvas ref={drawCanvasRef} width={520} height={520}
                   onPointerDown={traceDown} onPointerMove={traceMove} onPointerUp={traceUp} onPointerLeave={traceUp}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 18, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 16, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
               </div>
             </div>
             <button onClick={nextLetter} style={ARROW_BTN}>›</button>
           </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 5px 0 #5E9BC7' }}>🔊 Hear it <span style={{ opacity: .7, fontSize: 13 }}>きく</span></button>
-            <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 5px 0 #A89789' }}>🧽 Clear <span style={{ opacity: .7, fontSize: 13 }}>けす</span></button>
-            <button onClick={() => grantStar(true)}   style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 5px 0 #D96C81' }}>✓ Done! <span style={{ opacity: .85, fontSize: 13 }}>できた！</span></button>
+          <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 5px 0 #5E9BC7' }}>🔊 Hear it <span style={{ opacity: .7, fontSize: 12 }}>きく</span></button>
+            <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 5px 0 #A89789' }}>🧽 Clear <span style={{ opacity: .7, fontSize: 12 }}>けす</span></button>
+            <button onClick={() => grantStar(true)}   style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 5px 0 #D96C81' }}>✓ Done! <span style={{ opacity: .85, fontSize: 12 }}>できた！</span></button>
           </div>
-          <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 7, justifyContent: 'center', maxWidth: 700 }}>
+          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 700 }}>
             {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
           </div>
         </div>
@@ -691,22 +691,22 @@ export function KidsGame() {
 
       {/* ═══════════════ WORDS ═══════════════ */}
       {screen === 'words' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '6px 20px 24px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>What is it? 🍰</div>
-            <div style={{ fontSize: 15, color: '#A98B77' }}>これは なに？　いって、タップ</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px 20px 20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>What is it? 🍰</div>
+            <div style={{ fontSize: 13, color: '#A98B77' }}>これは なに？　いって、タップ</div>
           </div>
-          <button onClick={() => speak(wTarget)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 32, padding: '22px 50px', boxShadow: '0 10px 0 #EEDAC6', maxWidth: 340 }}>
+          <button onClick={() => speak(wTarget)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 28, padding: '14px 40px', boxShadow: '0 10px 0 #EEDAC6', maxWidth: 320 }}>
             {wIsEmoji
-              ? <div style={{ fontSize: 110, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}>{wClue}</div>
-              : <div style={{ fontSize: 26, fontWeight: 800, color: '#6B4F3F', textAlign: 'center', lineHeight: 1.4, minHeight: 80, display: 'flex', alignItems: 'center' }}>{wClue}</div>
+              ? <div style={{ fontSize: 84, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}>{wClue}</div>
+              : <div style={{ fontSize: 22, fontWeight: 800, color: '#6B4F3F', textAlign: 'center', lineHeight: 1.4, minHeight: 64, display: 'flex', alignItems: 'center' }}>{wClue}</div>
             }
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 700, color: '#7FB8E0' }}>🔊 Hear it <span style={{ color: '#A98B77', fontWeight: 500, fontSize: 13 }}>きく</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#7FB8E0' }}>🔊 Hear it <span style={{ color: '#A98B77', fontWeight: 500, fontSize: 12 }}>きく</span></div>
           </button>
-          <div style={{ display: 'flex', gap: 14, marginTop: 22, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
             {wOptions.map(label => (
               <button key={label} onClick={() => checkWord(label)}
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 24, padding: '16px 26px', borderRadius: 20, minWidth: 140, boxShadow: '0 6px 0 #EEDAC6', background: wWrong === label ? '#FBD9D9' : '#FFFFFF', color: wWrong === label ? '#D96C81' : '#6B4F3F', animation: wWrong === label ? 'kg-shake .45s' : undefined }}>
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 20, padding: '13px 22px', borderRadius: 18, minWidth: 120, boxShadow: '0 6px 0 #EEDAC6', background: wWrong === label ? '#FBD9D9' : '#FFFFFF', color: wWrong === label ? '#D96C81' : '#6B4F3F', animation: wWrong === label ? 'kg-shake .45s' : undefined }}>
                 {label}
               </button>
             ))}
@@ -716,40 +716,40 @@ export function KidsGame() {
 
       {/* ═══════════════ SPELL ═══════════════ */}
       {screen === 'spell' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '6px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>Spell the word! 🎸</div>
-            <div style={{ fontSize: 15, color: '#A98B77' }}>ことばを つくろう</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px 20px 16px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>Spell the word! 🎸</div>
+            <div style={{ fontSize: 13, color: '#A98B77' }}>ことばを つくろう</div>
           </div>
-          <button onClick={() => speak(sWord)} style={{ display: 'flex', alignItems: 'center', gap: 14, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 24, padding: '14px 28px', boxShadow: '0 8px 0 #EEDAC6', maxWidth: 360 }}>
+          <button onClick={() => speak(sWord)} style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 22, padding: '10px 22px', boxShadow: '0 8px 0 #EEDAC6', maxWidth: 340 }}>
             {sEmoji
-              ? <span style={{ fontSize: 64, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}>{sEmoji}</span>
+              ? <span style={{ fontSize: 52, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}>{sEmoji}</span>
               : sClue
-                ? <span style={{ fontSize: 18, fontWeight: 700, color: '#6B4F3F', lineHeight: 1.4, textAlign: 'left', maxWidth: 220 }}>{sClue}</span>
+                ? <span style={{ fontSize: 16, fontWeight: 700, color: '#6B4F3F', lineHeight: 1.4, textAlign: 'left', maxWidth: 200 }}>{sClue}</span>
                 : null
             }
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 15, fontWeight: 700, color: '#7FB8E0', flexShrink: 0 }}>🔊 <span style={{ color: '#A98B77', fontWeight: 500, fontSize: 13 }}>きく</span></span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, fontWeight: 700, color: '#7FB8E0', flexShrink: 0 }}>🔊 <span style={{ color: '#A98B77', fontWeight: 500, fontSize: 12 }}>きく</span></span>
           </button>
           {/* Slots */}
-          <div style={{ display: 'flex', gap: 12, marginTop: 22, justifyContent: 'center', animation: sShake ? 'kg-shake .5s' : undefined }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'center', animation: sShake ? 'kg-shake .5s' : undefined }}>
             {sSlots.map((slot, idx) => (
               <div key={idx} onClick={() => tapSlot(idx)}
-                style={{ width: 58, height: 68, border: slot ? '3px solid #F2879B' : '3px dashed #E3C9B6', borderRadius: 16, background: slot ? '#FFF' : '#FFFDF8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 800, color: '#F2879B', cursor: 'pointer' }}>
+                style={{ width: 50, height: 58, border: slot ? '3px solid #F2879B' : '3px dashed #E3C9B6', borderRadius: 14, background: slot ? '#FFF' : '#FFFDF8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: '#F2879B', cursor: 'pointer' }}>
                 {slot?.ch ?? ''}
               </div>
             ))}
           </div>
           {/* Tiles */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 520 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 480 }}>
             {sTiles.map(t => (
               <button key={t.id} onClick={() => tapTile(t.id)}
-                style={{ border: 'none', cursor: t.used ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 28, width: 58, height: 58, borderRadius: 16, background: t.used ? '#F3EADb' : '#FCE9B8', color: t.used ? 'transparent' : '#6B4F3F', boxShadow: t.used ? 'inset 0 2px 6px rgba(0,0,0,.06)' : '0 4px 0 #E6CE8F', pointerEvents: t.used ? 'none' : 'auto' }}>
+                style={{ border: 'none', cursor: t.used ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 24, width: 50, height: 50, borderRadius: 14, background: t.used ? '#F3EADb' : '#FCE9B8', color: t.used ? 'transparent' : '#6B4F3F', boxShadow: t.used ? 'inset 0 2px 6px rgba(0,0,0,.06)' : '0 4px 0 #E6CE8F', pointerEvents: t.used ? 'none' : 'auto' }}>
                 {t.ch}
               </button>
             ))}
           </div>
-          <button onClick={clearSpell} style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 5px 0 #A89789', marginTop: 22 }}>
-            🧽 Clear <span style={{ opacity: .7, fontSize: 13 }}>けす</span>
+          <button onClick={clearSpell} style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 5px 0 #A89789', marginTop: 14 }}>
+            🧽 Clear <span style={{ opacity: .7, fontSize: 12 }}>けす</span>
           </button>
         </div>
       )}
