@@ -623,68 +623,74 @@ export function KidsGame() {
 
       {/* ═══════════════ SING ═══════════════ */}
       {screen === 'sing' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 20px 12px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 8 }}>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>Listen and say it! 🎤</div>
-            <div style={{ fontSize: 13, color: '#A98B77' }}>きいて、いってみよう</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: 18, fontWeight: 800 }}>Listen and say it! 🎤 </span>
+            <span style={{ fontSize: 12, color: '#A98B77' }}>きいて、いってみよう</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 28, padding: '12px 32px', boxShadow: '0 10px 0 #EEDAC6', minWidth: 220 }}>
-              <div style={{ fontSize: 96, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
+          {/* 3-column: left actions | card | right actions */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
+              <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>もじ</span></button>
+              <button onClick={() => speak(curWord)}   style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 4px 0 #6FA458' }}>🔊 <span style={{ fontSize: 11 }}>たんご</span></button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 28, padding: '10px 28px', boxShadow: '0 8px 0 #EEDAC6', minWidth: 190 }}>
+              <div style={{ fontSize: 80, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
                 {curLetter}<span style={{ color: '#F6B8C4' }}>{curLetter.toLowerCase()}</span>
               </div>
-              <div style={{ fontSize: 54, margin: '4px 0 2px', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
+              <div style={{ fontSize: 44, margin: '2px 0', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
             </div>
-            <button onClick={nextLetter} style={ARROW_BTN}>›</button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <button onClick={nextLetter} style={ARROW_BTN}>›</button>
+              <button onClick={() => grantStar(true)} style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>いえた！</span></button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 5px 0 #5E9BC7' }}>🔊 Hear letter <span style={{ opacity: .7, fontSize: 12 }}>もじ</span></button>
-            <button onClick={() => speak(curWord)}   style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 5px 0 #6FA458' }}>🔊 Hear word <span style={{ opacity: .7, fontSize: 12 }}>たんご</span></button>
-            <button onClick={() => grantStar(true)}  style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 5px 0 #D96C81' }}>✓ I said it! <span style={{ opacity: .85, fontSize: 12 }}>いえた！</span></button>
-          </div>
-          <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 700 }}>
-            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+          {/* Single-row scrollable chip strip */}
+          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 5, overflowX: 'auto', width: '100%', paddingBottom: 3 }}>
+            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={{ ...chipStyle(idx), flexShrink: 0 }}>{w[0]}</button>)}
           </div>
         </div>
       )}
 
       {/* ═══════════════ TRACE ═══════════════ */}
       {screen === 'trace' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 20px 8px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 6 }}>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>Trace the letter ✏️</div>
-            <div style={{ fontSize: 13, color: '#A98B77' }}>ゆびで なぞってみよう</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
+          {/* Title + case toggle on one row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 17, fontWeight: 800 }}>Trace ✏️ </span>
+            <div style={{ display: 'flex', gap: 6, background: '#FFFFFF', padding: 3, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6' }}>
+              {(['upper', 'lower'] as const).map(c => (
+                <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
+                  style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 14, padding: '4px 12px', borderRadius: '999px', background: traceCase === c ? '#F2879B' : 'transparent', color: traceCase === c ? '#fff' : '#C7A892', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  {c === 'upper' ? 'A' : 'a'} <span style={{ fontSize: 10 }}>{c === 'upper' ? '大もじ' : '小もじ'}</span>
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 11, color: '#A98B77', fontWeight: 600 }}>①②③ trace in order</span>
           </div>
-          <div style={{ display: 'flex', gap: 8, background: '#FFFFFF', padding: 4, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6', marginBottom: 6 }}>
-            {(['upper', 'lower'] as const).map(c => (
-              <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16, padding: '5px 14px', borderRadius: '999px', background: traceCase === c ? '#F2879B' : 'transparent', color: traceCase === c ? '#fff' : '#C7A892', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {c === 'upper' ? 'A' : 'a'} <span style={{ fontSize: 11 }}>{c === 'upper' ? '大もじ' : '小もじ'}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 12, color: '#A98B77', marginBottom: 6, fontWeight: 600 }}>①②③ Watch the order, then trace — ばんごうの じゅんに かいてね</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
-            <div style={{ background: '#FFFFFF', borderRadius: 24, padding: 8, boxShadow: '0 8px 0 #EEDAC6' }}>
-              <div style={{ position: 'relative', width: 'min(36vh,280px)', height: 'min(36vh,280px)' }}>
-                <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 16, background: '#FFFDF8' }} />
+          {/* 3-column: left actions | canvas | right nav */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
+              <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>きく</span></button>
+              <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}>🧽 <span style={{ fontSize: 11 }}>けす</span></button>
+              <button onClick={() => grantStar(true)}   style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>できた！</span></button>
+            </div>
+            <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 8, boxShadow: '0 8px 0 #EEDAC6' }}>
+              <div style={{ position: 'relative', width: 'min(38vh,260px)', height: 'min(38vh,260px)' }}>
+                <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: '#FFFDF8' }} />
                 <canvas ref={drawCanvasRef} width={520} height={520}
                   onPointerDown={traceDown} onPointerMove={traceMove} onPointerUp={traceUp} onPointerLeave={traceUp}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 16, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
               </div>
             </div>
             <button onClick={nextLetter} style={ARROW_BTN}>›</button>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 5px 0 #5E9BC7' }}>🔊 Hear it <span style={{ opacity: .7, fontSize: 12 }}>きく</span></button>
-            <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 5px 0 #A89789' }}>🧽 Clear <span style={{ opacity: .7, fontSize: 12 }}>けす</span></button>
-            <button onClick={() => grantStar(true)}   style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 5px 0 #D96C81' }}>✓ Done! <span style={{ opacity: .85, fontSize: 12 }}>できた！</span></button>
-          </div>
-          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 700 }}>
-            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+          {/* Single-row scrollable chip strip */}
+          <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 5, overflowX: 'auto', width: '100%', paddingBottom: 3 }}>
+            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={{ ...chipStyle(idx), flexShrink: 0 }}>{w[0]}</button>)}
           </div>
         </div>
       )}
