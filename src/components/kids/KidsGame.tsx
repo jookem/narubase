@@ -628,28 +628,34 @@ export function KidsGame() {
             <span style={{ fontSize: 18, fontWeight: 800 }}>Listen and say it! 🎤 </span>
             <span style={{ fontSize: 12, color: '#A98B77' }}>きいて、いってみよう</span>
           </div>
-          {/* 3-column: left actions | card | right actions */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            {/* ‹ card › */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 28, padding: '10px 28px', boxShadow: '0 8px 0 #EEDAC6', minWidth: 190 }}>
+                <div style={{ fontSize: 80, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
+                  {curLetter}<span style={{ color: '#F6B8C4' }}>{curLetter.toLowerCase()}</span>
+                </div>
+                <div style={{ fontSize: 44, margin: '2px 0', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
+              </div>
+              <button onClick={nextLetter} style={ARROW_BTN}>›</button>
+            </div>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>もじ</span></button>
               <button onClick={() => speak(curWord)}   style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 4px 0 #6FA458' }}>🔊 <span style={{ fontSize: 11 }}>たんご</span></button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 28, padding: '10px 28px', boxShadow: '0 8px 0 #EEDAC6', minWidth: 190 }}>
-              <div style={{ fontSize: 80, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
-                {curLetter}<span style={{ color: '#F6B8C4' }}>{curLetter.toLowerCase()}</span>
-              </div>
-              <div style={{ fontSize: 44, margin: '2px 0', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <button onClick={nextLetter} style={ARROW_BTN}>›</button>
-              <button onClick={() => grantStar(true)} style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>いえた！</span></button>
+              <button onClick={() => grantStar(true)}  style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>いえた！</span></button>
             </div>
           </div>
-          {/* Two-row chip grid */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center', width: '100%' }}>
-            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+          {/* A–M / N–Z */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', width: '100%' }}>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {WORDS.slice(0, 13).map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+            </div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {WORDS.slice(13).map((w, idx) => <button key={idx + 13} onClick={() => setLetter(idx + 13)} style={chipStyle(idx + 13)}>{w[0]}</button>)}
+            </div>
           </div>
         </div>
       )}
@@ -670,27 +676,35 @@ export function KidsGame() {
             </div>
             <span style={{ fontSize: 11, color: '#A98B77', fontWeight: 600 }}>①②③ trace in order</span>
           </div>
-          {/* 3-column: left actions | canvas | right nav */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            {/* ‹ canvas › */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
+              <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 8, boxShadow: '0 8px 0 #EEDAC6' }}>
+                <div style={{ position: 'relative', width: 'min(38vh,260px)', height: 'min(38vh,260px)' }}>
+                  <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: '#FFFDF8' }} />
+                  <canvas ref={drawCanvasRef} width={520} height={520}
+                    onPointerDown={traceDown} onPointerMove={traceMove} onPointerUp={traceUp} onPointerLeave={traceUp}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
+                </div>
+              </div>
+              <button onClick={nextLetter} style={ARROW_BTN}>›</button>
+            </div>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>きく</span></button>
               <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}>🧽 <span style={{ fontSize: 11 }}>けす</span></button>
               <button onClick={() => grantStar(true)}   style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>できた！</span></button>
             </div>
-            <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 8, boxShadow: '0 8px 0 #EEDAC6' }}>
-              <div style={{ position: 'relative', width: 'min(38vh,260px)', height: 'min(38vh,260px)' }}>
-                <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: '#FFFDF8' }} />
-                <canvas ref={drawCanvasRef} width={520} height={520}
-                  onPointerDown={traceDown} onPointerMove={traceMove} onPointerUp={traceUp} onPointerLeave={traceUp}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
-              </div>
-            </div>
-            <button onClick={nextLetter} style={ARROW_BTN}>›</button>
           </div>
-          {/* Two-row chip grid */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center', width: '100%' }}>
-            {WORDS.map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+          {/* A–M / N–Z */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', width: '100%' }}>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {WORDS.slice(0, 13).map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+            </div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {WORDS.slice(13).map((w, idx) => <button key={idx + 13} onClick={() => setLetter(idx + 13)} style={chipStyle(idx + 13)}>{w[0]}</button>)}
+            </div>
           </div>
         </div>
       )}
