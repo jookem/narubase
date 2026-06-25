@@ -410,15 +410,17 @@ export function GamesPage() {
       )}
 
       {/* Tabs */}
-      <div className="grid grid-cols-4 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-7">
-        <Tab label="🚂 Train" active={tab === 'train'} onClick={() => setTab('train')} />
-        <Tab label="🐝 Spelling" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
-        <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
-        <Tab label="🎤 Karaoke" active={tab === 'karaoke'} onClick={() => setTab('karaoke')} />
-        <Tab label="🎭 Situations" active={tab === 'situation'} onClick={() => setTab('situation')} />
-        <Tab label="🎭 Duo" active={tab === 'duo'} onClick={() => setTab('duo')} />
-        <Tab label="⭐ Kids" active={tab === 'kids'} onClick={() => setTab('kids')} />
-      </div>
+      {tab !== 'kids' && (
+        <div className="grid grid-cols-4 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-7">
+          <Tab label="🚂 Train" active={tab === 'train'} onClick={() => setTab('train')} />
+          <Tab label="🐝 Spelling" active={tab === 'spelling'} onClick={() => setTab('spelling')} />
+          <Tab label="🖼️ Picture" active={tab === 'picture'} onClick={() => setTab('picture')} />
+          <Tab label="🎤 Karaoke" active={tab === 'karaoke'} onClick={() => setTab('karaoke')} />
+          <Tab label="🎭 Situations" active={tab === 'situation'} onClick={() => setTab('situation')} />
+          <Tab label="🎭 Duo" active={tab === 'duo'} onClick={() => setTab('duo')} />
+          <Tab label="⭐ Kids" active={tab === 'kids'} onClick={() => setTab('kids')} />
+        </div>
+      )}
 
       {/* ── Train tab ── */}
       {tab === 'train' && (

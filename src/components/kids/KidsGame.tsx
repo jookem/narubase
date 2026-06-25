@@ -521,7 +521,7 @@ export function KidsGame() {
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div style={{ width: '100%', background: BG, fontFamily: FONT, color: '#6B4F3F', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', height: 'calc(100vh - 150px)', minHeight: 520 }}>
+    <div style={{ width: '100%', background: BG, fontFamily: FONT, color: '#6B4F3F', display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', height: 'calc(100vh - 110px)', minHeight: 520 }}>
 
       {/* ── TOP BAR ── */}
       {screen !== 'like' && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 12, flexWrap: 'wrap' }}>
