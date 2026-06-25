@@ -402,10 +402,12 @@ export function GamesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">🎮 ゲーム / Games</h1>
-        <p className="text-gray-500 text-sm mt-1">英語を楽しく練習しよう</p>
-      </div>
+      {tab !== 'kids' && (
+        <div>
+          <h1 className="text-2xl font-semibold">🎮 ゲーム / Games</h1>
+          <p className="text-gray-500 text-sm mt-1">英語を楽しく練習しよう</p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="grid grid-cols-4 gap-1 bg-gray-100 rounded-xl p-1 sm:grid-cols-7">
