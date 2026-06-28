@@ -59,7 +59,7 @@ export function TeacherDashboard() {
       const [lessonsResult, pendingBookingsResult, studentsResult, completedResult, bdayResult] = await Promise.all([
         supabase
           .from('lessons')
-          .select('*, student:profiles!lessons_student_id_fkey(id, full_name, display_name, avatar_url)')
+          .select('*, student:profiles!lessons_student_id_fkey(id, full_name, display_name, avatar_url), lesson_participants(student:profiles!lesson_participants_student_id_fkey(id, full_name))')
           .eq('teacher_id', user!.id)
           .eq('status', 'scheduled')
           .gte('scheduled_start', new Date().toISOString())
@@ -221,20 +221,26 @@ export function TeacherDashboard() {
               <p className="text-sm text-gray-500">No upcoming lessons.</p>
             ) : (
               <div className="space-y-3">
-                {upcomingLessons.map((lesson: any) => (
-                  <div key={lesson.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{lesson.student?.full_name}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatInTimeZone(new Date(lesson.scheduled_start), tz, 'MMM d, h:mm a')}
-                      </p>
+                {upcomingLessons.map((lesson: any) => {
+                  const participantNames = lesson.is_group && lesson.lesson_participants?.length > 0
+                    ? lesson.lesson_participants.map((p: any) => p.student?.full_name).filter(Boolean).join(' & ')
+                    : lesson.student?.full_name
+                  return (
+                    <div key={lesson.id} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{participantNames}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatInTimeZone(new Date(lesson.scheduled_start), tz, 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {lesson.is_group && <Badge variant="outline" className="text-xs">Group</Badge>}
+                        <Badge variant="outline" className="text-xs capitalize">{lesson.lesson_type}</Badge>
+                        <Link to={`/lessons/${lesson.id}`} className="text-xs text-brand hover:underline">View</Link>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs capitalize">{lesson.lesson_type}</Badge>
-                      <Link to={`/lessons/${lesson.id}`} className="text-xs text-brand hover:underline">View</Link>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
