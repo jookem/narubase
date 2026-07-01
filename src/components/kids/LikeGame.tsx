@@ -465,7 +465,7 @@ function WinPanel({ title, jp, onReplay, onHome, onTopics, players, scores }: { 
 function GameHub({ onPick, onBack, isDuo }: { onPick: (g: 'mind' | 'quiz' | 'partner') => void; onBack: () => void; isDuo: boolean }) {
   const pm = useContext(PlayersCtx)
   return (
-    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 16 }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', padding: '16px 20px' }}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
         ← Home <span style={{ opacity: 0.55, fontSize: 12 }}>おうち</span>
       </button>
@@ -480,11 +480,11 @@ function GameHub({ onPick, onBack, isDuo }: { onPick: (g: 'mind' | 'quiz' | 'par
           ...(isDuo ? [{ key: 'partner' as const, emoji: '🤝', title: 'Ask Me!', jp: 'ともだちゲーム', phrase: `"Do you like…?"\n${pm[0].name} answers, ${pm[1].name} guesses`, orbBg: '#E3F9EF', col: '#2FAE75' }] : []),
         ]).map(g => (
           <button key={g.key} onClick={() => { SFX.pop(); onPick(g.key) }}
-            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '18px 22px', boxShadow: `0 10px 0 ${SHADOW}`, width: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: g.orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>{g.emoji}</div>
-            <div style={{ fontWeight: 700, fontSize: 20, color: g.col }}>{g.title}</div>
-            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 12 }}>{g.jp}</div>
-            <div style={{ background: '#FFF1E2', borderRadius: 12, padding: '6px 10px', fontWeight: 600, fontSize: 11, color: INK, textAlign: 'center', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{g.phrase}</div>
+            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '22px 28px', boxShadow: `0 10px 0 ${SHADOW}`, width: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 84, height: 84, borderRadius: '50%', background: g.orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 46 }}>{g.emoji}</div>
+            <div style={{ fontWeight: 700, fontSize: 22, color: g.col }}>{g.title}</div>
+            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13 }}>{g.jp}</div>
+            <div style={{ background: '#FFF1E2', borderRadius: 12, padding: '8px 12px', fontWeight: 600, fontSize: 12, color: INK, textAlign: 'center', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{g.phrase}</div>
           </button>
         ))}
       </div>
@@ -816,21 +816,21 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
     setPick: (en: string, val: boolean) => void,
     revealed = false
   ) => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, width: '100%', maxWidth: 420 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, width: '100%' }}>
       {items.map(it => {
         const chosen = picks[it.en]
         const correct = revealed ? p2Guesses[it.en] === p1Picks[it.en] : undefined
         return (
-          <div key={it.en} style={{ background: revealed ? (correct ? '#F2FCF7' : '#FFF0EB') : '#fff', border: `3px solid ${revealed ? (correct ? '#46C98A' : '#FF7A59') : '#eee'}`, borderRadius: 18, padding: '10px 6px', boxShadow: `0 6px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, position: 'relative' }}>
-            {revealed && <div style={{ position: 'absolute', top: -12, right: -10, width: 28, height: 28, borderRadius: '50%', background: correct ? '#46C98A' : '#FF7A59', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', fontWeight: 700 }}>{correct ? '✓' : '✕'}</div>}
-            <ItemFace it={it} />
-            <div style={{ fontWeight: 700, fontSize: 13, color: INK, textTransform: 'capitalize' }}>{it.en}</div>
+          <div key={it.en} style={{ background: revealed ? (correct ? '#F2FCF7' : '#FFF0EB') : '#fff', border: `3px solid ${revealed ? (correct ? '#46C98A' : '#FF7A59') : '#eee'}`, borderRadius: 22, padding: '18px 10px', boxShadow: `0 7px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, position: 'relative' }}>
+            {revealed && <div style={{ position: 'absolute', top: -14, right: -12, width: 32, height: 32, borderRadius: '50%', background: correct ? '#46C98A' : '#FF7A59', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#fff', fontWeight: 700 }}>{correct ? '✓' : '✕'}</div>}
+            <div style={{ fontSize: 44, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.swatch ? <div style={{ width: 44, height: 44, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -4px 8px rgba(0,0,0,.12)' }} /> : it.icon}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: INK, textTransform: 'capitalize', textAlign: 'center' }}>{it.en}</div>
             {revealed
-              ? <div style={{ fontSize: 20 }}>{p1Picks[it.en] ? '❤️' : '🙅'}</div>
+              ? <div style={{ fontSize: 26 }}>{p1Picks[it.en] ? '❤️' : '🙅'}</div>
               : (
-                <div style={{ display: 'flex', gap: 5, width: '100%' }}>
-                  <button onClick={() => { SFX.pop(); setPick(it.en, true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === true ? '#46C98A' : '#eee'}`, color: chosen === true ? '#2FAE75' : '#ccc', borderRadius: 10, padding: '6px 0', fontSize: 18, background: chosen === true ? '#F2FCF7' : '#fff', cursor: 'pointer' }}>❤️</button>
-                  <button onClick={() => { SFX.pop(); setPick(it.en, false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === false ? '#8FA9C6' : '#eee'}`, color: chosen === false ? '#4592cf' : '#ccc', borderRadius: 10, padding: '6px 0', fontSize: 18, background: chosen === false ? '#F4F7FB' : '#fff', cursor: 'pointer' }}>🙅</button>
+                <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                  <button onClick={() => { SFX.pop(); setPick(it.en, true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === true ? '#46C98A' : '#eee'}`, color: chosen === true ? '#2FAE75' : '#ccc', borderRadius: 12, padding: '10px 0', fontSize: 22, background: chosen === true ? '#F2FCF7' : '#fff', cursor: 'pointer' }}>❤️</button>
+                  <button onClick={() => { SFX.pop(); setPick(it.en, false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === false ? '#8FA9C6' : '#eee'}`, color: chosen === false ? '#4592cf' : '#ccc', borderRadius: 12, padding: '10px 0', fontSize: 22, background: chosen === false ? '#F4F7FB' : '#fff', cursor: 'pointer' }}>🙅</button>
                 </div>
               )
             }
@@ -861,7 +861,7 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
   )
 
   if (phase === 'p1pick') return (
-    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '16px 20px' }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', padding: '16px 20px' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: pm[0].color }}>{pm[0].emoji} {pm[0].name}'s turn!</div>
         <div style={{ fontSize: 13, color: INK_SOFT, fontFamily: JP }}>ひみつで選んでね！（{pm[1].name}は見ないで！）</div>
@@ -887,7 +887,7 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
   )
 
   if (phase === 'p2guess') return (
-    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '16px 20px' }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', padding: '16px 20px' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: pm[1].color }}>{pm[1].emoji} {pm[1].name}'s guesses!</div>
         <div style={{ fontSize: 13, color: INK_SOFT }}>Ask: "Do you like…?" then guess! 🗣️</div>
@@ -903,7 +903,7 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
   )
 
   return (
-    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '20px 20px', position: 'relative' }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', padding: '16px 20px', position: 'relative' }}>
       <Particles kind="confetti" />
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 26, fontWeight: 800, color: score >= Math.ceil(items.length / 2) ? '#2FAE75' : '#FF7A59' }}>
