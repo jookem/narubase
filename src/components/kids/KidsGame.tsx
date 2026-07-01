@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { getStudentVocab } from '@/lib/api/lessons'
+import { getStudentVocab, rateVocabCard } from '@/lib/api/lessons'
 import { getClassmates, saveKidSession, type Classmate } from '@/lib/api/kids'
 import { supabase } from '@/lib/supabase'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { LikeGame } from './LikeGame'
 import { SpellTsumGame, type SessionWord } from './SpellTsumGame'
+
+type StudyCard = SessionWord & Pick<VocabularyBankEntry, 'id' | 'mastery_level' | 'interval_days' | 'ease_factor'>
 
 // ── Data ──────────────────────────────────────────────────────────
 
@@ -186,7 +188,7 @@ export function KidsGame() {
 
   // Session / Study
   const [sessionWords, setSessionWords] = useState<SessionWord[]>([])
-  const [studyPool, setStudyPool] = useState<SessionWord[]>([])
+  const [studyPool, setStudyPool] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
   const [studyTurn, setStudyTurn] = useState<1 | 2>(1)
@@ -849,7 +851,7 @@ export function KidsGame() {
                   else if (s.key === 'study') {
                     const pool = shuffleArr(
                       assignedVocab
-                        .map(e => ({ word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word }))
+                        .map(e => ({ id: e.id, word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word, mastery_level: e.mastery_level, interval_days: e.interval_days, ease_factor: e.ease_factor }))
                         .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
                     ).slice(0, 5)
                     setStudyPool(pool); setStudyTurn(1)
@@ -1117,19 +1119,38 @@ export function KidsGame() {
               )}
             </div>
 
-            {/* Navigation */}
-            <div style={{ display: 'flex', gap: 12 }}>
-              {studyIdx > 0 && (
-                <button onClick={() => { setStudyIdx(i => i - 1); setStudyFlipped(false) }}
-                  style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '10px 20px', borderRadius: '999px', background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 4px 0 #E7D3C0' }}>
-                  ← もどる
-                </button>
-              )}
-              {studyFlipped && (
-                <button onClick={() => { setStudyIdx(i => i + 1); setStudyFlipped(false) }}
-                  style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 15, padding: '10px 24px', borderRadius: '999px', background: isLast ? '#8BC273' : '#F2879B', color: '#fff', boxShadow: `0 4px 0 ${isLast ? '#6FA458' : '#D96C81'}` }}>
-                  {isLast ? 'おわり ✓' : 'つぎ →'}
-                </button>
+            {/* Navigation / SRS Rating */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 380 }}>
+              {studyFlipped ? (
+                <>
+                  <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#A98B77' }}>
+                    どのくらいわかった？ · How well did you know it?
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {([
+                      { r: 'again' as const, label: 'もう一度', sub: 'Again', bg: '#FFF0F0', col: '#D96C81', sh: '#E4B8C4' },
+                      { r: 'hard'  as const, label: 'むずかしい', sub: 'Hard', bg: '#FFF5E6', col: '#D9893A', sh: '#E4C49A' },
+                      { r: 'good'  as const, label: 'よかった',  sub: 'Good', bg: '#EEF8FF', col: '#3FA7E8', sh: '#B0D8F5' },
+                      { r: 'easy'  as const, label: 'かんたん',  sub: 'Easy', bg: '#EEFCF0', col: '#5AB468', sh: '#B8DFB8' },
+                    ]).map(btn => (
+                      <button key={btn.r} onClick={() => {
+                        rateVocabCard(card.id, card.mastery_level, btn.r, card.interval_days, card.ease_factor)
+                        setStudyIdx(i => i + 1)
+                        setStudyFlipped(false)
+                      }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, background: btn.bg, borderRadius: 16, padding: '12px 8px', boxShadow: `0 4px 0 ${btn.sh}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: btn.col }}>{btn.label}</div>
+                        <div style={{ fontSize: 11, color: btn.col, opacity: 0.75 }}>{btn.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                studyIdx > 0 && (
+                  <button onClick={() => { setStudyIdx(i => i - 1); setStudyFlipped(false) }}
+                    style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '10px 20px', borderRadius: '999px', background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 4px 0 #E7D3C0' }}>
+                    ← もどる
+                  </button>
+                )
               )}
             </div>
           </div>
