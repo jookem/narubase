@@ -83,7 +83,37 @@ const LSTROKES: Record<string, number[][][]> = {
   z:[[[.30,.42],[.62,.42]],[[.62,.42],[.30,.82]],[[.30,.82],[.64,.82]]],
 }
 
-type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like'
+type ZooEntry = { animal: string; animalEmoji: string; food: string; foodEmoji: string; sound: 'chomp' | 'gulp' }
+const ZOO_DATA: ZooEntry[] = [
+  { animal:'Alligator',  animalEmoji:'🐊', food:'Apple',      foodEmoji:'🍎', sound:'chomp' },
+  { animal:'Bear',       animalEmoji:'🐻', food:'Banana',     foodEmoji:'🍌', sound:'chomp' },
+  { animal:'Cat',        animalEmoji:'🐱', food:'Carrot',     foodEmoji:'🥕', sound:'chomp' },
+  { animal:'Dog',        animalEmoji:'🐶', food:'Donut',      foodEmoji:'🍩', sound:'chomp' },
+  { animal:'Elephant',   animalEmoji:'🐘', food:'Egg',        foodEmoji:'🥚', sound:'gulp'  },
+  { animal:'Fox',        animalEmoji:'🦊', food:'Fish',       foodEmoji:'🐟', sound:'chomp' },
+  { animal:'Gorilla',    animalEmoji:'🦍', food:'Grapes',     foodEmoji:'🍇', sound:'chomp' },
+  { animal:'Horse',      animalEmoji:'🐴', food:'Hay',        foodEmoji:'🌾', sound:'chomp' },
+  { animal:'Iguana',     animalEmoji:'🦎', food:'Ice Cream',  foodEmoji:'🍦', sound:'gulp'  },
+  { animal:'Jaguar',     animalEmoji:'🐆', food:'Juice',      foodEmoji:'🧃', sound:'gulp'  },
+  { animal:'Kangaroo',   animalEmoji:'🦘', food:'Kiwi',       foodEmoji:'🥝', sound:'chomp' },
+  { animal:'Lion',       animalEmoji:'🦁', food:'Lemon',      foodEmoji:'🍋', sound:'chomp' },
+  { animal:'Monkey',     animalEmoji:'🐒', food:'Mango',      foodEmoji:'🥭', sound:'chomp' },
+  { animal:'Narwhal',    animalEmoji:'🦭', food:'Noodles',    foodEmoji:'🍜', sound:'gulp'  },
+  { animal:'Owl',        animalEmoji:'🦉', food:'Orange',     foodEmoji:'🍊', sound:'chomp' },
+  { animal:'Penguin',    animalEmoji:'🐧', food:'Pear',       foodEmoji:'🍐', sound:'gulp'  },
+  { animal:'Quail',      animalEmoji:'🐦', food:'Quinoa',     foodEmoji:'🥣', sound:'gulp'  },
+  { animal:'Rabbit',     animalEmoji:'🐰', food:'Rice',       foodEmoji:'🍚', sound:'chomp' },
+  { animal:'Snake',      animalEmoji:'🐍', food:'Strawberry', foodEmoji:'🍓', sound:'gulp'  },
+  { animal:'Tiger',      animalEmoji:'🐯', food:'Tomato',     foodEmoji:'🍅', sound:'chomp' },
+  { animal:'Unicorn',    animalEmoji:'🦄', food:'Udon',       foodEmoji:'🍝', sound:'gulp'  },
+  { animal:'Vulture',    animalEmoji:'🦅', food:'Vegetables', foodEmoji:'🥦', sound:'chomp' },
+  { animal:'Wolf',       animalEmoji:'🐺', food:'Watermelon', foodEmoji:'🍉', sound:'chomp' },
+  { animal:'X-ray Fish', animalEmoji:'🐠', food:'Worm',       foodEmoji:'🪱', sound:'gulp'  },
+  { animal:'Yak',        animalEmoji:'🐃', food:'Yam',        foodEmoji:'🍠', sound:'chomp' },
+  { animal:'Zebra',      animalEmoji:'🦓', food:'Zucchini',   foodEmoji:'🥒', sound:'chomp' },
+]
+
+type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like' | 'zoo'
 type SlotEntry = { ch: string; tileId: number }
 type Tile = { id: number; ch: string; used: boolean }
 
@@ -137,6 +167,13 @@ export function KidsGame() {
   const [wOptions, setWOptions] = useState<string[]>([])
   const [wWrong, setWWrong] = useState<string | null>(null)
 
+  // Zoo
+  const [zooPhase, setZooPhase] = useState<'trace' | 'feed'>('trace')
+  const [zooAccuracy, setZooAccuracy] = useState(0)
+  const [zooFed, setZooFed] = useState(false)
+  const [zooDragPos, setZooDragPos] = useState<{ x: number; y: number } | null>(null)
+  const [zooDragging, setZooDragging] = useState(false)
+
   // Spell
   const [sWord, setSWord] = useState('')
   const [sEmoji, setSEmoji] = useState('')  // emoji char, empty when using assigned vocab
@@ -150,6 +187,9 @@ export function KidsGame() {
   const [assignedVocab, setAssignedVocab] = useState<VocabularyBankEntry[]>([])
 
   // Refs
+  const zooAnimalRef = useRef<HTMLDivElement>(null)
+  const zooDragStartRef = useRef<{ ox: number; oy: number; ex: number; ey: number } | null>(null)
+
   const guideCanvasRef = useRef<HTMLCanvasElement>(null)
   const drawCanvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
@@ -207,7 +247,7 @@ export function KidsGame() {
 
   // ── Stroke animation interval ──────────────────────────────────
   useEffect(() => {
-    if (screen !== 'trace') return
+    if (screen !== 'trace' && screen !== 'zoo') return
     const key = traceCase === 'lower'
       ? WORDS[letterIndex][0].toLowerCase()
       : WORDS[letterIndex][0]
@@ -226,7 +266,7 @@ export function KidsGame() {
 
   // ── Redraw guide when trace state changes ──────────────────────
   useEffect(() => {
-    if (screen !== 'trace') return
+    if (screen !== 'trace' && screen !== 'zoo') return
     const t = setTimeout(() => drawGuide(), 30)
     return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,6 +297,14 @@ export function KidsGame() {
   function sfxCorrect() { if (!ensureAudio()) return; [523.25, 659.25, 783.99].forEach((f, k) => beep(f, k * 0.1, 0.2, 'triangle', 0.18)); beep(1046.5, 0.3, 0.25, 'triangle', 0.12) }
   function sfxWrong()   { if (!ensureAudio()) return; beep(311.13, 0, 0.16, 'sine', 0.14); beep(246.94, 0.13, 0.22, 'sine', 0.14) }
   function sfxTap()     { if (!ensureAudio()) return; beep(680, 0, 0.06, 'square', 0.06) }
+  function sfxChomp() {
+    if (!ensureAudio()) return
+    ;[0, 0.07, 0.14].forEach(t => { beep(220, t, 0.07, 'square', 0.11); beep(170, t + 0.03, 0.05, 'square', 0.07) })
+  }
+  function sfxGulp() {
+    if (!ensureAudio()) return
+    beep(340, 0, 0.04, 'sine', 0.14); beep(210, 0.05, 0.12, 'sine', 0.17); beep(110, 0.16, 0.2, 'sine', 0.11)
+  }
 
   function speak(text: string) {
     try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 0.8; u.pitch = 1.1; window.speechSynthesis.speak(u) } catch {}
@@ -395,6 +443,41 @@ export function KidsGame() {
   }
   function traceUp() { drawingRef.current = false; prevPointRef.current = null }
 
+  function calcAccuracy(): number {
+    const draw = drawCanvasRef.current; if (!draw) return 0
+    const drawCtx = draw.getContext('2d'); if (!drawCtx) return 0
+    const { data: drawData } = drawCtx.getImageData(0, 0, 520, 520)
+    const hasAlpha = (px: number, py: number) => {
+      const x = Math.round(px), y = Math.round(py)
+      if (x < 0 || x >= 520 || y < 0 || y >= 520) return false
+      return drawData[(y * 520 + x) * 4 + 3] > 30
+    }
+    const S = getStrokes()
+    const L = 130, R = 390, T = 95, B = 425
+    if (!S) return 0
+    let total = 0, covered = 0
+    S.forEach(stroke => {
+      for (let si = 0; si < stroke.length - 1; si++) {
+        const [ax, ay] = stroke[si], [bx, by] = stroke[si + 1]
+        const px0 = L + ax * (R - L), py0 = T + ay * (B - T)
+        const px1 = L + bx * (R - L), py1 = T + by * (B - T)
+        const steps = Math.max(1, Math.floor(Math.hypot(px1 - px0, py1 - py0) / 10))
+        for (let k = 0; k <= steps; k++) {
+          const fx = px0 + (px1 - px0) * (k / steps), fy = py0 + (py1 - py0) * (k / steps)
+          total++
+          let hit = false
+          outer: for (let dx = -18; dx <= 18; dx += 3) {
+            for (let dy = -18; dy <= 18; dy += 3) {
+              if (hasAlpha(fx + dx, fy + dy)) { hit = true; break outer }
+            }
+          }
+          if (hit) covered++
+        }
+      }
+    })
+    return total === 0 ? 0 : Math.min(100, Math.round(covered / total * 100))
+  }
+
   // ── Letter navigation ──────────────────────────────────────────
   function setLetter(i: number) {
     setLetterIndex(i); letterIndexRef.current = i
@@ -509,6 +592,55 @@ export function KidsGame() {
     setSTiles(t => t.map(ti => ({ ...ti, used: false })))
   }
 
+  // ── Alphabet Zoo ───────────────────────────────────────────────
+  function setupZoo() {
+    setZooPhase('trace'); setZooAccuracy(0); setZooFed(false)
+    setZooDragPos(null); setZooDragging(false)
+    clearDrawCanvas(); setScreen('zoo')
+    setTimeout(() => drawGuide(), 40)
+  }
+
+  function zooTraceDone() {
+    const acc = calcAccuracy()
+    setZooAccuracy(acc); setZooPhase('feed')
+    speak(ZOO_DATA[letterIndexRef.current].animal)
+  }
+
+  function zooFoodDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault()
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    zooDragStartRef.current = { ox: r.left + r.width / 2, oy: r.top + r.height / 2, ex: e.clientX, ey: e.clientY }
+    setZooDragging(true)
+    setZooDragPos({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
+  }
+
+  function zooFoodMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!zooDragStartRef.current) return
+    const { ox, oy, ex, ey } = zooDragStartRef.current
+    setZooDragPos({ x: ox + e.clientX - ex, y: oy + e.clientY - ey })
+  }
+
+  function zooFoodUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!zooDragStartRef.current) return
+    const { ox, oy, ex, ey } = zooDragStartRef.current
+    const dropX = ox + e.clientX - ex, dropY = oy + e.clientY - ey
+    zooDragStartRef.current = null; setZooDragging(false); setZooDragPos(null)
+    const animal = zooAnimalRef.current; if (!animal || zooFed) return
+    const r = animal.getBoundingClientRect(); const pad = 50
+    const hit = dropX >= r.left - pad && dropX <= r.right + pad && dropY >= r.top - pad && dropY <= r.bottom + pad
+    if (hit) {
+      setZooFed(true)
+      const zoo = ZOO_DATA[letterIndexRef.current]
+      if (zoo.sound === 'chomp') sfxChomp(); else sfxGulp()
+      setTimeout(() => grantStar(true), 300)
+      setTimeout(() => {
+        setZooPhase('trace'); setZooAccuracy(0); setZooFed(false)
+        clearDrawCanvas(); setTimeout(() => drawGuide(), 40)
+      }, 1500)
+    }
+  }
+
   // ── Derived display values ─────────────────────────────────────
   const curLetter = WORDS[letterIndex][0]
   const curWord   = WORDS[letterIndex][1]
@@ -594,6 +726,7 @@ export function KidsGame() {
             {([
               { key: 'sing'  as Screen, title: 'ABC Song',      jp: 'えいごのうた', skill: '🗣 Speaking', emoji: '🎤', bg: '#FBD9E1' },
               { key: 'trace' as Screen, title: 'Trace Letters', jp: 'もじをなぞる', skill: '✏️ Writing',  emoji: '✏️', bg: '#FBE7B6' },
+              { key: 'zoo'   as Screen, title: 'Alphabet Zoo',  jp: 'どうぶつえん', skill: '✏️ Writing',  emoji: '🦁', bg: '#D4F0D8' },
               { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
               { key: 'spell' as Screen, title: 'Spelling',      jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
               { key: 'like'  as Screen, title: 'Like & Dislike',jp: 'すきなもの',   skill: '💬 Speaking',  emoji: '🔮', bg: '#F0E0FF' },
@@ -602,6 +735,7 @@ export function KidsGame() {
                 onClick={() => {
                   if (s.key === 'words') setupWords()
                   else if (s.key === 'spell') setupSpell()
+                  else if (s.key === 'zoo') setupZoo()
                   else { setScreen(s.key); if (s.key === 'trace') setTimeout(() => drawGuide(), 40) }
                 }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, textAlign: 'left', padding: 18, borderRadius: 24, boxShadow: '0 8px 0 rgba(0,0,0,.06)', background: s.bg }}>
@@ -778,6 +912,111 @@ export function KidsGame() {
       {screen === 'like' && (
         <LikeGame onBack={() => setScreen('hub')} />
       )}
+
+      {/* ═══════════════ ZOO ═══════════════ */}
+      {screen === 'zoo' && (() => {
+        const zoo = ZOO_DATA[letterIndex]
+        const accColor = zooAccuracy >= 80 ? '#8BC273' : zooAccuracy >= 50 ? '#E0A52E' : '#F2879B'
+        const zooChipClick = (i: number) => {
+          setLetter(i); setZooPhase('trace'); setZooAccuracy(0); setZooFed(false); setZooDragPos(null)
+        }
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
+            {/* Title row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {zooPhase === 'trace' ? (
+                <>
+                  <span style={{ fontSize: 17, fontWeight: 800 }}>Trace & Feed! 🦁</span>
+                  <div style={{ display: 'flex', gap: 6, background: '#FFFFFF', padding: 3, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6' }}>
+                    {(['upper', 'lower'] as const).map(c => (
+                      <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
+                        style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 14, padding: '4px 12px', borderRadius: '999px', background: traceCase === c ? '#F2879B' : 'transparent', color: traceCase === c ? '#fff' : '#C7A892', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {c === 'upper' ? 'A' : 'a'} <span style={{ fontSize: 10 }}>{c === 'upper' ? '大もじ' : '小もじ'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800 }}>Feed the {zoo.animal}! 🍽️</span>
+                  <div style={{ background: accColor, color: '#fff', fontWeight: 800, fontSize: 14, padding: '4px 12px', borderRadius: '999px' }}>
+                    ✏️ {zooAccuracy}%
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Main area */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              {zooPhase === 'trace' ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
+                    <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 8, boxShadow: '0 8px 0 #EEDAC6' }}>
+                      <div style={{ position: 'relative', width: 'min(38vh,260px)', height: 'min(38vh,260px)' }}>
+                        <canvas ref={guideCanvasRef} width={520} height={520} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: '#FFFDF8' }} />
+                        <canvas ref={drawCanvasRef} width={520} height={520}
+                          onPointerDown={traceDown} onPointerMove={traceMove} onPointerUp={traceUp} onPointerLeave={traceUp}
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 14, background: 'transparent', touchAction: 'none', cursor: 'crosshair' }} />
+                      </div>
+                    </div>
+                    <button onClick={nextLetter} style={ARROW_BTN}>›</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>きく</span></button>
+                    <button onClick={clearDrawCanvas} style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}>🧽 <span style={{ fontSize: 11 }}>けす</span></button>
+                    <button onClick={zooTraceDone} style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 4px 0 #6FA458' }}>🦁 Feed! <span style={{ fontSize: 11 }}>えさをあげよう</span></button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 48, padding: '8px 0' }}>
+                  {/* Draggable food */}
+                  {!zooFed && (
+                    <div
+                      onPointerDown={zooFoodDown}
+                      onPointerMove={zooFoodMove}
+                      onPointerUp={zooFoodUp}
+                      style={{
+                        fontSize: 64, lineHeight: 1, userSelect: 'none', touchAction: 'none',
+                        cursor: zooDragging ? 'grabbing' : 'grab',
+                        ...(zooDragging && zooDragPos ? {
+                          position: 'fixed' as const,
+                          left: zooDragPos.x, top: zooDragPos.y,
+                          transform: 'translate(-50%,-50%)',
+                          zIndex: 9998,
+                        } : {
+                          animation: 'kg-floaty 2.5s ease-in-out infinite',
+                        }),
+                      }}
+                    >
+                      {zoo.foodEmoji}
+                    </div>
+                  )}
+                  {/* Animal + name */}
+                  <div ref={zooAnimalRef} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 90, lineHeight: 1, animation: zooFed ? 'kg-pop .4s ease-out' : 'kg-floaty 2s ease-in-out infinite' }}>
+                      {zoo.animalEmoji}
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#5A4336' }}>{zoo.animal}</div>
+                    {!zooFed && <div style={{ fontSize: 13, color: '#A98B77' }}>Drag {zoo.foodEmoji} to me!</div>}
+                    {zooFed && <div style={{ fontSize: 18, fontWeight: 800, color: '#8BC273', animation: 'kg-pop .3s ease-out' }}>Yummy! 😋</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Letter chips */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {WORDS.slice(0, 13).map((w, idx) => <button key={idx} onClick={() => zooChipClick(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+              </div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {WORDS.slice(13).map((w, idx) => <button key={idx + 13} onClick={() => zooChipClick(idx + 13)} style={chipStyle(idx + 13)}>{w[0]}</button>)}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ═══════════════ REWARD OVERLAY ═══════════════ */}
       {justRewarded && (
