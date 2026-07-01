@@ -657,16 +657,23 @@ export function KidsGame() {
 
       {/* ── TOP BAR ── */}
       {screen !== 'like' && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', gap: 12, flexWrap: 'wrap' }}>
-        {/* Title / Back */}
-        {screen === 'hub' ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 22, color: '#F2879B' }}>
-            <span>⭐</span><span>Kids English</span>
-          </div>
-        ) : (
-          <button onClick={() => setScreen('hub')} style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#FFFFFF', color: '#6B4F3F', fontFamily: FONT, fontWeight: 700, fontSize: 16, padding: '10px 18px', borderRadius: '999px', boxShadow: '0 4px 0 #E7D3C0' }}>
-            ← Home <span style={{ opacity: .55, fontSize: 13 }}>おうち</span>
-          </button>
-        )}
+        {/* Title / Back + duo turn pill */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {screen === 'hub' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 22, color: '#F2879B' }}>
+              <span>⭐</span><span>Kids English</span>
+            </div>
+          ) : (
+            <button onClick={() => setScreen('hub')} style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#FFFFFF', color: '#6B4F3F', fontFamily: FONT, fontWeight: 700, fontSize: 16, padding: '10px 18px', borderRadius: '999px', boxShadow: '0 4px 0 #E7D3C0' }}>
+              ← Home <span style={{ opacity: .55, fontSize: 13 }}>おうち</span>
+            </button>
+          )}
+          {duo && screen !== 'hub' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, padding: '6px 14px', borderRadius: '999px', background: turn === 1 ? '#FBD9E1' : '#E7DCF5', color: turn === 1 ? '#D96C81' : '#7A5AC0', boxShadow: '0 3px 0 rgba(0,0,0,.06)' }}>
+              {turn === 1 ? '👧' : '👩'} {turn === 1 ? 'Player 1' : 'Player 2'} <span style={{ opacity: .75, fontWeight: 600, fontSize: 12 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>
+            </div>
+          )}
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* SFX */}
@@ -706,16 +713,8 @@ export function KidsGame() {
         </div>
       </div>}
 
-      {/* ── DUO TURN BANNER ── */}
-      {duo && screen !== 'hub' && screen !== 'like' && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 20px 8px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 18, padding: '8px 20px', borderRadius: '999px', background: turn === 1 ? '#FBD9E1' : '#E7DCF5', color: turn === 1 ? '#D96C81' : '#7A5AC0', boxShadow: '0 4px 0 rgba(0,0,0,.05)' }}>
-            {turn === 1 ? '👧' : '👩'} {turn === 1 ? 'Player 1' : 'Player 2'} <span style={{ opacity: .85, fontWeight: 600, fontSize: 14 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>
-          </div>
-        </div>
-      )}
 
-      {/* ═══════════════ HUB ═══════════════ */}
+{/* ═══════════════ HUB ═══════════════ */}
       {screen === 'hub' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 20px 32px' }}>
           <div style={{ textAlign: 'center', marginBottom: 22 }}>
@@ -725,7 +724,6 @@ export function KidsGame() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16, width: '100%', maxWidth: 800 }}>
             {([
               { key: 'sing'  as Screen, title: 'ABC Song',      jp: 'えいごのうた', skill: '🗣 Speaking', emoji: '🎤', bg: '#FBD9E1' },
-              { key: 'trace' as Screen, title: 'Trace Letters', jp: 'もじをなぞる', skill: '✏️ Writing',  emoji: '✏️', bg: '#FBE7B6' },
               { key: 'zoo'   as Screen, title: 'Alphabet Zoo',  jp: 'どうぶつえん', skill: '✏️ Writing',  emoji: '🦁', bg: '#D4F0D8' },
               { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
               { key: 'spell' as Screen, title: 'Spelling',      jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
