@@ -975,7 +975,8 @@ export function KidsGame() {
                       onPointerMove={zooFoodMove}
                       onPointerUp={zooFoodUp}
                       style={{
-                        fontSize: 64, lineHeight: 1, userSelect: 'none', touchAction: 'none',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                        userSelect: 'none', touchAction: 'none',
                         cursor: zooDragging ? 'grabbing' : 'grab',
                         ...(zooDragging && zooDragPos ? {
                           position: 'fixed' as const,
@@ -987,7 +988,8 @@ export function KidsGame() {
                         }),
                       }}
                     >
-                      {zoo.foodEmoji}
+                      <div style={{ fontSize: 64, lineHeight: 1 }}>{zoo.foodEmoji}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#5A4336' }}>{zoo.food}</div>
                     </div>
                   )}
                   {/* Animal + name */}
