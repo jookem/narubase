@@ -467,7 +467,7 @@ function GameHub({ onPick, onBack, isDuo }: { onPick: (g: 'mind' | 'quiz' | 'par
   return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 16 }}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
-        ← Kids
+        ← Home <span style={{ opacity: 0.55, fontSize: 12 }}>おうち</span>
       </button>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ fontWeight: 700, fontSize: 32, letterSpacing: -1, background: 'linear-gradient(180deg,#FF7FA8,#EA5C8C)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Choose a Game!</h1>
