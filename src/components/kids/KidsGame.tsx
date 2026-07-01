@@ -1182,23 +1182,23 @@ export function KidsGame() {
 
       {/* ═══════════════ PLAYER PICKER ═══════════════ */}
       {showPicker && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9997 }}>
-          <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '24px 28px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '92%', maxWidth: 460, animation: 'kg-pop .4s ease-out' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9997, padding: '16px' }}>
+          <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '24px 28px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'kg-pop .4s ease-out' }}>
             <div style={{ fontSize: 20, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}>いっしょにあそぼう！</div>
             <div style={{ fontSize: 13, color: '#A98B77', textAlign: 'center', marginBottom: 16, marginTop: 3 }}>Who is Player 2?</div>
             {classmates.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#A98B77', fontSize: 14, padding: '12px 0' }}>No classmates found</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 14, overflowY: 'auto' }}>
                 {classmates.map(c => {
                   const firstName = (c.full_name ?? 'Student').split(' ')[0]
                   return (
                     <button key={c.id} onClick={() => {
                       setPlayer2Id(c.id); setPlayer2Name(firstName)
                       setPlayer('duo'); setTurn(1); setShowPicker(false)
-                    }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 14, padding: '12px 8px', borderRadius: 16, background: '#EDE4FF', color: '#5A4336', boxShadow: '0 4px 0 #D0BEFF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 30 }}>👩</span>
-                      <span style={{ lineHeight: 1.2, wordBreak: 'break-word' }}>{firstName}</span>
+                    }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 13, padding: '10px 6px', borderRadius: 14, background: '#EDE4FF', color: '#5A4336', boxShadow: '0 4px 0 #D0BEFF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 26 }}>👩</span>
+                      <span style={{ lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center' }}>{firstName}</span>
                     </button>
                   )
                 })}
