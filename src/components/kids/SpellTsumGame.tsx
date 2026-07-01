@@ -3,7 +3,6 @@ import type { VocabularyBankEntry } from '@/lib/types/database'
 
 const COLS = 5, ROWS = 6, BALL = 54, GAP = 5
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
-const TOTAL_TIME = 60
 
 const BALL_POOL = [
   { emoji:'🐱', bg:'#FBD9E1', sh:'#E4BFCA' }, { emoji:'🐶', bg:'#FDE9C4', sh:'#E8D2A4' },
@@ -12,7 +11,6 @@ const BALL_POOL = [
   { emoji:'🦊', bg:'#FFE4CC', sh:'#E8C8A4' }, { emoji:'🐨', bg:'#D8ECF8', sh:'#B8D4EC' },
   { emoji:'🐮', bg:'#F4F0D8', sh:'#DCD8B8' }, { emoji:'🐼', bg:'#E8E8E8', sh:'#D0D0D0' },
 ]
-
 const LETTER_POOL = 'AAABBBCCDDDEEEFFGGGHHHIIIJJKKLLLMMMNNNOOOPPPRRRSSSTTTUUUVVWWXYYZ'
 
 const FALLBACK = [
@@ -26,8 +24,9 @@ const FALLBACK = [
   { word:'KEY',   hint:'かぎ' },     { word:'BOX',   hint:'はこ' },
 ]
 
+export type SessionWord = { word: string; hint: string }
+
 type TsumBall = { id:number; char:string; emoji:string; bg:string; sh:string; row:number; col:number; popping:boolean }
-type WordEntry = { word:string; hint:string }
 
 function shuffleArr<T>(a: T[]): T[] {
   const arr = [...a]
@@ -53,8 +52,20 @@ function buildGrid(word: string): TsumBall[] {
   })
 }
 
+function findCorrectChain(word: string, balls: TsumBall[]): number[] {
+  const used = new Set<number>()
+  const ids: number[] = []
+  for (const ch of word) {
+    const ball = balls.find(b => b.char === ch && !used.has(b.id) && !b.popping)
+    if (!ball) break
+    used.add(ball.id); ids.push(ball.id)
+  }
+  return ids
+}
+
 interface Props {
   assignedVocab: VocabularyBankEntry[]
+  sessionWords: SessionWord[]
   onBack: () => void
   sfxCorrect: () => void
   sfxWrong: () => void
@@ -62,8 +73,9 @@ interface Props {
   speak: (t: string) => void
 }
 
-export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
-  const wordPool: WordEntry[] = (() => {
+export function SpellTsumGame({ assignedVocab, sessionWords, onBack, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
+  const [wordPool] = useState<SessionWord[]>(() => {
+    if (sessionWords.length > 0) return sessionWords
     const spellable = assignedVocab.filter(e => {
       const w = e.word.trim()
       return w.length >= 2 && w.length <= 8 && /^[a-zA-Z]+$/.test(w)
@@ -73,42 +85,52 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
       hint: e.definition_ja ?? e.definition_en ?? e.word,
     }))
     return FALLBACK
-  })()
+  })
 
-  const queueRef = useRef<WordEntry[]>([])
-  function nextWord(): WordEntry {
-    if (queueRef.current.length === 0) queueRef.current = shuffleArr([...wordPool])
-    return queueRef.current.pop()!
+  // Finite queue: one pass through all words, then end (if session) or reshuffle (if endless)
+  const isSession = sessionWords.length > 0
+  const remainingRef = useRef<SessionWord[]>(shuffleArr([...wordPool]))
+
+  function getNext(): SessionWord | null {
+    if (remainingRef.current.length === 0) {
+      if (isSession) return null
+      remainingRef.current = shuffleArr([...wordPool])
+    }
+    return remainingRef.current.shift()!
   }
 
-  const first = nextWord()
-  const [balls, setBalls]         = useState<TsumBall[]>(() => buildGrid(first.word))
-  const [target, setTarget]       = useState<WordEntry>(first)
-  const [chain, setChain]         = useState<number[]>([])
-  const [dragPos, setDragPos]     = useState<{ x: number; y: number } | null>(null)
-  const [score, setScore]         = useState(0)
-  const [combo, setCombo]         = useState(1)
-  const [streak, setStreak]       = useState(0)
-  const [timeLeft, setTimeLeft]   = useState(TOTAL_TIME)
-  const [phase, setPhase]         = useState<'playing' | 'end'>('playing')
-  const [wordsCount, setWordsCount] = useState(0)
-  const [showStreak, setShowStreak] = useState(false)
-  const [wrongFlash, setWrongFlash] = useState(false)
+  const first = getNext()!
 
-  const gridRef     = useRef<HTMLDivElement>(null)
-  const draggingRef = useRef(false)
-  const chainRef    = useRef<number[]>([])
+  const [balls, setBalls]             = useState<TsumBall[]>(() => buildGrid(first.word))
+  const [target, setTarget]           = useState<SessionWord>(first)
+  const [chain, setChain]             = useState<number[]>([])
+  const [dragPos, setDragPos]         = useState<{ x: number; y: number } | null>(null)
+  const [score, setScore]             = useState(0)
+  const [combo, setCombo]             = useState(1)
+  const [streak, setStreak]           = useState(0)
+  const [wordsAttempted, setWordsAttempted] = useState(0)
+  const [wordsCorrect, setWordsCorrect]     = useState(0)
+  const [elapsed, setElapsed]         = useState(0)
+  const [phase, setPhase]             = useState<'playing' | 'end'>('playing')
+  const [showStreak, setShowStreak]   = useState(false)
+  const [wrongReveal, setWrongReveal] = useState(false)
+  const [revealChain, setRevealChain] = useState<number[]>([])
+
+  const gridRef        = useRef<HTMLDivElement>(null)
+  const draggingRef    = useRef(false)
+  const chainRef       = useRef<number[]>([])
+  const revealingRef   = useRef(false)
+  const wordStartRef   = useRef(Date.now())
+
   useEffect(() => { chainRef.current = chain }, [chain])
 
-  // Timer
+  // Count-up timer
   useEffect(() => {
     if (phase !== 'playing') return
-    if (timeLeft <= 0) { setPhase('end'); return }
-    const id = setTimeout(() => setTimeLeft(t => t - 1), 1000)
-    return () => clearTimeout(id)
-  }, [timeLeft, phase])
+    const id = setInterval(() => setElapsed(s => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [phase])
 
-  // Speak first word on mount
   useEffect(() => { setTimeout(() => speak(first.word.toLowerCase()), 400) }, [])
 
   function getBallAt(x: number, y: number): TsumBall | null {
@@ -125,8 +147,20 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
     return { x: e.clientX - r.left, y: e.clientY - r.top }
   }
 
+  function advanceToNext() {
+    revealingRef.current = false
+    setWrongReveal(false); setRevealChain([])
+    setChain([]); chainRef.current = []
+    const nxt = getNext()
+    if (!nxt) { setPhase('end'); return }
+    setTarget(nxt)
+    setBalls(buildGrid(nxt.word))
+    wordStartRef.current = Date.now()
+    speak(nxt.word.toLowerCase())
+  }
+
   function handleDown(e: React.PointerEvent) {
-    if (phase !== 'playing') return
+    if (phase !== 'playing' || revealingRef.current) return
     e.preventDefault()
     const { x, y } = getGridXY(e)
     const ball = getBallAt(x, y)
@@ -157,39 +191,43 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
     draggingRef.current = false; setDragPos(null)
     const cur = chainRef.current
     if (cur.length === target.word.length) {
-      const ns = streak + 1
+      const secsTaken = Math.max(1, Math.round((Date.now() - wordStartRef.current) / 1000))
+      const speedBonus = Math.max(0, 200 - secsTaken * 15)
       const nc = Math.min(4, +(combo + 0.5).toFixed(1))
-      const pts = Math.round(target.word.length * 100 * nc)
-      setScore(s => s + pts); setCombo(nc); setStreak(ns); setWordsCount(w => w + 1)
+      const pts = Math.round((100 + speedBonus) * nc)
+      setScore(s => s + pts); setCombo(nc)
+      const ns = streak + 1; setStreak(ns)
+      setWordsAttempted(w => w + 1); setWordsCorrect(w => w + 1)
       sfxCorrect(); speak(target.word.toLowerCase())
-      if (ns % 3 === 0) {
-        setShowStreak(true); setTimeLeft(t => Math.min(TOTAL_TIME, t + 5))
-        setTimeout(() => setShowStreak(false), 1800)
-      }
+      if (ns % 3 === 0) { setShowStreak(true); setTimeout(() => setShowStreak(false), 1800) }
       setBalls(bs => bs.map(b => cur.includes(b.id) ? { ...b, popping: true } : b))
-      setTimeout(() => {
-        const nxt = nextWord(); setTarget(nxt)
-        setBalls(buildGrid(nxt.word))
-        setChain([]); chainRef.current = []
-        speak(nxt.word.toLowerCase())
-      }, 420)
+      setTimeout(() => advanceToNext(), 420)
     } else if (cur.length > 0) {
       sfxWrong(); setCombo(1); setStreak(0)
-      setWrongFlash(true); setTimeout(() => setWrongFlash(false), 400)
+      setWordsAttempted(w => w + 1)
+      // Show correct answer and auto-advance
+      revealingRef.current = true
+      const correctIds = findCorrectChain(target.word, balls)
+      setRevealChain(correctIds); setWrongReveal(true)
       setChain([]); chainRef.current = []
+      setTimeout(() => advanceToNext(), 2200)
     }
   }
 
-  const chainPts = chain.map(id => {
+  const displayChain = wrongReveal ? revealChain : chain
+  const chainPts = displayChain.map(id => {
     const b = balls.find(bb => bb.id === id)!
     return { x: b.col * (BALL + GAP) + BALL / 2, y: b.row * (BALL + GAP) + BALL / 2 }
   })
-  const linePts = dragPos ? [...chainPts, dragPos] : chainPts
-  const gridW = COLS * (BALL + GAP) - GAP
-  const gridH = ROWS * (BALL + GAP) - GAP
-  const stars  = wordsCount >= 10 ? 3 : wordsCount >= 5 ? 2 : wordsCount >= 1 ? 1 : 0
-  const R = 22, circ = 2 * Math.PI * R
-  const slotW = Math.max(26, Math.min(36, Math.floor(180 / target.word.length)))
+  const linePts = !wrongReveal && dragPos ? [...chainPts, dragPos] : chainPts
+
+  const gridW   = COLS * (BALL + GAP) - GAP
+  const gridH   = ROWS * (BALL + GAP) - GAP
+  const stars   = wordsCorrect >= 10 ? 3 : wordsCorrect >= 5 ? 2 : wordsCorrect >= 1 ? 1 : 0
+  const slotW   = Math.max(26, Math.min(36, Math.floor(180 / target.word.length)))
+  const mm      = Math.floor(elapsed / 60).toString().padStart(2, '0')
+  const ss      = (elapsed % 60).toString().padStart(2, '0')
+  const accuracy = wordsAttempted > 0 ? Math.round(wordsCorrect / wordsAttempted * 100) : 100
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 12px 6px', fontFamily: FONT }}>
@@ -197,29 +235,29 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
       {/* ── Top row: timer | slots | score ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: gridW + 40 }}>
 
-        {/* Circular countdown */}
-        <svg width={56} height={56}>
-          <circle cx={28} cy={28} r={R} fill={timeLeft <= 10 ? '#F2879B' : '#7FB8E0'} />
-          <circle cx={28} cy={28} r={R} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={5}
-            strokeDasharray={circ} strokeDashoffset={circ * (1 - timeLeft / TOTAL_TIME)}
-            strokeLinecap="round" transform="rotate(-90 28 28)" />
-          <text x={28} y={33} textAnchor="middle" fill="white" fontSize={19} fontWeight={800}
-            fontFamily={FONT}>{timeLeft}</text>
-        </svg>
+        {/* Elapsed timer */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '6px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 56 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#A98B77' }}>⏱</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#6B4F3F' }}>{mm}:{ss}</div>
+        </div>
 
         {/* Letter slots */}
-        <div style={{ display: 'flex', gap: 4, animation: wrongFlash ? 'kg-shake .35s' : undefined }}>
-          {target.word.split('').map((ch, i) => (
-            <div key={i} style={{
-              width: slotW, height: 38, borderRadius: 8,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, fontSize: Math.min(20, slotW - 4), fontFamily: FONT,
-              background: chain.length > i ? '#F2879B' : '#FFFFFF',
-              color: chain.length > i ? '#fff' : '#EEDAC6',
-              boxShadow: chain.length > i ? '0 3px 0 #D96C81' : '0 3px 0 #E0CAB4',
-              transition: 'background .15s',
-            }}>{chain.length > i ? ch : ''}</div>
-          ))}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {target.word.split('').map((ch, i) => {
+            const filled  = wrongReveal ? i < revealChain.length : i < chain.length
+            const isWrong = wrongReveal && filled
+            return (
+              <div key={i} style={{
+                width: slotW, height: 38, borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 800, fontSize: Math.min(20, slotW - 4), fontFamily: FONT,
+                background: isWrong ? '#FFF0C0' : filled ? '#F2879B' : '#FFFFFF',
+                color: isWrong ? '#C07000' : filled ? '#fff' : '#EEDAC6',
+                boxShadow: isWrong ? '0 3px 0 #D4A800' : filled ? '0 3px 0 #D96C81' : '0 3px 0 #E0CAB4',
+                transition: 'background .15s',
+              }}>{filled ? ch : ''}</div>
+            )
+          })}
         </div>
 
         {/* Score + combo */}
@@ -242,6 +280,14 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
         </button>
       </div>
 
+      {/* ── Wrong reveal banner ── */}
+      {wrongReveal && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FFF8DC', border: '2px solid #F0D060', borderRadius: 14, padding: '6px 16px', fontSize: 14, fontWeight: 700, color: '#8B6000' }}>
+          <span>💡 こたえ：</span>
+          <span style={{ fontSize: 18, letterSpacing: 3, color: '#C07000' }}>{target.word}</span>
+        </div>
+      )}
+
       {/* ── Ball grid ── */}
       <div
         ref={gridRef}
@@ -249,37 +295,47 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
         onPointerMove={handleMove}
         onPointerUp={handleUp}
         onPointerLeave={handleUp}
-        style={{ position: 'relative', width: gridW, height: gridH, touchAction: 'none', cursor: 'crosshair', flexShrink: 0 }}
+        style={{ position: 'relative', width: gridW, height: gridH, touchAction: 'none', cursor: revealingRef.current ? 'default' : 'crosshair', flexShrink: 0 }}
       >
-        {balls.map(b => (
-          <div key={b.id} style={{
-            position: 'absolute',
-            left: b.col * (BALL + GAP), top: b.row * (BALL + GAP),
-            width: BALL, height: BALL, borderRadius: '50%',
-            background: b.bg, boxShadow: `0 4px 0 ${b.sh}`,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            transition: 'transform .15s, opacity .3s',
-            transform: b.popping ? 'scale(0)' : chain.includes(b.id) ? 'scale(1.12)' : 'scale(1)',
-            opacity: b.popping ? 0 : 1,
-            userSelect: 'none',
-          }}>
-            <div style={{ fontSize: 15, lineHeight: 1 }}>{b.emoji}</div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: '#5A4336', lineHeight: 1, fontFamily: FONT }}>{b.char}</div>
-          </div>
-        ))}
+        {balls.map(b => {
+          const inChain   = displayChain.includes(b.id)
+          const isReveal  = wrongReveal && inChain
+          return (
+            <div key={b.id} style={{
+              position: 'absolute',
+              left: b.col * (BALL + GAP), top: b.row * (BALL + GAP),
+              width: BALL, height: BALL, borderRadius: '50%',
+              background: isReveal ? '#FFF0C0' : b.bg,
+              boxShadow: isReveal ? '0 4px 0 #D4A800, 0 0 0 3px #F0D060' : `0 4px 0 ${b.sh}`,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              transition: 'transform .15s, opacity .3s',
+              transform: b.popping ? 'scale(0)' : inChain ? 'scale(1.12)' : 'scale(1)',
+              opacity: b.popping ? 0 : 1,
+              userSelect: 'none',
+            }}>
+              <div style={{ fontSize: 15, lineHeight: 1 }}>{b.emoji}</div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: isReveal ? '#8B6000' : '#5A4336', lineHeight: 1, fontFamily: FONT }}>
+                {b.char}
+              </div>
+            </div>
+          )
+        })}
 
-        {/* Chain line SVG overlay */}
+        {/* Chain line SVG */}
         <svg style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }} width={gridW} height={gridH}>
           {linePts.length > 1 && (
             <polyline
               points={linePts.map(p => `${p.x},${p.y}`).join(' ')}
-              fill="none" stroke="rgba(242,135,155,0.75)" strokeWidth={7}
-              strokeLinecap="round" strokeLinejoin="round"
+              fill="none"
+              stroke={wrongReveal ? 'rgba(200,160,0,0.65)' : 'rgba(242,135,155,0.75)'}
+              strokeWidth={7} strokeLinecap="round" strokeLinejoin="round"
             />
           )}
           {chainPts.map((p, i) => (
             <circle key={i} cx={p.x} cy={p.y} r={BALL / 2 + 3}
-              fill="none" stroke="rgba(242,135,155,0.5)" strokeWidth={4} />
+              fill="none"
+              stroke={wrongReveal ? 'rgba(200,160,0,0.5)' : 'rgba(242,135,155,0.5)'}
+              strokeWidth={4} />
           ))}
         </svg>
       </div>
@@ -288,8 +344,7 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
       {showStreak && (
         <div style={{ position: 'fixed', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 9999, pointerEvents: 'none', animation: 'kg-pop .4s ease-out', background: 'rgba(255,255,255,.96)', padding: '16px 32px', borderRadius: 28, boxShadow: '0 12px 40px rgba(0,0,0,.15)', textAlign: 'center', fontFamily: FONT }}>
           <div style={{ fontSize: 40 }}>🔥</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#F2879B' }}>Hot Streak! +5s</div>
-          <div style={{ fontSize: 14, color: '#A98B77' }}>すごい！れんぞく！</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#F2879B' }}>れんぞく！すごい！</div>
         </div>
       )}
 
@@ -299,8 +354,22 @@ export function SpellTsumGame({ assignedVocab, onBack, sfxCorrect, sfxWrong, sfx
           <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '32px 44px', textAlign: 'center', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', animation: 'kg-pop .5s ease-out' }}>
             <div style={{ fontSize: 52 }}>{stars > 0 ? '⭐'.repeat(stars) : '💪'}</div>
             <div style={{ fontSize: 26, fontWeight: 800, color: '#5A4336', marginTop: 8 }}>おわり！</div>
-            <div style={{ fontSize: 16, color: '#A98B77', marginTop: 6 }}>
-              {wordsCount} words · {score.toLocaleString()} pts
+            <div style={{ display: 'flex', gap: 20, marginTop: 10, justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#F2879B' }}>{wordsCorrect}</div>
+                <div style={{ fontSize: 12, color: '#A98B77' }}>せいかい</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#7FB8E0' }}>{accuracy}%</div>
+                <div style={{ fontSize: 12, color: '#A98B77' }}>せいかいりつ</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#8BC273' }}>{mm}:{ss}</div>
+                <div style={{ fontSize: 12, color: '#A98B77' }}>じかん</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#E0A52E', marginTop: 10 }}>
+              {score.toLocaleString()} pts
             </div>
             <button onClick={onBack} style={{ marginTop: 20, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16, padding: '12px 28px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
               おうちへ ←

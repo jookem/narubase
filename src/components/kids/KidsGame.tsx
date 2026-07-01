@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getStudentVocab } from '@/lib/api/lessons'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { LikeGame } from './LikeGame'
-import { SpellTsumGame } from './SpellTsumGame'
+import { SpellTsumGame, type SessionWord } from './SpellTsumGame'
 
 // ── Data ──────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ const ZOO_DATA: ZooEntry[] = [
   { animal:'Zebra',      animalEmoji:'🦓', food:'Zucchini',   foodEmoji:'🥒', sound:'chomp' },
 ]
 
-type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like' | 'zoo'
+type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like' | 'zoo' | 'study'
 type SlotEntry = { ch: string; tileId: number }
 type Tile = { id: number; ch: string; used: boolean }
 
@@ -167,6 +167,11 @@ export function KidsGame() {
   const [wIsEmoji, setWIsEmoji] = useState(true)
   const [wOptions, setWOptions] = useState<string[]>([])
   const [wWrong, setWWrong] = useState<string | null>(null)
+
+  // Session / Study
+  const [sessionWords, setSessionWords] = useState<SessionWord[]>([])
+  const [studyIdx, setStudyIdx] = useState(0)
+  const [studyFlipped, setStudyFlipped] = useState(false)
 
   // Zoo
   const [zooPhase, setZooPhase] = useState<'trace' | 'feed'>('trace')
@@ -500,6 +505,18 @@ export function KidsGame() {
   }
 
   function setupWords() {
+    if (sessionWords.length >= 3) {
+      const pool = sessionWords
+      const ti = nextFromQueue(wordsQueueRef, pool.length, `session:${pool.length}`)
+      const target = pool[ti]
+      const others = shuffleArr(pool.filter((_, k) => k !== ti)).slice(0, 2)
+      const opts = shuffleArr([target, ...others]).map(x => x.word)
+      setWTarget(target.word); setWClue(target.hint); setWIsEmoji(false)
+      setWOptions(opts); setWWrong(null)
+      setScreen('words')
+      setTimeout(() => speak(target.word.toLowerCase()), 350)
+      return
+    }
     const useAssigned = assignedVocab.length >= 3
     if (useAssigned) {
       const pool = assignedVocab
@@ -721,9 +738,15 @@ export function KidsGame() {
           <div style={{ textAlign: 'center', marginBottom: 22 }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#6B4F3F' }}>Pick a game! 🎶</div>
             <div style={{ fontSize: 16, color: '#A98B77', marginTop: 4 }}>どのあそびにする？</div>
+            {sessionWords.length > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
+                📚 セッション中 · {sessionWords.length} words ready
+              </div>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16, width: '100%', maxWidth: 800 }}>
             {([
+              { key: 'study' as Screen, title: 'Study Words',   jp: 'たんごれんしゅう', skill: '📚 Review', emoji: '📚', bg: sessionWords.length > 0 ? '#D4ECF8' : '#EDE4FF' },
               { key: 'sing'  as Screen, title: 'ABC Song',      jp: 'えいごのうた', skill: '🗣 Speaking', emoji: '🎤', bg: '#FBD9E1' },
               { key: 'zoo'   as Screen, title: 'Alphabet Zoo',  jp: 'どうぶつえん', skill: '✏️ Writing',  emoji: '🦁', bg: '#D4F0D8' },
               { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
@@ -735,6 +758,7 @@ export function KidsGame() {
                   if (s.key === 'words') setupWords()
                   else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') setupZoo()
+                  else if (s.key === 'study') { setStudyIdx(0); setStudyFlipped(false); setScreen('study') }
                   else { setScreen(s.key); if (s.key === 'trace') setTimeout(() => drawGuide(), 40) }
                 }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, textAlign: 'left', padding: 18, borderRadius: 24, boxShadow: '0 8px 0 rgba(0,0,0,.06)', background: s.bg }}>
@@ -871,6 +895,7 @@ export function KidsGame() {
       {screen === 'spell' && (
         <SpellTsumGame
           assignedVocab={assignedVocab}
+          sessionWords={sessionWords}
           onBack={() => setScreen('hub')}
           sfxCorrect={sfxCorrect}
           sfxWrong={sfxWrong}
@@ -878,6 +903,88 @@ export function KidsGame() {
           speak={speak}
         />
       )}
+
+      {/* ═══════════════ STUDY ═══════════════ */}
+      {screen === 'study' && (() => {
+        const studyPool: SessionWord[] = assignedVocab
+          .map(e => ({ word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word }))
+          .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
+
+        if (studyPool.length === 0) return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 48 }}>📚</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F' }}>No vocabulary yet!</div>
+            <div style={{ fontSize: 14, color: '#A98B77' }}>先生にたんごを追加してもらおう</div>
+          </div>
+        )
+
+        const allDone = studyIdx >= studyPool.length
+        const card    = studyPool[Math.min(studyIdx, studyPool.length - 1)]
+        const isLast  = studyIdx === studyPool.length - 1
+
+        if (allDone) return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 60 }}>🎉</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
+            <div style={{ fontSize: 15, color: '#A98B77' }}>{studyPool.length} words reviewed — ready to play!</div>
+            <button onClick={() => { setSessionWords(studyPool); setScreen('hub') }}
+              style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#8BC273', color: '#fff', boxShadow: '0 5px 0 #6FA458' }}>
+              ゲームをはじめよう →
+            </button>
+          </div>
+        )
+
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
+            {/* Progress bar */}
+            <div style={{ width: '100%', maxWidth: 400 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#A98B77', marginBottom: 6 }}>
+                <span>たんごれんしゅう 📚</span>
+                <span>{studyIdx + 1} / {studyPool.length}</span>
+              </div>
+              <div style={{ height: 8, background: '#EDE0D4', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(studyIdx / studyPool.length) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
+              </div>
+            </div>
+
+            {/* Flashcard */}
+            <div onClick={() => { if (!studyFlipped) { setStudyFlipped(true); speak(card.word.toLowerCase()) } }}
+              style={{ width: '100%', maxWidth: 380, background: '#FFFFFF', borderRadius: 28, padding: '32px 28px', boxShadow: '0 10px 0 #EEDAC6', textAlign: 'center', cursor: studyFlipped ? 'default' : 'pointer', userSelect: 'none', minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+              {/* Japanese hint — always visible */}
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#5A4336', lineHeight: 1.3 }}>{card.hint}</div>
+              {!studyFlipped && (
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#C7A892', marginTop: 4 }}>タップして英語を見る 👆</div>
+              )}
+              {studyFlipped && (
+                <>
+                  <div style={{ width: 48, height: 2, background: '#EEDAC6', borderRadius: 2 }} />
+                  <div style={{ fontSize: 36, fontWeight: 800, color: '#F2879B', letterSpacing: 3, animation: 'kg-bounceIn .35s ease-out' }}>{card.word}</div>
+                  <button onClick={e => { e.stopPropagation(); speak(card.word.toLowerCase()) }}
+                    style={{ border: 'none', cursor: 'pointer', background: '#F0F8FF', borderRadius: '999px', padding: '6px 16px', fontSize: 14, fontWeight: 700, color: '#7FB8E0' }}>
+                    🔊 きく
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Navigation */}
+            <div style={{ display: 'flex', gap: 12 }}>
+              {studyIdx > 0 && (
+                <button onClick={() => { setStudyIdx(i => i - 1); setStudyFlipped(false) }}
+                  style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '10px 20px', borderRadius: '999px', background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 4px 0 #E7D3C0' }}>
+                  ← もどる
+                </button>
+              )}
+              {studyFlipped && (
+                <button onClick={() => { setStudyIdx(i => i + 1); setStudyFlipped(false) }}
+                  style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 15, padding: '10px 24px', borderRadius: '999px', background: isLast ? '#8BC273' : '#F2879B', color: '#fff', boxShadow: `0 4px 0 ${isLast ? '#6FA458' : '#D96C81'}` }}>
+                  {isLast ? 'おわり ✓' : 'つぎ →'}
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ═══════════════ LIKE & DISLIKE ═══════════════ */}
       {screen === 'like' && (
