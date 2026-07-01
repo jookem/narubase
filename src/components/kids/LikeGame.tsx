@@ -527,7 +527,7 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome, isDuo = fa
 
 // ── Mind Reader game ──────────────────────────────────────────────────────────
 
-function MindReader({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boolean }) {
+function MindReader({ onHome, isDuo = false, onRoundComplete }: { onHome: () => void; isDuo?: boolean; onRoundComplete?: () => void }) {
   const [topicKey, setTopicKey] = useState<string | null>(null)
   const [roundIdx, setRoundIdx] = useState(0)
   const [players, setPlayers] = useState(isDuo ? 2 : 1)
@@ -588,6 +588,7 @@ function MindReader({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boo
 
   function nextRound() {
     SFX.pop(); const ni = roundIdx + 1
+    if (players === 2) onRoundComplete?.()
     if (ni >= total) { setGameScreen('win'); return }
     setRoundIdx(ni); startRound(ni)
   }
@@ -653,7 +654,7 @@ function MindReader({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boo
 
 // ── Yes or No quiz ────────────────────────────────────────────────────────────
 
-function QuizShow({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boolean }) {
+function QuizShow({ onHome, isDuo = false, onRoundComplete }: { onHome: () => void; isDuo?: boolean; onRoundComplete?: () => void }) {
   const [topicKey, setTopicKey] = useState<string | null>(null)
   const [roundIdx, setRoundIdx] = useState(0)
   const [players, setPlayers] = useState(isDuo ? 2 : 1)
@@ -718,6 +719,7 @@ function QuizShow({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boole
 
   function nextRound() {
     SFX.pop(); const ni = roundIdx + 1
+    if (players === 2) onRoundComplete?.()
     if (ni >= total) { setGameScreen('win'); return }
     setRoundIdx(ni); startRound(ni)
   }
@@ -923,7 +925,7 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function LikeGame({ onBack, isDuo = false, player1Name = 'Player 1', player2Name = 'Player 2' }: { onBack: () => void; isDuo?: boolean; player1Name?: string; player2Name?: string }) {
+export function LikeGame({ onBack, isDuo = false, player1Name = 'Player 1', player2Name = 'Player 2', onRoundComplete }: { onBack: () => void; isDuo?: boolean; player1Name?: string; player2Name?: string; onRoundComplete?: () => void }) {
   const [view, setView] = useState<'hub' | 'mind' | 'quiz' | 'partner'>('hub')
   const pm = makePlayers(player1Name, player2Name)
 
@@ -935,8 +937,8 @@ export function LikeGame({ onBack, isDuo = false, player1Name = 'Player 1', play
     <PlayersCtx.Provider value={pm}>
       <div style={{ width: '100%', background: 'radial-gradient(120% 80% at 50% -10%, #FFF9F4 0%, #FFF1E2 55%, #F6E3CF 100%)', fontFamily: FONT, color: INK, display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', minHeight: '100%', position: 'relative' }}>
         {view === 'hub'     && <GameHub onPick={setView} onBack={onBack} isDuo={isDuo} />}
-        {view === 'mind'    && <MindReader onHome={goHome} isDuo={isDuo} />}
-        {view === 'quiz'    && <QuizShow onHome={goHome} isDuo={isDuo} />}
+        {view === 'mind'    && <MindReader onHome={goHome} isDuo={isDuo} onRoundComplete={onRoundComplete} />}
+        {view === 'quiz'    && <QuizShow onHome={goHome} isDuo={isDuo} onRoundComplete={onRoundComplete} />}
         {view === 'partner' && <PartnerGame onHome={goHome} />}
       </div>
     </PlayersCtx.Provider>

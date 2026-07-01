@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { LikeGame } from './LikeGame'
 import { SpellTsumGame, type SessionWord } from './SpellTsumGame'
+import { PhonicsGame } from './phonics/PhonicsGame'
 
 type StudyCard = SessionWord & Pick<VocabularyBankEntry, 'id' | 'mastery_level' | 'interval_days' | 'ease_factor'>
 
@@ -118,7 +119,7 @@ const ZOO_DATA: ZooEntry[] = [
   { animal:'Zebra',      animalEmoji:'🦓', food:'Zucchini',   foodEmoji:'🥒', sound:'chomp' },
 ]
 
-type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like' | 'zoo' | 'study'
+type Screen = 'hub' | 'sing' | 'trace' | 'words' | 'spell' | 'like' | 'zoo' | 'study' | 'phonics'
 type SlotEntry = { ch: string; tileId: number }
 type Tile = { id: number; ch: string; used: boolean }
 
@@ -177,6 +178,8 @@ export function KidsGame() {
   const [singOptions, setSingOptions] = useState<string[]>([])
   const [singWrong, setSingWrong] = useState<string | null>(null)
   const [singElapsed, setSingElapsed] = useState(0)
+  const [singDone, setSingDone] = useState(false)
+  const singCountRef = useRef(0)
 
   // Words
   const [wTarget, setWTarget] = useState('')
@@ -201,6 +204,8 @@ export function KidsGame() {
   const [zooFed, setZooFed] = useState(false)
   const [zooDragPos, setZooDragPos] = useState<{ x: number; y: number } | null>(null)
   const [zooDragging, setZooDragging] = useState(false)
+  const [zooDone, setZooDone] = useState(false)
+  const zooFedSetRef = useRef<Set<number>>(new Set())
 
   // Spell
   const [sWord, setSWord] = useState('')
@@ -263,7 +268,9 @@ export function KidsGame() {
   useEffect(() => {
     if (!user) return
     getStudentVocab(user.id).then(({ entries }) => {
-      if (entries?.length) setAssignedVocab(entries)
+      // Phonics-sourced words ride the same SRS table but shouldn't surface
+      // in these generic vocab minigames — Phonics Quest reviews them itself.
+      if (entries?.length) setAssignedVocab(entries.filter(e => !e.is_phonics))
     })
     supabase.from('profiles').select('full_name').eq('id', user.id).single()
       .then(({ data }) => { if (data?.full_name) setPlayer1Name(data.full_name.split(' ')[0]) })
@@ -544,6 +551,12 @@ export function KidsGame() {
   function prevLetter() { setLetter((letterIndex + 25) % 26) }
 
   // ── Letter Recognition ────────────────────────────────────────
+  function startSing() {
+    singCountRef.current = 0
+    setSingDone(false)
+    setupSing()
+  }
+
   function setupSing() {
     const idx = nextFromQueue(singQueueRef, 26, 'abc:26')
     const letter = WORDS[idx][0]
@@ -558,7 +571,9 @@ export function KidsGame() {
   function checkSing(letter: string) {
     if (letter === singTarget) {
       speak(letter); grantStar(false)
-      setTimeout(() => setupSing(), 1250)
+      singCountRef.current += 1
+      if (singCountRef.current >= 26) setTimeout(() => setSingDone(true), 1250)
+      else setTimeout(() => setupSing(), 1250)
     } else {
       sfxWrong(); setSingWrong(letter)
       setTimeout(() => setSingWrong(null), 550)
@@ -682,6 +697,12 @@ export function KidsGame() {
   }
 
   // ── Alphabet Zoo ───────────────────────────────────────────────
+  function startZoo() {
+    zooFedSetRef.current = new Set()
+    setZooDone(false)
+    setupZoo()
+  }
+
   function setupZoo() {
     setZooPhase('trace'); setZooAccuracy(0); setZooFed(false)
     setZooDragPos(null); setZooDragging(false)
@@ -723,7 +744,10 @@ export function KidsGame() {
       const zoo = ZOO_DATA[letterIndexRef.current]
       if (zoo.sound === 'chomp') sfxChomp(); else sfxGulp()
       setTimeout(() => grantStar(true), 300)
+      zooFedSetRef.current.add(letterIndexRef.current)
+      const zooFinished = zooFedSetRef.current.size >= 26
       setTimeout(() => {
+        if (zooFinished) { setZooDone(true); return }
         setZooPhase('trace'); setZooAccuracy(0); setZooFed(false)
         clearDrawCanvas(); setTimeout(() => drawGuide(), 40)
       }, 1500)
@@ -841,13 +865,14 @@ export function KidsGame() {
               { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
               { key: 'spell' as Screen, title: 'Spelling',      jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
               { key: 'like'  as Screen, title: 'Like & Dislike',jp: 'すきなもの',   skill: '💬 Speaking',  emoji: '🔮', bg: '#F0E0FF' },
+              { key: 'phonics' as Screen, title: 'Phonics Quest', jp: 'フォニックス', skill: '🔤 Reading', emoji: '🦆', bg: '#FFE4C4' },
             ] as const).map(s => (
               <button key={s.key}
                 onClick={() => {
                   if (s.key === 'words') setupWords()
-                  else if (s.key === 'sing') setupSing()
+                  else if (s.key === 'sing') startSing()
                   else if (s.key === 'spell') setScreen('spell')
-                  else if (s.key === 'zoo') setupZoo()
+                  else if (s.key === 'zoo') startZoo()
                   else if (s.key === 'study') {
                     const pool = shuffleArr(
                       assignedVocab
@@ -883,7 +908,19 @@ export function KidsGame() {
       <div className="kg-hub-scroll" style={{ flex: 1, overflowY: 'auto' }}>
 
       {/* ═══════════════ ABC LISTEN ═══════════════ */}
-      {screen === 'sing' && (
+      {screen === 'sing' && singDone && (
+        <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+          <div style={{ fontSize: 60 }}>🎉</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶきけた！</div>
+          <div style={{ fontSize: 15, color: '#A98B77' }}>All 26 letters done!</div>
+          <button onClick={startSing}
+            style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16, padding: '12px 28px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
+            もう一度あそぶ · Play Again
+          </button>
+        </div>
+      )}
+
+      {screen === 'sing' && !singDone && (
         <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 24px 20px', gap: 20 }}>
           {/* Header + timer */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
@@ -1024,6 +1061,7 @@ export function KidsGame() {
               wordsAttempted: stats.attempted, streakBest: stats.streak,
             })
           }}
+          onWordComplete={() => { if (player === 'duo') grantStar(false) }}
           sfxCorrect={sfxCorrect}
           sfxWrong={sfxWrong}
           sfxTap={sfxTap}
@@ -1159,7 +1197,13 @@ export function KidsGame() {
 
       {/* ═══════════════ LIKE & DISLIKE ═══════════════ */}
       {screen === 'like' && (
-        <LikeGame onBack={() => setScreen('hub')} isDuo={duo} player1Name={player1Name} player2Name={player2Name} />
+        <LikeGame
+          onBack={() => setScreen('hub')}
+          isDuo={duo}
+          player1Name={player1Name}
+          player2Name={player2Name}
+          onRoundComplete={() => { if (player === 'duo') grantStar(false) }}
+        />
       )}
 
       {/* ═══════════════ ZOO ═══════════════ */}
@@ -1169,6 +1213,17 @@ export function KidsGame() {
         const zooChipClick = (i: number) => {
           setLetter(i); setZooPhase('trace'); setZooAccuracy(0); setZooFed(false); setZooDragPos(null)
         }
+        if (zooDone) return (
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 60 }}>🎉</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶかけた！</div>
+            <div style={{ fontSize: 15, color: '#A98B77' }}>All 26 animals fed!</div>
+            <button onClick={startZoo}
+              style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16, padding: '12px 28px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
+              もう一度あそぶ · Play Again
+            </button>
+          </div>
+        )
         return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
             {/* Title row */}
@@ -1268,6 +1323,11 @@ export function KidsGame() {
           </div>
         )
       })()}
+
+      {/* ═══════════════ PHONICS QUEST ═══════════════ */}
+      {screen === 'phonics' && (
+        <PhonicsGame />
+      )}
 
       </div>)} {/* end scrollable game wrapper */}
 

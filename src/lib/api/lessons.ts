@@ -263,6 +263,7 @@ export async function addVocabularyToBank(
     definition_ja?: string
     example?: string
     lesson_id?: string
+    is_phonics?: boolean
   }[],
 ): Promise<{ error?: string; success?: boolean }> {
   const { data: { session } } = await supabase.auth.getSession()

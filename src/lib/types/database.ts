@@ -170,6 +170,7 @@ export interface VocabularyBankEntry {
   quiz_distractors: string[]
   inflections: string[] | null
   category: string | null
+  is_phonics: boolean
   created_at: string
   updated_at: string
 }

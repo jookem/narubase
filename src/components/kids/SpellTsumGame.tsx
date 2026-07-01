@@ -72,13 +72,15 @@ interface Props {
   sessionWords: SessionWord[]
   onBack: () => void
   onEnd?: (stats: { score: number; correct: number; attempted: number; streak: number }) => void
+  onWordComplete?: () => void   // called once per correctly-spelled word — lets the
+                                // parent alternate duo turns the same way Sing/Zoo/Words do
   sfxCorrect: () => void
   sfxWrong: () => void
   sfxTap: () => void
   speak: (t: string) => void
 }
 
-export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
+export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWordComplete, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
   const [wordPool] = useState<SessionWord[]>(() => {
     if (sessionWords.length > 0) return sessionWords
     const spellable = assignedVocab.filter(e => {
@@ -222,6 +224,7 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, sfxC
       if (ns > streakBestRef.current) streakBestRef.current = ns
       setWordsAttempted(w => w + 1); setWordsCorrect(w => w + 1)
       sfxCorrect(); speak(target.word.toLowerCase())
+      onWordComplete?.()
       if (ns % 3 === 0) { setShowStreak(true); setTimeout(() => setShowStreak(false), 1800) }
       setBalls(bs => bs.map(b => cur.includes(b.id) ? { ...b, popping: true } : b))
       setTimeout(() => advanceToNext(), 420)
