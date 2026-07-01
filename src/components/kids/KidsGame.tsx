@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getStudentVocab } from '@/lib/api/lessons'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { LikeGame } from './LikeGame'
+import { SpellTsumGame } from './SpellTsumGame'
 
 // ── Data ──────────────────────────────────────────────────────────
 
@@ -732,7 +733,7 @@ export function KidsGame() {
               <button key={s.key}
                 onClick={() => {
                   if (s.key === 'words') setupWords()
-                  else if (s.key === 'spell') setupSpell()
+                  else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') setupZoo()
                   else { setScreen(s.key); if (s.key === 'trace') setTimeout(() => drawGuide(), 40) }
                 }}
@@ -868,42 +869,14 @@ export function KidsGame() {
 
       {/* ═══════════════ SPELL ═══════════════ */}
       {screen === 'spell' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px 20px 16px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>Spell the word! 🎸</div>
-            <div style={{ fontSize: 13, color: '#A98B77' }}>ことばを つくろう</div>
-          </div>
-          <button onClick={() => speak(sWord)} style={{ display: 'flex', alignItems: 'center', gap: 12, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 22, padding: '10px 22px', boxShadow: '0 8px 0 #EEDAC6', maxWidth: 340 }}>
-            {sEmoji
-              ? <span style={{ fontSize: 52, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}>{sEmoji}</span>
-              : sClue
-                ? <span style={{ fontSize: 16, fontWeight: 700, color: '#6B4F3F', lineHeight: 1.4, textAlign: 'left', maxWidth: 200 }}>{sClue}</span>
-                : null
-            }
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, fontWeight: 700, color: '#7FB8E0', flexShrink: 0 }}>🔊 <span style={{ color: '#A98B77', fontWeight: 500, fontSize: 12 }}>きく</span></span>
-          </button>
-          {/* Slots */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'center', animation: sShake ? 'kg-shake .5s' : undefined }}>
-            {sSlots.map((slot, idx) => (
-              <div key={idx} onClick={() => tapSlot(idx)}
-                style={{ width: 50, height: 58, border: slot ? '3px solid #F2879B' : '3px dashed #E3C9B6', borderRadius: 14, background: slot ? '#FFF' : '#FFFDF8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: '#F2879B', cursor: 'pointer' }}>
-                {slot?.ch ?? ''}
-              </div>
-            ))}
-          </div>
-          {/* Tiles */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 480 }}>
-            {sTiles.map(t => (
-              <button key={t.id} onClick={() => tapTile(t.id)}
-                style={{ border: 'none', cursor: t.used ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 24, width: 50, height: 50, borderRadius: 14, background: t.used ? '#F3EADb' : '#FCE9B8', color: t.used ? 'transparent' : '#6B4F3F', boxShadow: t.used ? 'inset 0 2px 6px rgba(0,0,0,.06)' : '0 4px 0 #E6CE8F', pointerEvents: t.used ? 'none' : 'auto' }}>
-                {t.ch}
-              </button>
-            ))}
-          </div>
-          <button onClick={clearSpell} style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 5px 0 #A89789', marginTop: 14 }}>
-            🧽 Clear <span style={{ opacity: .7, fontSize: 12 }}>けす</span>
-          </button>
-        </div>
+        <SpellTsumGame
+          assignedVocab={assignedVocab}
+          onBack={() => setScreen('hub')}
+          sfxCorrect={sfxCorrect}
+          sfxWrong={sfxWrong}
+          sfxTap={sfxTap}
+          speak={speak}
+        />
       )}
 
       {/* ═══════════════ LIKE & DISLIKE ═══════════════ */}
