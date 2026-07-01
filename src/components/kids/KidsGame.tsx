@@ -182,6 +182,9 @@ export function KidsGame() {
   const [studyPool, setStudyPool] = useState<SessionWord[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
+  const [studyTurn, setStudyTurn] = useState<1 | 2>(1)
+  const [p1StudyDone, setP1StudyDone] = useState(false)
+  const [p2StudyDone, setP2StudyDone] = useState(false)
 
   // Zoo
   const [zooPhase, setZooPhase] = useState<'trace' | 'feed'>('trace')
@@ -760,10 +763,22 @@ export function KidsGame() {
           <div style={{ textAlign: 'center', padding: '12px 20px 10px', flexShrink: 0 }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#6B4F3F' }}>Pick a game! 🎶</div>
             <div style={{ fontSize: 16, color: '#A98B77', marginTop: 4 }}>どのあそびにする？</div>
-            {sessionWords.length > 0 && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
-                📚 セッション中 · {sessionWords.length} words ready
-              </div>
+            {duo ? (
+              (p1StudyDone || p2StudyDone) && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
+                  📚
+                  <span>{player1Name} {p1StudyDone ? '✓' : '—'}</span>
+                  <span style={{ opacity: .4 }}>·</span>
+                  <span>{player2Name} {p2StudyDone ? '✓' : '—'}</span>
+                  {sessionWords.length > 0 && <><span style={{ opacity: .4 }}>·</span><span>{sessionWords.length} words</span></>}
+                </div>
+              )
+            ) : (
+              sessionWords.length > 0 && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
+                  📚 セッション中 · {sessionWords.length} words ready
+                </div>
+              )
             )}
           </div>
           {/* Scrollable grid */}
@@ -788,7 +803,9 @@ export function KidsGame() {
                         .map(e => ({ word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word }))
                         .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
                     ).slice(0, 5)
-                    setStudyPool(pool); setStudyIdx(0); setStudyFlipped(false); setScreen('study')
+                    setStudyPool(pool); setStudyTurn(1)
+                    setP1StudyDone(false); setP2StudyDone(false)
+                    setStudyIdx(0); setStudyFlipped(false); setScreen('study')
                   }
                   else { setScreen(s.key); if (s.key === 'trace') setTimeout(() => drawGuide(), 40) }
                 }}
@@ -958,24 +975,53 @@ export function KidsGame() {
         const card    = studyPool[Math.min(studyIdx, studyPool.length - 1)]
         const isLast  = studyIdx === studyPool.length - 1
 
-        if (allDone) return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 60 }}>🎉</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
-            <div style={{ fontSize: 15, color: '#A98B77' }}>{studyPool.length} words reviewed — ready to play!</div>
-            <button onClick={() => { setSessionWords(studyPool); setScreen('hub') }}
-              style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#8BC273', color: '#fff', boxShadow: '0 5px 0 #6FA458' }}>
-              ゲームをはじめよう →
-            </button>
-          </div>
-        )
+        if (allDone) {
+          // Duo mode: P1 just finished → hand off to P2 before going to hub
+          if (duo && studyTurn === 1 && !p2StudyDone) return (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center' }}>
+              <div style={{ fontSize: 64 }}>🤝</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>{player1Name}、よくできました！</div>
+              <div style={{ fontSize: 15, color: '#A98B77', lineHeight: 1.6 }}>
+                {player2Name}にデバイスをわたしてね<br/>
+                <span style={{ fontSize: 13 }}>Pass the device to {player2Name}</span>
+              </div>
+              <button
+                onClick={() => { setP1StudyDone(true); setStudyTurn(2); setStudyIdx(0); setStudyFlipped(false) }}
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
+                {player2Name}の番 →
+              </button>
+              <button
+                onClick={() => { setP1StudyDone(true); setSessionWords(studyPool); setScreen('hub') }}
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '10px 24px', borderRadius: '999px', background: '#F5EDE6', color: '#B79A86' }}>
+                スキップしてゲームへ
+              </button>
+            </div>
+          )
+
+          // Solo, or duo P2 finished
+          return (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
+              <div style={{ fontSize: 60 }}>🎉</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
+              <div style={{ fontSize: 15, color: '#A98B77' }}>{studyPool.length} words reviewed — ready to play!</div>
+              <button
+                onClick={() => {
+                  if (duo && studyTurn === 2) setP2StudyDone(true); else setP1StudyDone(true)
+                  setSessionWords(studyPool); setScreen('hub')
+                }}
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#8BC273', color: '#fff', boxShadow: '0 5px 0 #6FA458' }}>
+                ゲームをはじめよう →
+              </button>
+            </div>
+          )
+        }
 
         return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
             {/* Progress bar */}
             <div style={{ width: '100%', maxWidth: 400 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#A98B77', marginBottom: 6 }}>
-                <span>たんごれんしゅう 📚</span>
+                <span>{duo ? `${studyTurn === 1 ? player1Name : player2Name}の` : ''}たんごれんしゅう 📚</span>
                 <span>{studyIdx + 1} / {studyPool.length}</span>
               </div>
               <div style={{ height: 8, background: '#EDE0D4', borderRadius: 8, overflow: 'hidden' }}>
