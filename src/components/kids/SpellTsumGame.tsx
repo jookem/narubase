@@ -254,7 +254,7 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, sfxC
   const accuracy = wordsAttempted > 0 ? Math.round(wordsCorrect / wordsAttempted * 100) : 100
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 12px 6px', fontFamily: FONT }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 12px 6px', fontFamily: FONT }}>
 
       {/* ── Top row: timer | slots | score ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: gridW + 40 }}>

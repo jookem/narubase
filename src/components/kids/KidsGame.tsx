@@ -170,6 +170,12 @@ export function KidsGame() {
   const [traceCase, setTraceCase] = useState<'upper' | 'lower'>('upper')
   const [activeStroke, setActiveStroke] = useState(0)
 
+  // Sing / Letter recognition
+  const [singTarget, setSingTarget] = useState('')
+  const [singOptions, setSingOptions] = useState<string[]>([])
+  const [singWrong, setSingWrong] = useState<string | null>(null)
+  const [singElapsed, setSingElapsed] = useState(0)
+
   // Words
   const [wTarget, setWTarget] = useState('')
   const [wClue, setWClue] = useState('')   // emoji char OR definition text
@@ -219,7 +225,9 @@ export function KidsGame() {
   const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wordsQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
   const spellQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
-  const wStartRef = useRef(Date.now())
+  const singQueueRef  = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
+  const wStartRef     = useRef(Date.now())
+  const singStartRef  = useRef(Date.now())
 
   // Stable refs for values used inside intervals/callbacks
   const screenRef = useRef(screen)
@@ -240,6 +248,14 @@ export function KidsGame() {
     const id = setInterval(() => setWElapsed(Math.floor((Date.now() - wStartRef.current) / 1000)), 200)
     return () => clearInterval(id)
   }, [screen, wTarget])
+
+  // ── Letter recognition timer — resets each new letter ──
+  useEffect(() => {
+    if (screen !== 'sing') return
+    setSingElapsed(0); singStartRef.current = Date.now()
+    const id = setInterval(() => setSingElapsed(Math.floor((Date.now() - singStartRef.current) / 1000)), 200)
+    return () => clearInterval(id)
+  }, [screen, singTarget])
 
   // ── Load assigned vocabulary ───────────────────────────────────
   useEffect(() => {
@@ -525,6 +541,28 @@ export function KidsGame() {
   function nextLetter() { setLetter((letterIndex + 1) % 26) }
   function prevLetter() { setLetter((letterIndex + 25) % 26) }
 
+  // ── Letter Recognition ────────────────────────────────────────
+  function setupSing() {
+    const idx = nextFromQueue(singQueueRef, 26, 'abc:26')
+    const letter = WORDS[idx][0]
+    const wrongs = shuffleArr(WORDS.filter((_, i) => i !== idx)).slice(0, 3).map(w => w[0])
+    setSingTarget(letter)
+    setSingOptions(shuffleArr([letter, ...wrongs]))
+    setSingWrong(null)
+    setScreen('sing')
+    setTimeout(() => speak(letter), 350)
+  }
+
+  function checkSing(letter: string) {
+    if (letter === singTarget) {
+      speak(letter); grantStar(false)
+      setTimeout(() => setupSing(), 1250)
+    } else {
+      sfxWrong(); setSingWrong(letter)
+      setTimeout(() => setSingWrong(null), 550)
+    }
+  }
+
   // ── Tea-Time Words ─────────────────────────────────────────────
   function nextFromQueue(ref: React.MutableRefObject<{ key: string; indices: number[] }>, poolSize: number, poolKey: string): number {
     const q = ref.current
@@ -796,7 +834,7 @@ export function KidsGame() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16, width: '100%', maxWidth: 800, margin: '0 auto' }}>
             {([
               { key: 'study' as Screen, title: 'Study Words',   jp: 'たんごれんしゅう', skill: '📚 Review', emoji: '📚', bg: sessionWords.length > 0 ? '#D4ECF8' : '#EDE4FF' },
-              { key: 'sing'  as Screen, title: 'ABC Song',      jp: 'えいごのうた', skill: '🗣 Speaking', emoji: '🎤', bg: '#FBD9E1' },
+              { key: 'sing'  as Screen, title: 'ABC Listen',     jp: 'もじをきこう', skill: '👂 Listening', emoji: '👂', bg: '#FBD9E1' },
               { key: 'zoo'   as Screen, title: 'Alphabet Zoo',  jp: 'どうぶつえん', skill: '✏️ Writing',  emoji: '🦁', bg: '#D4F0D8' },
               { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
               { key: 'spell' as Screen, title: 'Spelling',      jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
@@ -805,6 +843,7 @@ export function KidsGame() {
               <button key={s.key}
                 onClick={() => {
                   if (s.key === 'words') setupWords()
+                  else if (s.key === 'sing') setupSing()
                   else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') setupZoo()
                   else if (s.key === 'study') {
@@ -837,48 +876,54 @@ export function KidsGame() {
         </div>
       )}
 
-      {/* ═══════════════ SING ═══════════════ */}
+      {/* ═══ scrollable wrapper for all game screens ═══ */}
+      {screen !== 'hub' && (
+      <div className="kg-hub-scroll" style={{ flex: 1, overflowY: 'auto' }}>
+
+      {/* ═══════════════ ABC LISTEN ═══════════════ */}
       {screen === 'sing' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ fontSize: 18, fontWeight: 800 }}>Listen and say it! 🎤 </span>
-            <span style={{ fontSize: 12, color: '#A98B77' }}>きいて、いってみよう</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            {/* ‹ card › */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button onClick={prevLetter} style={ARROW_BTN}>‹</button>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 28, padding: '10px 28px', boxShadow: '0 8px 0 #EEDAC6', minWidth: 190 }}>
-                <div style={{ fontSize: 80, fontWeight: 800, lineHeight: 1, color: '#F2879B' }}>
-                  {curLetter}<span style={{ color: '#F6B8C4' }}>{curLetter.toLowerCase()}</span>
-                </div>
-                <div style={{ fontSize: 44, margin: '2px 0', animation: 'kg-floaty 3s ease-in-out infinite' }}>{curEmoji}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#6B4F3F' }}>{curWord}</div>
-              </div>
-              <button onClick={nextLetter} style={ARROW_BTN}>›</button>
+        <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 24px 20px', gap: 20 }}>
+          {/* Header + timer */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>Which letter? 👂</div>
+              <div style={{ fontSize: 13, color: '#A98B77' }}>きこえたもじをえらぼう！ · Say it too!</div>
             </div>
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>もじ</span></button>
-              <button onClick={() => speak(curWord)}   style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 4px 0 #6FA458' }}>🔊 <span style={{ fontSize: 11 }}>たんご</span></button>
-              <button onClick={() => grantStar(true)}  style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>いえた！</span></button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '5px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 52 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#A98B77' }}>⏱</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F', lineHeight: 1 }}>{singElapsed}s</div>
             </div>
           </div>
-          {/* A–M / N–Z */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', width: '100%' }}>
-            <div style={{ display: 'flex', gap: 5 }}>
-              {WORDS.slice(0, 13).map((w, idx) => <button key={idx} onClick={() => setLetter(idx)} style={chipStyle(idx)}>{w[0]}</button>)}
+
+          {/* Listen button */}
+          <button onClick={() => speak(singTarget)}
+            style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 28, padding: '18px 52px', boxShadow: '0 10px 0 #EEDAC6', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 56, lineHeight: 1, animation: 'kg-floaty 2.4s ease-in-out infinite' }}>🔊</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#7FB8E0' }}>もう一度きく · Listen again</div>
+          </button>
+
+          {/* Wrong-answer nudge */}
+          {singWrong && (
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#D96C81', animation: 'kg-pop .25s ease-out' }}>
+              ちがう！ Try again 👆
             </div>
-            <div style={{ display: 'flex', gap: 5 }}>
-              {WORDS.slice(13).map((w, idx) => <button key={idx + 13} onClick={() => setLetter(idx + 13)} style={chipStyle(idx + 13)}>{w[0]}</button>)}
-            </div>
+          )}
+
+          {/* 2×2 letter choice grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, width: '100%', maxWidth: 360 }}>
+            {singOptions.map(letter => (
+              <button key={letter} onClick={() => checkSing(letter)}
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 72, lineHeight: 1, padding: '18px 0', borderRadius: 24, background: singWrong === letter ? '#FBD9D9' : '#FFFFFF', color: singWrong === letter ? '#D96C81' : '#F2879B', boxShadow: singWrong === letter ? '0 6px 0 #E4BFCA' : '0 8px 0 #EEDAC6', animation: singWrong === letter ? 'kg-shake .45s' : undefined }}>
+                {letter}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
       {/* ═══════════════ TRACE ═══════════════ */}
       {screen === 'trace' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
+        <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
           {/* Title + case toggle on one row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 17, fontWeight: 800 }}>Trace ✏️ </span>
@@ -927,7 +972,7 @@ export function KidsGame() {
 
       {/* ═══════════════ WORDS ═══════════════ */}
       {screen === 'words' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px 20px 20px' }}>
+        <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '20px 20px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 20, fontWeight: 800 }}>What is it? 🍰</div>
@@ -987,7 +1032,7 @@ export function KidsGame() {
       {/* ═══════════════ STUDY ═══════════════ */}
       {screen === 'study' && (() => {
         if (studyPool.length === 0) return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>📚</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F' }}>No vocabulary yet!</div>
             <div style={{ fontSize: 14, color: '#A98B77' }}>先生にたんごを追加してもらおう</div>
@@ -1001,7 +1046,7 @@ export function KidsGame() {
         if (allDone) {
           // Duo mode: P1 just finished → hand off to P2 before going to hub
           if (duo && studyTurn === 1 && !p2StudyDone) return (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center' }}>
+            <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center' }}>
               <div style={{ fontSize: 64 }}>🤝</div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>{player1Name}、よくできました！</div>
               <div style={{ fontSize: 15, color: '#A98B77', lineHeight: 1.6 }}>
@@ -1023,7 +1068,7 @@ export function KidsGame() {
 
           // Solo, or duo P2 finished
           return (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
+            <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
               <div style={{ fontSize: 60 }}>🎉</div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
               <div style={{ fontSize: 15, color: '#A98B77' }}>{studyPool.length} words reviewed — ready to play!</div>
@@ -1040,7 +1085,7 @@ export function KidsGame() {
         }
 
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
             {/* Progress bar */}
             <div style={{ width: '100%', maxWidth: 400 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#A98B77', marginBottom: 6 }}>
@@ -1093,7 +1138,7 @@ export function KidsGame() {
 
       {/* ═══════════════ LIKE & DISLIKE ═══════════════ */}
       {screen === 'like' && (
-        <LikeGame onBack={() => setScreen('hub')} />
+        <LikeGame onBack={() => setScreen('hub')} isDuo={duo} player1Name={player1Name} player2Name={player2Name} />
       )}
 
       {/* ═══════════════ ZOO ═══════════════ */}
@@ -1104,7 +1149,7 @@ export function KidsGame() {
           setLetter(i); setZooPhase('trace'); setZooAccuracy(0); setZooFed(false); setZooDragPos(null)
         }
         return (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
             {/* Title row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
               {zooPhase === 'trace' ? (
@@ -1202,6 +1247,8 @@ export function KidsGame() {
           </div>
         )
       })()}
+
+      </div>)} {/* end scrollable game wrapper */}
 
       {/* ═══════════════ PLAYER PICKER ═══════════════ */}
       {showPicker && (

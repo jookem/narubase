@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext, createContext } from 'react'
 
 // ── Style injection ───────────────────────────────────────────────────────────
 
@@ -85,10 +85,20 @@ const PREFS: Record<number, Record<string, string[]>> = {
   5: { Colors: ['blue','purple'],          Food: ['sushi','ice cream'],              Sports: ['swimming','soccer','basketball'] },
 }
 
-const PLAYERS_META = [
-  { name: 'Player 1', emoji: '🌸', color: '#FF5C8A', soft: '#FFE3ED', jp: 'プレイヤー１' },
-  { name: 'Player 2', emoji: '⚡', color: '#3FA7E8', soft: '#DCEEFB', jp: 'プレイヤー２' },
+const PLAYERS_BASE = [
+  { emoji: '🌸', color: '#FF5C8A', soft: '#FFE3ED', jp: 'プレイヤー１' },
+  { emoji: '⚡', color: '#3FA7E8', soft: '#DCEEFB', jp: 'プレイヤー２' },
 ]
+
+function makePlayers(p1Name: string, p2Name: string) {
+  return [
+    { ...PLAYERS_BASE[0], name: p1Name },
+    { ...PLAYERS_BASE[1], name: p2Name },
+  ]
+}
+
+type PlayersMeta = ReturnType<typeof makePlayers>
+const PlayersCtx = createContext<PlayersMeta>(makePlayers('Player 1', 'Player 2'))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -283,9 +293,10 @@ function PlayerToggle({ value, onChange }: { value: number; onChange: (n: number
 }
 
 function Scoreboard({ scores, turn }: { scores: number[]; turn: number }) {
+  const pm = useContext(PlayersCtx)
   return (
     <div style={{ display: 'flex', gap: 5 }}>
-      {PLAYERS_META.map((p, i) => (
+      {pm.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', border: `3px solid ${turn === i ? p.color : p.soft}`, borderRadius: 999, padding: '4px 10px', fontWeight: 700, fontSize: 15, boxShadow: `0 4px 0 ${SHADOW}`, transform: turn === i ? 'translateY(-2px) scale(1.05)' : undefined, transition: 'all .15s', fontFamily: FONT }}>
           <span>{p.emoji}</span><span style={{ color: p.color }}>{scores[i]}</span>
         </div>
@@ -295,7 +306,8 @@ function Scoreboard({ scores, turn }: { scores: number[]; turn: number }) {
 }
 
 function TurnBanner({ turn }: { turn: number }) {
-  const p = PLAYERS_META[turn]
+  const pm = useContext(PlayersCtx)
+  const p = pm[turn]
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: p.soft, color: p.color, fontWeight: 700, fontSize: 15, padding: '6px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}`, border: `3px solid ${p.color}`, animation: 'lg-pulse 1.4s ease-in-out infinite', fontFamily: FONT }}>
       <span style={{ fontSize: 17 }}>{p.emoji}</span> {p.name}'s turn! <span style={{ fontFamily: JP, fontWeight: 500, fontSize: 12, color: INK, opacity: 0.7 }}>{p.jp}のばん</span>
@@ -304,10 +316,11 @@ function TurnBanner({ turn }: { turn: number }) {
 }
 
 function ScoreStrip({ scores }: { scores: number[] }) {
+  const pm = useContext(PlayersCtx)
   const tie = scores[0] === scores[1]
   return (
     <div style={{ display: 'flex', gap: 12 }}>
-      {PLAYERS_META.map((p, i) => {
+      {pm.map((p, i) => {
         const lead = !tie && scores[i] > scores[1 - i]
         return (
           <div key={i} style={{ background: '#fff', border: `4px solid ${lead ? p.color : p.soft}`, borderRadius: 22, padding: '12px 22px', boxShadow: `0 6px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 110, transform: lead ? 'translateY(-5px)' : undefined, transition: 'all .2s', fontFamily: FONT }}>
@@ -368,10 +381,11 @@ function Panel({ children }: { children: React.ReactNode }) {
 }
 
 function RoundEnd({ friend, items, onNext, last, players, scores, turn }: { friend: Friend; items: GameItem[]; onNext: () => void; last: boolean; players: number; scores: number[]; turn: number }) {
+  const pm = useContext(PlayersCtx)
   const likes    = items.filter(x => x.liked)
   const dislikes = items.filter(x => !x.liked)
   const got      = items.filter(x => x.guess === x.liked).length
-  const me       = PLAYERS_META[turn]
+  const me       = pm[turn]
   return (
     <Overlay>
       <Particles kind="confetti" />
@@ -421,10 +435,11 @@ function QuizRoundEnd({ friend, correct, total, onNext, last, players, scores }:
 }
 
 function WinPanel({ title, jp, onReplay, onHome, onTopics, players, scores }: { title: string; jp: string; onReplay: () => void; onHome: () => void; onTopics: () => void; players: number; scores: number[] }) {
+  const pm = useContext(PlayersCtx)
   let wEmoji = '🏆', wTitle = title, wJp = jp
   if (players === 2) {
     if (scores[0] === scores[1]) { wEmoji = '🤝'; wTitle = "It's a tie!"; wJp = 'ひきわけ！' }
-    else { const w = scores[0] > scores[1] ? 0 : 1; wEmoji = PLAYERS_META[w].emoji; wTitle = `${PLAYERS_META[w].name} wins!`; wJp = `${PLAYERS_META[w].jp}のかち！` }
+    else { const w = scores[0] > scores[1] ? 0 : 1; wEmoji = pm[w].emoji; wTitle = `${pm[w].name} wins!`; wJp = `${pm[w].jp}のかち！` }
   }
   const ghost: React.CSSProperties = { fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 16, padding: '10px 20px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }
   return (
@@ -447,9 +462,10 @@ function WinPanel({ title, jp, onReplay, onHome, onTopics, players, scores }: { 
 
 // ── Game hub & topic picker ───────────────────────────────────────────────────
 
-function GameHub({ onPick, onBack }: { onPick: (g: 'mind' | 'quiz') => void; onBack: () => void }) {
+function GameHub({ onPick, onBack, isDuo }: { onPick: (g: 'mind' | 'quiz' | 'partner') => void; onBack: () => void; isDuo: boolean }) {
+  const pm = useContext(PlayersCtx)
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 16 }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 16 }}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
         ← Kids
       </button>
@@ -459,8 +475,9 @@ function GameHub({ onPick, onBack }: { onPick: (g: 'mind' | 'quiz') => void; onB
       </div>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
         {([
-          { key: 'mind' as const, emoji: '🔮', title: 'Mind Reader', jp: 'こころをよもう',  phrase: '"I like…"\n"I don\'t like…"', orbBg: '#FFE3ED', col: '#EA5C8C' },
-          { key: 'quiz' as const, emoji: '🎤', title: 'Yes or No?',  jp: 'クイズであてよう', phrase: '"Do you like…?"\n"Yes, I do / No, I don\'t"', orbBg: '#EEE2FB', col: '#8E5BC9' },
+          { key: 'mind' as const,    emoji: '🔮', title: 'Mind Reader', jp: 'こころをよもう',   phrase: '"I like…"\n"I don\'t like…"',              orbBg: '#FFE3ED', col: '#EA5C8C' },
+          { key: 'quiz' as const,    emoji: '🎤', title: 'Yes or No?',  jp: 'クイズであてよう', phrase: '"Do you like…?"\n"Yes, I do / No, I don\'t"', orbBg: '#EEE2FB', col: '#8E5BC9' },
+          ...(isDuo ? [{ key: 'partner' as const, emoji: '🤝', title: 'Ask Me!', jp: 'ともだちゲーム', phrase: `"Do you like…?"\n${pm[0].name} answers, ${pm[1].name} guesses`, orbBg: '#E3F9EF', col: '#2FAE75' }] : []),
         ]).map(g => (
           <button key={g.key} onClick={() => { SFX.pop(); onPick(g.key) }}
             style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '18px 22px', boxShadow: `0 10px 0 ${SHADOW}`, width: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
@@ -476,11 +493,11 @@ function GameHub({ onPick, onBack }: { onPick: (g: 'mind' | 'quiz') => void; onB
   )
 }
 
-function TopicPicker({ accent, players, onSetPlayers, onPick, onHome }: { accent: 'mind' | 'quiz'; players: number; onSetPlayers: (n: number) => void; onPick: (key: string) => void; onHome: () => void }) {
+function TopicPicker({ accent, players, onSetPlayers, onPick, onHome, isDuo = false }: { accent: 'mind' | 'quiz'; players: number; onSetPlayers: (n: number) => void; onPick: (key: string) => void; onHome: () => void; isDuo?: boolean }) {
   const col    = accent === 'quiz' ? '#8E5BC9' : '#EA5C8C'
   const orbBg  = accent === 'quiz' ? '#EEE2FB' : '#FFE3ED'
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 16px' }}>
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 16px' }}>
       <button onClick={onHome} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
         🏠 Home
       </button>
@@ -488,10 +505,12 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome }: { accent
         <h1 style={{ fontWeight: 700, fontSize: 28, letterSpacing: -1, background: `linear-gradient(180deg,${col},${col})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Pick a Topic!</h1>
         <div style={{ fontFamily: JP, fontWeight: 700, color: INK, fontSize: 14, marginTop: 2 }}>トピックをえらぼう</div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <span style={{ fontWeight: 700, color: INK, fontSize: 14, fontFamily: FONT }}>Players: <span style={{ fontFamily: JP, fontWeight: 500, color: INK_SOFT, fontSize: 12 }}>なんにん？</span></span>
-        <PlayerToggle value={players} onChange={onSetPlayers} />
-      </div>
+      {!isDuo && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <span style={{ fontWeight: 700, color: INK, fontSize: 14, fontFamily: FONT }}>Players: <span style={{ fontFamily: JP, fontWeight: 500, color: INK_SOFT, fontSize: 12 }}>なんにん？</span></span>
+          <PlayerToggle value={players} onChange={onSetPlayers} />
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         {Object.entries(TOPICS).map(([key, t]) => (
           <button key={key} onClick={() => { SFX.pop(); onPick(key) }}
@@ -508,10 +527,10 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome }: { accent
 
 // ── Mind Reader game ──────────────────────────────────────────────────────────
 
-function MindReader({ onHome }: { onHome: () => void }) {
+function MindReader({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boolean }) {
   const [topicKey, setTopicKey] = useState<string | null>(null)
   const [roundIdx, setRoundIdx] = useState(0)
-  const [players, setPlayers] = useState(1)
+  const [players, setPlayers] = useState(isDuo ? 2 : 1)
   const [scores, setScores] = useState([0, 0])
   const [items, setItems] = useState<GameItem[]>([])
   const [current, setCurrent] = useState<(GameItem & { correct: boolean | null }) | null>(null)
@@ -576,7 +595,7 @@ function MindReader({ onHome }: { onHome: () => void }) {
   function restart() { SFX.pop(); setRoundIdx(0); setScores([0, 0]); startRound(0) }
 
   if (!topicKey || !topic || !friend) {
-    return <TopicPicker accent="mind" players={players} onSetPlayers={setPlayers} onPick={chooseTopic} onHome={onHome} />
+    return <TopicPicker accent="mind" players={players} onSetPlayers={setPlayers} onPick={chooseTopic} onHome={onHome} isDuo={isDuo} />
   }
 
   const foundLikes = items.filter(x => x.revealed && x.liked).length
@@ -634,10 +653,10 @@ function MindReader({ onHome }: { onHome: () => void }) {
 
 // ── Yes or No quiz ────────────────────────────────────────────────────────────
 
-function QuizShow({ onHome }: { onHome: () => void }) {
+function QuizShow({ onHome, isDuo = false }: { onHome: () => void; isDuo?: boolean }) {
   const [topicKey, setTopicKey] = useState<string | null>(null)
   const [roundIdx, setRoundIdx] = useState(0)
-  const [players, setPlayers] = useState(1)
+  const [players, setPlayers] = useState(isDuo ? 2 : 1)
   const [scores, setScores] = useState([0, 0])
   const [questions, setQuestions] = useState<QuizItem[]>([])
   const [qIdx, setQIdx] = useState(0)
@@ -658,6 +677,7 @@ function QuizShow({ onHome }: { onHome: () => void }) {
   const topic  = topicKey ? TOPICS[topicKey] : null
   const cur    = questions[qIdx]
   const turn   = players === 2 ? roundIdx % 2 : 0
+  const pm     = useContext(PlayersCtx)
 
   useEffect(() => {
     if (!burst) return
@@ -705,7 +725,7 @@ function QuizShow({ onHome }: { onHome: () => void }) {
   function restart() { SFX.pop(); setRoundIdx(0); setStars(0); setScores([0, 0]); startRound(0) }
 
   if (!topicKey || !topic || !friend || !cur) {
-    return <TopicPicker accent="quiz" players={players} onSetPlayers={setPlayers} onPick={chooseTopic} onHome={onHome} />
+    return <TopicPicker accent="quiz" players={players} onSetPlayers={setPlayers} onPick={chooseTopic} onHome={onHome} isDuo={isDuo} />
   }
 
   const revealed      = phase === 'revealed'
@@ -758,7 +778,7 @@ function QuizShow({ onHome }: { onHome: () => void }) {
             )
           })}
         </div>
-        {!revealed && <div style={{ fontWeight: 600, color: INK_SOFT, fontSize: 14, fontFamily: FONT }}>👆 {players === 2 ? `${PLAYERS_META[turn].name}, guess` : 'Guess'} {friend.name}'s answer　こたえをよそう</div>}
+        {!revealed && <div style={{ fontWeight: 600, color: INK_SOFT, fontSize: 14, fontFamily: FONT }}>👆 {players === 2 ? `${pm[turn].name}, guess` : 'Guess'} {friend.name}'s answer　こたえをよそう</div>}
         {revealed && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <div style={{ fontWeight: 700, fontSize: 17, color: correctGuess ? '#2FAE75' : '#FF7A59' }}>{correctGuess ? '⭐ Great guess!' : 'Good try! 👏'}</div>
@@ -773,20 +793,152 @@ function QuizShow({ onHome }: { onHome: () => void }) {
   )
 }
 
+// ── Partner Game ("Ask Me!") ─────────────────────────────────────────────────
+
+function PartnerGame({ onHome }: { onHome: () => void }) {
+  const pm = useContext(PlayersCtx)
+  const [topicKey, setTopicKey] = useState<string | null>(null)
+  const [phase, setPhase] = useState<'p1pick' | 'handoff' | 'p2guess' | 'reveal'>('p1pick')
+  const [items, setItems] = useState<TopicItem[]>([])
+  const [p1Picks, setP1Picks] = useState<Record<string, boolean>>({})
+  const [p2Guesses, setP2Guesses] = useState<Record<string, boolean>>({})
+
+  const topic = topicKey ? TOPICS[topicKey] : null
+  const score = items.filter(it => p2Guesses[it.en] === p1Picks[it.en]).length
+
+  function chooseTopic(key: string) {
+    setTopicKey(key); setItems(shuffle([...TOPICS[key].items]))
+    setP1Picks({}); setP2Guesses({}); setPhase('p1pick')
+  }
+
+  const itemGrid = (
+    picks: Record<string, boolean>,
+    setPick: (en: string, val: boolean) => void,
+    revealed = false
+  ) => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, width: '100%', maxWidth: 420 }}>
+      {items.map(it => {
+        const chosen = picks[it.en]
+        const correct = revealed ? p2Guesses[it.en] === p1Picks[it.en] : undefined
+        return (
+          <div key={it.en} style={{ background: revealed ? (correct ? '#F2FCF7' : '#FFF0EB') : '#fff', border: `3px solid ${revealed ? (correct ? '#46C98A' : '#FF7A59') : '#eee'}`, borderRadius: 18, padding: '10px 6px', boxShadow: `0 6px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, position: 'relative' }}>
+            {revealed && <div style={{ position: 'absolute', top: -12, right: -10, width: 28, height: 28, borderRadius: '50%', background: correct ? '#46C98A' : '#FF7A59', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', fontWeight: 700 }}>{correct ? '✓' : '✕'}</div>}
+            <ItemFace it={it} />
+            <div style={{ fontWeight: 700, fontSize: 13, color: INK, textTransform: 'capitalize' }}>{it.en}</div>
+            {revealed
+              ? <div style={{ fontSize: 20 }}>{p1Picks[it.en] ? '❤️' : '🙅'}</div>
+              : (
+                <div style={{ display: 'flex', gap: 5, width: '100%' }}>
+                  <button onClick={() => { SFX.pop(); setPick(it.en, true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === true ? '#46C98A' : '#eee'}`, color: chosen === true ? '#2FAE75' : '#ccc', borderRadius: 10, padding: '6px 0', fontSize: 18, background: chosen === true ? '#F2FCF7' : '#fff', cursor: 'pointer' }}>❤️</button>
+                  <button onClick={() => { SFX.pop(); setPick(it.en, false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === false ? '#8FA9C6' : '#eee'}`, color: chosen === false ? '#4592cf' : '#ccc', borderRadius: 10, padding: '6px 0', fontSize: 18, background: chosen === false ? '#F4F7FB' : '#fff', cursor: 'pointer' }}>🙅</button>
+                </div>
+              )
+            }
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  if (!topicKey || !topic) return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px 20px' }}>
+      <button onClick={onHome} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>🏠 Home</button>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ fontWeight: 700, fontSize: 26, letterSpacing: -1, color: '#2FAE75', margin: 0 }}>🤝 Ask Me!</h1>
+        <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13, marginTop: 3 }}>ともだちのことわかるかな？</div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {Object.entries(TOPICS).map(([key, t]) => (
+          <button key={key} onClick={() => { SFX.pop(); chooseTopic(key) }}
+            style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 22, padding: '14px 18px', boxShadow: `0 10px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 110 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#E3F9EF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>{t.emoji}</div>
+            <div style={{ fontWeight: 700, fontSize: 17, color: '#2FAE75' }}>{t.label}</div>
+            <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 12 }}>{t.jp}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  if (phase === 'p1pick') return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '16px 20px' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: pm[0].color }}>{pm[0].emoji} {pm[0].name}'s turn!</div>
+        <div style={{ fontSize: 13, color: INK_SOFT, fontFamily: JP }}>ひみつで選んでね！（{pm[1].name}は見ないで！）</div>
+      </div>
+      {itemGrid(p1Picks, (en, val) => setP1Picks(p => ({ ...p, [en]: val })))}
+      {Object.keys(p1Picks).length === items.length && (
+        <button onClick={() => { SFX.pop(); setPhase('handoff') }} style={{ fontFamily: FONT, fontWeight: 800, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 17, padding: '13px 32px', background: '#FF7FA8', boxShadow: '0 6px 0 #EA5C8C' }}>
+          Done! Pass to {pm[1].name} →
+        </button>
+      )}
+    </div>
+  )
+
+  if (phase === 'handoff') return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center' }}>
+      <div style={{ fontSize: 72, animation: 'lg-bob 2s ease-in-out infinite' }}>📱</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: INK }}>Pass to {pm[1].name}!</div>
+      <div style={{ fontSize: 14, color: INK_SOFT, fontFamily: JP }}>{pm[1].name}にわたしてね！</div>
+      <button onClick={() => { SFX.pop(); setPhase('p2guess') }} style={{ fontFamily: FONT, fontWeight: 800, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 18, padding: '14px 36px', background: pm[1].color, boxShadow: '0 6px 0 #2D8BC9' }}>
+        {pm[1].emoji} I'm ready! →
+      </button>
+    </div>
+  )
+
+  if (phase === 'p2guess') return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '16px 20px' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: pm[1].color }}>{pm[1].emoji} {pm[1].name}'s guesses!</div>
+        <div style={{ fontSize: 13, color: INK_SOFT }}>Ask: "Do you like…?" then guess! 🗣️</div>
+        <div style={{ fontSize: 12, color: INK_SOFT, fontFamily: JP, marginTop: 1 }}>「{pm[0].name}はすき？」と聞いてみよう！</div>
+      </div>
+      {itemGrid(p2Guesses, (en, val) => setP2Guesses(p => ({ ...p, [en]: val })))}
+      {Object.keys(p2Guesses).length === items.length && (
+        <button onClick={() => { SFX.win(); setPhase('reveal') }} style={{ fontFamily: FONT, fontWeight: 800, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 17, padding: '13px 32px', background: '#B07BE8', boxShadow: '0 6px 0 #8E5BC9' }}>
+          Reveal! 🎉
+        </button>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '20px 20px', position: 'relative' }}>
+      <Particles kind="confetti" />
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 26, fontWeight: 800, color: score >= Math.ceil(items.length / 2) ? '#2FAE75' : '#FF7A59' }}>
+          {pm[1].emoji} {pm[1].name} got {score}/{items.length}! {score === items.length ? '🏆' : score >= Math.ceil(items.length / 2) ? '⭐' : '👏'}
+        </div>
+        <div style={{ fontSize: 13, color: INK_SOFT, fontFamily: JP, marginTop: 2 }}>ともだちのことわかった？</div>
+      </div>
+      {itemGrid({}, () => {}, true)}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+        <button onClick={() => chooseTopic(topicKey)} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 15, padding: '10px 22px', background: '#FF7FA8', boxShadow: '0 5px 0 #EA5C8C' }}>Play Again ↺</button>
+        <button onClick={() => setTopicKey(null)} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 15, padding: '10px 22px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }}>🎲 New Topic</button>
+        <button onClick={onHome} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 15, padding: '10px 22px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }}>🏠 Home</button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function LikeGame({ onBack }: { onBack: () => void }) {
-  const [view, setView] = useState<'hub' | 'mind' | 'quiz'>('hub')
+export function LikeGame({ onBack, isDuo = false, player1Name = 'Player 1', player2Name = 'Player 2' }: { onBack: () => void; isDuo?: boolean; player1Name?: string; player2Name?: string }) {
+  const [view, setView] = useState<'hub' | 'mind' | 'quiz' | 'partner'>('hub')
+  const pm = makePlayers(player1Name, player2Name)
 
   useEffect(() => { injectLikeGameStyles() }, [])
 
   const goHome = () => { SFX.pop(); setView('hub') }
 
   return (
-    <div style={{ width: '100%', background: 'radial-gradient(120% 80% at 50% -10%, #FFF9F4 0%, #FFF1E2 55%, #F6E3CF 100%)', fontFamily: FONT, color: INK, display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', flex: 1, minHeight: 0, position: 'relative' }}>
-      {view === 'hub'  && <GameHub onPick={setView} onBack={onBack} />}
-      {view === 'mind' && <MindReader onHome={goHome} />}
-      {view === 'quiz' && <QuizShow onHome={goHome} />}
-    </div>
+    <PlayersCtx.Provider value={pm}>
+      <div style={{ width: '100%', background: 'radial-gradient(120% 80% at 50% -10%, #FFF9F4 0%, #FFF1E2 55%, #F6E3CF 100%)', fontFamily: FONT, color: INK, display: 'flex', flexDirection: 'column', borderRadius: 20, overflow: 'hidden', minHeight: '100%', position: 'relative' }}>
+        {view === 'hub'     && <GameHub onPick={setView} onBack={onBack} isDuo={isDuo} />}
+        {view === 'mind'    && <MindReader onHome={goHome} isDuo={isDuo} />}
+        {view === 'quiz'    && <QuizShow onHome={goHome} isDuo={isDuo} />}
+        {view === 'partner' && <PartnerGame onHome={goHome} />}
+      </div>
+    </PlayersCtx.Provider>
   )
 }
