@@ -40,12 +40,16 @@ function shuffleArr<T>(a: T[]): T[] {
 function buildGrid(word: string): TsumBall[] {
   const positions = shuffleArr(Array.from({ length: COLS * ROWS }, (_, i) => i))
   const wordPos = new Set(positions.slice(0, word.length))
+  // All word-letter balls share one emoji so the player can spot them at a glance
+  const wordBp = BALL_POOL[Math.floor(Math.random() * BALL_POOL.length)]
+  const fillerPool = BALL_POOL.filter(b => b.emoji !== wordBp.emoji)
   let wi = 0
   return Array.from({ length: COLS * ROWS }, (_, i) => {
-    const bp = BALL_POOL[Math.floor(Math.random() * BALL_POOL.length)]
+    const isWord = wordPos.has(i)
+    const bp = isWord ? wordBp : fillerPool[Math.floor(Math.random() * fillerPool.length)]
     return {
       id: i,
-      char: wordPos.has(i) ? word[wi++] : LETTER_POOL[Math.floor(Math.random() * LETTER_POOL.length)],
+      char: isWord ? word[wi++] : LETTER_POOL[Math.floor(Math.random() * LETTER_POOL.length)],
       emoji: bp.emoji, bg: bp.bg, sh: bp.sh,
       row: Math.floor(i / COLS), col: i % COLS, popping: false,
     }

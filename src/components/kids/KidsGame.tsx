@@ -1128,31 +1128,35 @@ export function KidsGame() {
       {/* ═══════════════ PLAYER PICKER ═══════════════ */}
       {showPicker && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9997 }}>
-          <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '28px 32px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '90%', maxWidth: 360, animation: 'kg-pop .4s ease-out' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}>いっしょにあそぼう！</div>
-            <div style={{ fontSize: 14, color: '#A98B77', textAlign: 'center', marginBottom: 20, marginTop: 4 }}>Who is Player 2?</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {classmates.map(c => {
-                const firstName = (c.full_name ?? 'Student').split(' ')[0]
-                return (
-                  <button key={c.id} onClick={() => {
-                    setPlayer2Id(c.id); setPlayer2Name(firstName)
-                    setPlayer('duo'); setTurn(1); setShowPicker(false)
-                  }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 18, padding: '14px 20px', borderRadius: 16, background: '#EDE4FF', color: '#5A4336', boxShadow: '0 4px 0 #D0BEFF', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 28 }}>👩</span> {firstName}
-                  </button>
-                )
-              })}
-              {classmates.length === 0 && (
-                <div style={{ textAlign: 'center', color: '#A98B77', fontSize: 14, padding: '8px 0' }}>No classmates found</div>
-              )}
+          <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '24px 28px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '92%', maxWidth: 460, animation: 'kg-pop .4s ease-out' }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}>いっしょにあそぼう！</div>
+            <div style={{ fontSize: 13, color: '#A98B77', textAlign: 'center', marginBottom: 16, marginTop: 3 }}>Who is Player 2?</div>
+            {classmates.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#A98B77', fontSize: 14, padding: '12px 0' }}>No classmates found</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+                {classmates.map(c => {
+                  const firstName = (c.full_name ?? 'Student').split(' ')[0]
+                  return (
+                    <button key={c.id} onClick={() => {
+                      setPlayer2Id(c.id); setPlayer2Name(firstName)
+                      setPlayer('duo'); setTurn(1); setShowPicker(false)
+                    }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 14, padding: '12px 8px', borderRadius: 16, background: '#EDE4FF', color: '#5A4336', boxShadow: '0 4px 0 #D0BEFF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 30 }}>👩</span>
+                      <span style={{ lineHeight: 1.2, wordBreak: 'break-word' }}>{firstName}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => {
                 setPlayer2Id(null); setPlayer2Name('Player 2')
                 setPlayer('duo'); setTurn(1); setShowPicker(false)
-              }} style={{ border: '2px dashed #E7D3C0', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '11px 20px', borderRadius: 14, background: 'transparent', color: '#B79A86' }}>
-                スキップ (no partner selected)
+              }} style={{ flex: 1, border: '2px dashed #E7D3C0', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '10px 8px', borderRadius: 12, background: 'transparent', color: '#B79A86' }}>
+                スキップ
               </button>
-              <button onClick={() => setShowPicker(false)} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px', borderRadius: 12, background: '#F5EDE6', color: '#B79A86' }}>
+              <button onClick={() => setShowPicker(false)} style={{ flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '10px 8px', borderRadius: 12, background: '#F5EDE6', color: '#B79A86' }}>
                 キャンセル
               </button>
             </div>
