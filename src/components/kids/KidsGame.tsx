@@ -255,6 +255,11 @@ export function KidsGame() {
         '@keyframes kg-twinkle{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.25);opacity:1}}',
         '@keyframes kg-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}',
         '@keyframes kg-bounceIn{0%{transform:scale(.6)}60%{transform:scale(1.08)}100%{transform:scale(1)}}',
+        '.kg-hub-scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(200,170,150,0.5) transparent}',
+        '.kg-hub-scroll::-webkit-scrollbar{width:8px}',
+        '.kg-hub-scroll::-webkit-scrollbar-track{background:transparent}',
+        '.kg-hub-scroll::-webkit-scrollbar-thumb{background:rgba(200,170,150,0.45);border-radius:4px}',
+        '.kg-hub-scroll::-webkit-scrollbar-thumb:hover{background:rgba(200,170,150,0.75)}',
       ].join('')
       document.head.appendChild(style)
     }
@@ -750,8 +755,9 @@ export function KidsGame() {
 
 {/* ═══════════════ HUB ═══════════════ */}
       {screen === 'hub' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 20px 32px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 22 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Pinned header */}
+          <div style={{ textAlign: 'center', padding: '12px 20px 10px', flexShrink: 0 }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#6B4F3F' }}>Pick a game! 🎶</div>
             <div style={{ fontSize: 16, color: '#A98B77', marginTop: 4 }}>どのあそびにする？</div>
             {sessionWords.length > 0 && (
@@ -760,7 +766,9 @@ export function KidsGame() {
               </div>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16, width: '100%', maxWidth: 800 }}>
+          {/* Scrollable grid */}
+          <div className="kg-hub-scroll" style={{ flex: 1, padding: '4px 20px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16, width: '100%', maxWidth: 800, margin: '0 auto' }}>
             {([
               { key: 'study' as Screen, title: 'Study Words',   jp: 'たんごれんしゅう', skill: '📚 Review', emoji: '📚', bg: sessionWords.length > 0 ? '#D4ECF8' : '#EDE4FF' },
               { key: 'sing'  as Screen, title: 'ABC Song',      jp: 'えいごのうた', skill: '🗣 Speaking', emoji: '🎤', bg: '#FBD9E1' },
@@ -797,6 +805,7 @@ export function KidsGame() {
                 </div>
               </button>
             ))}
+          </div>
           </div>
         </div>
       )}
