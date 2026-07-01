@@ -1151,7 +1151,7 @@ export function KidsGame() {
                       }}
                     >
                       <div style={{ fontSize: 64, lineHeight: 1 }}>{zoo.foodEmoji}</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: '#5A4336' }}>{zoo.food}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#5A4336' }}>{zoo.food}</div>
                     </div>
                   )}
                   {/* Animal + name */}
