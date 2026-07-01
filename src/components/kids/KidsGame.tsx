@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getStudentVocab } from '@/lib/api/lessons'
+import { getClassmates, saveKidSession, type Classmate } from '@/lib/api/kids'
+import { supabase } from '@/lib/supabase'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import { LikeGame } from './LikeGame'
 import { SpellTsumGame, type SessionWord } from './SpellTsumGame'
@@ -156,6 +158,13 @@ export function KidsGame() {
   const [justRewarded, setJustRewarded] = useState(false)
   const [scorer, setScorer] = useState(0)
 
+  // Multi-student
+  const [player1Name, setPlayer1Name] = useState('Player 1')
+  const [player2Name, setPlayer2Name] = useState('Player 2')
+  const [player2Id, setPlayer2Id] = useState<string | null>(null)
+  const [classmates, setClassmates] = useState<Classmate[]>([])
+  const [showPicker, setShowPicker] = useState(false)
+
   // Sing / Trace
   const [letterIndex, setLetterIndex] = useState(0)
   const [traceCase, setTraceCase] = useState<'upper' | 'lower'>('upper')
@@ -170,6 +179,7 @@ export function KidsGame() {
 
   // Session / Study
   const [sessionWords, setSessionWords] = useState<SessionWord[]>([])
+  const [studyPool, setStudyPool] = useState<SessionWord[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
 
@@ -224,6 +234,9 @@ export function KidsGame() {
     getStudentVocab(user.id).then(({ entries }) => {
       if (entries?.length) setAssignedVocab(entries)
     })
+    supabase.from('profiles').select('full_name').eq('id', user.id).single()
+      .then(({ data }) => { if (data?.full_name) setPlayer1Name(data.full_name.split(' ')[0]) })
+    getClassmates(user.id).then(list => setClassmates(list))
   }, [user])
 
   // ── Inject font + animations ───────────────────────────────────
@@ -688,7 +701,7 @@ export function KidsGame() {
           )}
           {duo && screen !== 'hub' && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, padding: '6px 14px', borderRadius: '999px', background: turn === 1 ? '#FBD9E1' : '#E7DCF5', color: turn === 1 ? '#D96C81' : '#7A5AC0', boxShadow: '0 3px 0 rgba(0,0,0,.06)' }}>
-              {turn === 1 ? '👧' : '👩'} {turn === 1 ? 'Player 1' : 'Player 2'} <span style={{ opacity: .75, fontWeight: 600, fontSize: 12 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>
+              {turn === 1 ? '👧' : '👩'} {turn === 1 ? player1Name : player2Name} <span style={{ opacity: .75, fontWeight: 600, fontSize: 12 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>
             </div>
           )}
         </div>
@@ -702,7 +715,10 @@ export function KidsGame() {
           {/* Solo/Duo */}
           <div style={{ display: 'flex', gap: 4, background: '#FFFFFF', padding: 5, borderRadius: '999px', boxShadow: '0 3px 0 #E7D3C0' }}>
             {(['solo', 'duo'] as const).map(mode => (
-              <button key={mode} onClick={() => { setPlayer(mode); if (mode === 'duo') setTurn(1) }}
+              <button key={mode} onClick={() => {
+                if (mode === 'solo') { setPlayer('solo'); setPlayer2Id(null); setPlayer2Name('Player 2') }
+                else setShowPicker(true)
+              }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '7px 13px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: 5, background: player === mode ? '#F2879B' : 'transparent', color: player === mode ? '#fff' : '#B79A86' }}>
                 {mode === 'solo' ? '👧' : '👩‍👧'} <span style={{ fontSize: 12 }}>{mode === 'solo' ? 'ひとり' : 'いっしょ'}</span>
               </button>
@@ -722,7 +738,7 @@ export function KidsGame() {
                 const s = p === 1 ? stars1 : stars2
                 return (
                   <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: '999px', fontSize: 18, background: active ? (p === 1 ? '#FBD9E1' : '#E7DCF5') : '#FFFFFF', color: active ? (p === 1 ? '#D96C81' : '#7A5AC0') : '#B79A86', boxShadow: active ? `0 0 0 3px ${p === 1 ? '#F2879B' : '#9B7FD4'}` : '0 3px 0 #E7D3C0' }}>
-                    {p === 1 ? '👧' : '👩'} <span style={{ fontWeight: 800 }}>{s}</span> <span style={{ fontSize: 15 }}>⭐</span>
+                    {p === 1 ? '👧' : '👩'} <span style={{ fontWeight: 700, fontSize: 12, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p === 1 ? player1Name : player2Name}</span> <span style={{ fontWeight: 800 }}>{s}</span> <span style={{ fontSize: 15 }}>⭐</span>
                   </div>
                 )
               })}
@@ -758,7 +774,14 @@ export function KidsGame() {
                   if (s.key === 'words') setupWords()
                   else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') setupZoo()
-                  else if (s.key === 'study') { setStudyIdx(0); setStudyFlipped(false); setScreen('study') }
+                  else if (s.key === 'study') {
+                    const pool = shuffleArr(
+                      assignedVocab
+                        .map(e => ({ word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word }))
+                        .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
+                    ).slice(0, 5)
+                    setStudyPool(pool); setStudyIdx(0); setStudyFlipped(false); setScreen('study')
+                  }
                   else { setScreen(s.key); if (s.key === 'trace') setTimeout(() => drawGuide(), 40) }
                 }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, textAlign: 'left', padding: 18, borderRadius: 24, boxShadow: '0 8px 0 rgba(0,0,0,.06)', background: s.bg }}>
@@ -897,6 +920,14 @@ export function KidsGame() {
           assignedVocab={assignedVocab}
           sessionWords={sessionWords}
           onBack={() => setScreen('hub')}
+          onEnd={stats => {
+            if (user) saveKidSession({
+              player1Id: user.id, player2Id,
+              game: 'spell-tsum',
+              score: stats.score, wordsCorrect: stats.correct,
+              wordsAttempted: stats.attempted, streakBest: stats.streak,
+            })
+          }}
           sfxCorrect={sfxCorrect}
           sfxWrong={sfxWrong}
           sfxTap={sfxTap}
@@ -906,10 +937,6 @@ export function KidsGame() {
 
       {/* ═══════════════ STUDY ═══════════════ */}
       {screen === 'study' && (() => {
-        const studyPool: SessionWord[] = assignedVocab
-          .map(e => ({ word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word }))
-          .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
-
         if (studyPool.length === 0) return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>📚</div>
@@ -1098,6 +1125,41 @@ export function KidsGame() {
         )
       })()}
 
+      {/* ═══════════════ PLAYER PICKER ═══════════════ */}
+      {showPicker && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9997 }}>
+          <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '28px 32px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '90%', maxWidth: 360, animation: 'kg-pop .4s ease-out' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}>いっしょにあそぼう！</div>
+            <div style={{ fontSize: 14, color: '#A98B77', textAlign: 'center', marginBottom: 20, marginTop: 4 }}>Who is Player 2?</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {classmates.map(c => {
+                const firstName = (c.full_name ?? 'Student').split(' ')[0]
+                return (
+                  <button key={c.id} onClick={() => {
+                    setPlayer2Id(c.id); setPlayer2Name(firstName)
+                    setPlayer('duo'); setTurn(1); setShowPicker(false)
+                  }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 18, padding: '14px 20px', borderRadius: 16, background: '#EDE4FF', color: '#5A4336', boxShadow: '0 4px 0 #D0BEFF', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 28 }}>👩</span> {firstName}
+                  </button>
+                )
+              })}
+              {classmates.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#A98B77', fontSize: 14, padding: '8px 0' }}>No classmates found</div>
+              )}
+              <button onClick={() => {
+                setPlayer2Id(null); setPlayer2Name('Player 2')
+                setPlayer('duo'); setTurn(1); setShowPicker(false)
+              }} style={{ border: '2px dashed #E7D3C0', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '11px 20px', borderRadius: 14, background: 'transparent', color: '#B79A86' }}>
+                スキップ (no partner selected)
+              </button>
+              <button onClick={() => setShowPicker(false)} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px', borderRadius: 12, background: '#F5EDE6', color: '#B79A86' }}>
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══════════════ REWARD OVERLAY ═══════════════ */}
       {justRewarded && (
         <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 9999 }}>
@@ -1105,7 +1167,7 @@ export function KidsGame() {
             <div style={{ fontSize: 80 }}>⭐</div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#E0A52E' }}>Great! <span style={{ color: '#F2879B' }}>じょうず！</span></div>
             <div style={{ fontSize: 16, color: '#A98B77' }}>
-              {duo ? `${scorer === 1 ? '👧 Player 1' : '👩 Player 2'}  +1 ⭐` : '+1 star'}
+              {duo ? `${scorer === 1 ? `👧 ${player1Name}` : `👩 ${player2Name}`} +1 ⭐` : '+1 star'}
             </div>
           </div>
         </div>

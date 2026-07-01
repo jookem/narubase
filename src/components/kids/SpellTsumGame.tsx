@@ -67,13 +67,14 @@ interface Props {
   assignedVocab: VocabularyBankEntry[]
   sessionWords: SessionWord[]
   onBack: () => void
+  onEnd?: (stats: { score: number; correct: number; attempted: number; streak: number }) => void
   sfxCorrect: () => void
   sfxWrong: () => void
   sfxTap: () => void
   speak: (t: string) => void
 }
 
-export function SpellTsumGame({ assignedVocab, sessionWords, onBack, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
+export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
   const [wordPool] = useState<SessionWord[]>(() => {
     if (sessionWords.length > 0) return sessionWords
     const spellable = assignedVocab.filter(e => {
@@ -121,6 +122,7 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, sfxCorrect,
   const chainRef       = useRef<number[]>([])
   const revealingRef   = useRef(false)
   const wordStartRef   = useRef(Date.now())
+  const streakBestRef  = useRef(0)
 
   useEffect(() => { chainRef.current = chain }, [chain])
 
@@ -129,6 +131,14 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, sfxCorrect,
     if (phase !== 'playing') return
     const id = setInterval(() => setElapsed(s => s + 1), 1000)
     return () => clearInterval(id)
+  }, [phase])
+
+  useEffect(() => {
+    if (phase === 'end') {
+      onEnd?.({ score, correct: wordsCorrect, attempted: wordsAttempted, streak: streakBestRef.current })
+    }
+  // phase changing to 'end' is the only trigger we care about; values are committed by then
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
 
   useEffect(() => { setTimeout(() => speak(first.word.toLowerCase()), 400) }, [])
@@ -197,6 +207,7 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, sfxCorrect,
       const pts = Math.round((100 + speedBonus) * nc)
       setScore(s => s + pts); setCombo(nc)
       const ns = streak + 1; setStreak(ns)
+      if (ns > streakBestRef.current) streakBestRef.current = ns
       setWordsAttempted(w => w + 1); setWordsCorrect(w => w + 1)
       sfxCorrect(); speak(target.word.toLowerCase())
       if (ns % 3 === 0) { setShowStreak(true); setTimeout(() => setShowStreak(false), 1800) }
