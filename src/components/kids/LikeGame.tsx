@@ -55,8 +55,8 @@ const TOPICS: Record<string, Topic> = {
   Sports: {
     label: 'Sports', jp: 'スポーツ', emoji: '⚽',
     items: [
-      { en: 'soccer',     jp: 'サッカー',     icon: '⚽' },
-      { en: 'baseball',   jp: 'やきゅう',     icon: '⚾' },
+      { en: 'soccer',     jp: 'サッカー',     icon: '⚽️' },
+      { en: 'baseball',   jp: 'やきゅう',     icon: '⚾️' },
       { en: 'basketball', jp: 'バスケ',       icon: '🏀' },
       { en: 'swimming',   jp: 'すいえい',     icon: '🏊' },
       { en: 'tennis',     jp: 'テニス',       icon: '🎾' },
