@@ -176,6 +176,7 @@ export function KidsGame() {
   const [wIsEmoji, setWIsEmoji] = useState(true)
   const [wOptions, setWOptions] = useState<string[]>([])
   const [wWrong, setWWrong] = useState<string | null>(null)
+  const [wElapsed, setWElapsed] = useState(0)
 
   // Session / Study
   const [sessionWords, setSessionWords] = useState<SessionWord[]>([])
@@ -218,6 +219,7 @@ export function KidsGame() {
   const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wordsQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
   const spellQueueRef = useRef<{ key: string; indices: number[] }>({ key: '', indices: [] })
+  const wStartRef = useRef(Date.now())
 
   // Stable refs for values used inside intervals/callbacks
   const screenRef = useRef(screen)
@@ -230,6 +232,14 @@ export function KidsGame() {
   useEffect(() => { traceCaseRef.current = traceCase }, [traceCase])
   useEffect(() => { activeStrokeRef.current = activeStroke }, [activeStroke])
   useEffect(() => { clearDrawCanvas() }, [letterIndex, traceCase])
+
+  // ── Word Match timer — resets each time a new word is shown ──
+  useEffect(() => {
+    if (screen !== 'words') return
+    setWElapsed(0); wStartRef.current = Date.now()
+    const id = setInterval(() => setWElapsed(Math.floor((Date.now() - wStartRef.current) / 1000)), 200)
+    return () => clearInterval(id)
+  }, [screen, wTarget])
 
   // ── Load assigned vocabulary ───────────────────────────────────
   useEffect(() => {
@@ -918,9 +928,16 @@ export function KidsGame() {
       {/* ═══════════════ WORDS ═══════════════ */}
       {screen === 'words' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>What is it? 🍰</div>
-            <div style={{ fontSize: 13, color: '#A98B77' }}>これは なに？　いって、タップ</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>What is it? 🍰</div>
+              <div style={{ fontSize: 13, color: '#A98B77' }}>これは なに？　いって、タップ</div>
+            </div>
+            {/* Count-up timer */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '5px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 52 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#A98B77' }}>⏱</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F', lineHeight: 1 }}>{wElapsed}s</div>
+            </div>
           </div>
           <button onClick={() => speak(wTarget)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 28, padding: '14px 40px', boxShadow: '0 10px 0 #EEDAC6', maxWidth: 320 }}>
             {wIsEmoji
@@ -929,7 +946,13 @@ export function KidsGame() {
             }
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#7FB8E0' }}>🔊 Hear it <span style={{ color: '#A98B77', fontWeight: 500, fontSize: 12 }}>きく</span></div>
           </button>
-          <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {/* Wrong-answer nudge */}
+          {wWrong && (
+            <div style={{ marginTop: 10, fontSize: 14, fontWeight: 800, color: '#D96C81', animation: 'kg-pop .25s ease-out' }}>
+              もう一度！ Try again 👆
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
             {wOptions.map(label => (
               <button key={label} onClick={() => checkWord(label)}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 20, padding: '13px 22px', borderRadius: 18, minWidth: 120, boxShadow: '0 6px 0 #EEDAC6', background: wWrong === label ? '#FBD9D9' : '#FFFFFF', color: wWrong === label ? '#D96C81' : '#6B4F3F', animation: wWrong === label ? 'kg-shake .45s' : undefined }}>

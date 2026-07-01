@@ -173,6 +173,14 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, sfxC
     speak(nxt.word.toLowerCase())
   }
 
+  function retryCurrentWord(word: string) {
+    revealingRef.current = false
+    setWrongReveal(false); setRevealChain([])
+    setChain([]); chainRef.current = []
+    setBalls(buildGrid(word))
+    wordStartRef.current = Date.now()
+  }
+
   function handleDown(e: React.PointerEvent) {
     if (phase !== 'playing' || revealingRef.current) return
     e.preventDefault()
@@ -220,12 +228,13 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, sfxC
     } else if (cur.length > 0) {
       sfxWrong(); setCombo(1); setStreak(0)
       setWordsAttempted(w => w + 1)
-      // Show correct answer and auto-advance
+      // Show correct answer briefly, then retry the same word
       revealingRef.current = true
       const correctIds = findCorrectChain(target.word, balls)
       setRevealChain(correctIds); setWrongReveal(true)
       setChain([]); chainRef.current = []
-      setTimeout(() => advanceToNext(), 2200)
+      const wordSnapshot = target.word
+      setTimeout(() => retryCurrentWord(wordSnapshot), 2200)
     }
   }
 
