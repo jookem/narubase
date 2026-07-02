@@ -87,11 +87,11 @@ export function FamilyMatch({ words, onComplete }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: FONT, width: '100%', maxWidth: 420, margin: '0 auto', padding: '4px 4px 20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: FONT, width: '100%', maxWidth: 720, margin: '0 auto', padding: '4px 4px 20px' }}>
       <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#A98B77' }}>
         Find the matching pairs! · {matched.size}/{words.length}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 14 }}>
         {deck.map(card => {
           const isMatched = matched.has(card.pairId)
           const isFaceUp = isMatched || flipped.includes(card.id)
@@ -103,7 +103,7 @@ export function FamilyMatch({ words, onComplete }: Props) {
               style={{
                 border: 'none', cursor: isMatched ? 'default' : 'pointer', aspectRatio: '1 / 1', borderRadius: 16,
                 fontFamily: FONT, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: card.kind === 'picture' && isFaceUp ? 30 : 16,
+                fontSize: card.kind === 'picture' && isFaceUp ? 'clamp(26px, 6vw, 48px)' : 'clamp(14px, 3vw, 22px)',
                 background: isMatched ? '#D8ECC4' : isFaceUp ? '#FFFFFF' : '#F2879B',
                 color: isMatched ? '#5B8A3A' : '#6B4F3F',
                 boxShadow: isFaceUp ? '0 4px 0 #EEDAC6' : '0 4px 0 #D96C81',

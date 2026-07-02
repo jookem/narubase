@@ -68,7 +68,7 @@ export const PHONICS_UNITS: PhonicsUnit[] = [
       { onset: 'c', word: 'can', emoji: '🥫', jp: 'かん' },
       { onset: 'r', word: 'ran', emoji: '🏃', jp: 'はしった' },
       { onset: 'p', word: 'pan', emoji: '🍳', jp: 'なべ' },
-      { onset: 'f', word: 'fan', emoji: '🌀', jp: 'せんぷうき' },
+      { onset: 'f', word: 'fan', emoji: '🪭', jp: 'うちわ' },
     ],
     mascotEmoji: '🐀', mascotName: 'Zac', exampleWord: 'can',
     storyPages: [

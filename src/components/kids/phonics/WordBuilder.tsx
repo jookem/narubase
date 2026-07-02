@@ -5,7 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { speak } from '@/lib/tts'
-import { sfxBlend } from '@/lib/sfx'
+import { sfxBlend, sfxWrong } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
@@ -16,7 +16,16 @@ interface Props {
   onAllOnsetsUsed: (words: PhonicsWord[]) => void
 }
 
-function DraggableOnsetTile({ word, disabled, onTap }: { word: PhonicsWord; disabled: boolean; onTap: () => void }) {
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function DraggableOnsetTile({ word, disabled, shake, onTap }: { word: PhonicsWord; disabled: boolean; shake: boolean; onTap: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: word.onset,
     disabled,
@@ -33,8 +42,10 @@ function DraggableOnsetTile({ word, disabled, onTap }: { word: PhonicsWord; disa
         ...style,
         touchAction: 'none', border: 'none', cursor: disabled ? 'default' : 'grab',
         fontFamily: FONT, fontWeight: 800, fontSize: 22, minWidth: 64, height: 64, padding: '0 10px', borderRadius: 18,
-        background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 5px 0 #E7D3C0',
+        background: shake ? '#FDE2E2' : '#FFFFFF', color: shake ? '#C0524F' : '#6B4F3F',
+        boxShadow: shake ? '0 5px 0 #E8B9B6' : '0 5px 0 #E7D3C0',
         opacity: isDragging ? 0.25 : disabled ? 0.4 : 1,
+        animation: shake ? 'kg-shake .4s ease' : undefined,
       }}
     >
       {word.onset}
@@ -60,16 +71,23 @@ function DroppableOnsetSlot({ filled }: { filled: PhonicsWord | null }) {
   )
 }
 
-// Drag onset tiles onto the fixed rime slot to build every word in the
-// family, free-pick order (no wrong answers — every onset makes a real
-// word). Mirrors SpellingGame.tsx's @dnd-kit/core usage: useDraggable +
-// useDroppable + PointerSensor/TouchSensor + DragOverlay, plus a plain
-// onClick fallback per tile for tap-to-place reliability on touch devices.
+// Picture-anchored onset quiz: one word from the family is picked as the
+// current target and shown as a picture (its emoji) *before* the student
+// answers, so they must match sound-to-meaning rather than free-placing any
+// tile (every onset here forms a real word, so without a target picture
+// there's nothing to actually get wrong). Wrong picks shake and play a
+// buzzer but stay in the tray so the student can try again. Mirrors
+// SpellingGame.tsx's @dnd-kit/core usage: useDraggable + useDroppable +
+// PointerSensor/TouchSensor + DragOverlay, plus a plain onClick fallback per
+// tile for tap-to-place reliability on touch devices.
 export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
-  const [remaining, setRemaining] = useState<PhonicsWord[]>(unit.words)
+  const [order, setOrder] = useState<PhonicsWord[]>(() => shuffle(unit.words))
+  const [orderIdx, setOrderIdx] = useState(0)
+  const [tray, setTray] = useState<PhonicsWord[]>(() => shuffle(unit.words))
   const [placed, setPlaced] = useState<PhonicsWord | null>(null)
   const [collected, setCollected] = useState<PhonicsWord[]>([])
   const [activeDrag, setActiveDrag] = useState<PhonicsWord | null>(null)
+  const [shakeOnset, setShakeOnset] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -77,16 +95,27 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
   )
 
   useEffect(() => {
-    setRemaining(unit.words)
+    setOrder(shuffle(unit.words))
+    setOrderIdx(0)
+    setTray(shuffle(unit.words))
     setPlaced(null)
     setCollected([])
+    setShakeOnset(null)
   }, [unit])
 
-  function placeTile(word: PhonicsWord) {
-    if (placed) return // slot already occupied mid-reveal
+  const target = order[orderIdx] ?? null
+
+  function tryOnset(word: PhonicsWord) {
+    if (placed || !target) return
+    if (word.onset !== target.onset) {
+      sfxWrong()
+      setShakeOnset(word.onset)
+      setTimeout(() => setShakeOnset(w => (w === word.onset ? null : w)), 400)
+      return
+    }
     sfxBlend()
     setPlaced(word)
-    setRemaining(r => r.filter(w => w.onset !== word.onset))
+    setTray(t => t.filter(w => w.onset !== word.onset))
     setTimeout(() => speak(word.word), 150)
 
     setTimeout(() => {
@@ -96,31 +125,43 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
         return next
       })
       setPlaced(null)
+      setOrderIdx(i => i + 1)
     }, 1800)
   }
 
   function handleDragStart({ active }: DragStartEvent) {
-    const word = remaining.find(w => w.onset === active.id)
+    const word = tray.find(w => w.onset === active.id)
     if (word) setActiveDrag(word)
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     setActiveDrag(null)
     if (!over || over.id !== SLOT_ID) return
-    const word = remaining.find(w => w.onset === active.id)
-    if (word) placeTile(word)
+    const word = tray.find(w => w.onset === active.id)
+    if (word) tryOnset(word)
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, fontFamily: FONT, width: '100%', maxWidth: 420, margin: '0 auto', padding: '4px 4px 20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, fontFamily: FONT, width: '100%', maxWidth: 560, margin: '0 auto', padding: '4px 4px 20px' }}>
       {/* Collected words strip */}
-      <div style={{ display: 'flex', gap: 8, minHeight: 40, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, minHeight: 40, flexWrap: 'wrap', justifyContent: 'center' }}>
         {collected.map(w => (
           <div key={w.onset} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFFFFF', borderRadius: '999px', padding: '6px 12px', boxShadow: '0 3px 0 #EEDAC6', animation: 'kg-bounceIn .3s ease-out' }}>
             <span style={{ fontSize: 18 }}>{w.emoji}</span>
             <span style={{ fontWeight: 800, fontSize: 13, color: '#6B4F3F' }}>{w.word}</span>
           </div>
         ))}
+      </div>
+
+      {/* Target picture — shown before the answer so the student matches the
+          starting sound to a picture instead of placing tiles blind */}
+      <div style={{ minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {!placed && target && (
+          <div key={target.onset} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, animation: 'kg-bounceIn .3s ease-out' }}>
+            <div style={{ fontSize: 64 }}>{target.emoji}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>{target.jp}</div>
+          </div>
+        )}
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -153,10 +194,11 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
           )}
         </div>
 
-        {/* Onset tray — all remaining tiles at once, free-pick order */}
+        {/* Onset tray — every remaining onset in the family, only one of
+            which matches the current target picture */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {remaining.map(w => (
-            <DraggableOnsetTile key={w.onset} word={w} disabled={!!placed} onTap={() => placeTile(w)} />
+          {tray.map(w => (
+            <DraggableOnsetTile key={w.onset} word={w} disabled={!!placed} shake={shakeOnset === w.onset} onTap={() => tryOnset(w)} />
           ))}
         </div>
 
