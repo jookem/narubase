@@ -142,24 +142,38 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, fontFamily: FONT, width: '100%', maxWidth: 560, margin: '0 auto', padding: '4px 4px 20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: FONT, width: '100%', maxWidth: 560, margin: '0 auto', padding: '4px 4px 20px' }}>
       {/* Collected words strip */}
-      <div style={{ display: 'flex', gap: 8, minHeight: 40, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, minHeight: 36, flexWrap: 'wrap', justifyContent: 'center' }}>
         {collected.map(w => (
           <div key={w.onset} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFFFFF', borderRadius: '999px', padding: '6px 12px', boxShadow: '0 3px 0 #EEDAC6', animation: 'kg-bounceIn .3s ease-out' }}>
-            <span style={{ fontSize: 18 }}>{w.emoji}</span>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{w.emoji}</span>
             <span style={{ fontWeight: 800, fontSize: 13, color: '#6B4F3F' }}>{w.word}</span>
           </div>
         ))}
       </div>
 
-      {/* Target picture — shown before the answer so the student matches the
-          starting sound to a picture instead of placing tiles blind */}
-      <div style={{ minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Word panel — the target picture before an answer, or the reveal
+          after. These are mutually exclusive states of the same "what word
+          is this" question, so they share one reserved slot instead of each
+          reserving their own — that was pushing the onset tray needlessly
+          far down the page. lineHeight is pinned on the emoji itself since
+          some color-emoji glyphs (e.g. Windows' Segoe UI Emoji) carry a much
+          taller line-box than their font-size implies. */}
+      <div style={{ minHeight: 84, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {!placed && target && (
           <div key={target.onset} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, animation: 'kg-bounceIn .3s ease-out' }}>
-            <div style={{ fontSize: 64 }}>{target.emoji}</div>
+            <div style={{ fontSize: 56, lineHeight: 1 }}>{target.emoji}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>{target.jp}</div>
+          </div>
+        )}
+        {placed && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, animation: 'kg-pop .3s ease-out' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>{placed.jp}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 28, lineHeight: 1 }}>{placed.emoji}</span>
+              <span style={{ fontWeight: 800, fontSize: 26, color: '#F2879B' }}>{placed.word}</span>
+            </div>
           </div>
         )}
       </div>
@@ -177,19 +191,6 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
               fontWeight: 800, fontSize: 18, color: '#C7A892', background: '#F5EDE6', opacity: 0.6,
             }}>
               🤫e
-            </div>
-          )}
-        </div>
-
-        {/* Reveal panel */}
-        <div style={{ minHeight: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {placed && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, animation: 'kg-pop .3s ease-out' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>{placed.jp}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 30 }}>{placed.emoji}</span>
-                <span style={{ fontWeight: 800, fontSize: 26, color: '#F2879B' }}>{placed.word}</span>
-              </div>
             </div>
           )}
         </div>
