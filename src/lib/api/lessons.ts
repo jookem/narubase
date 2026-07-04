@@ -81,6 +81,54 @@ export async function updateGroupName(
   return error ? { error: error.message } : {}
 }
 
+export async function addLessonParticipant(
+  lessonId: string,
+  studentId: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) return { error: 'Not authenticated.' }
+
+  const { data: lesson, error: lessonErr } = await supabase
+    .from('lessons')
+    .select('id, student_id, group_name')
+    .eq('id', lessonId)
+    .eq('teacher_id', session.user.id)
+    .single()
+  if (lessonErr || !lesson) return { error: lessonErr?.message ?? 'Lesson not found.' }
+
+  if (lesson.student_id === studentId) return { error: 'This student is already on the lesson.' }
+
+  const { data: existingParts } = await supabase
+    .from('lesson_participants')
+    .select('student_id')
+    .eq('lesson_id', lessonId)
+
+  if ((existingParts ?? []).some((p: any) => p.student_id === studentId)) {
+    return { error: 'This student is already on the lesson.' }
+  }
+
+  const { error: insertErr } = await supabase
+    .from('lesson_participants')
+    .insert({ lesson_id: lessonId, student_id: studentId })
+  if (insertErr) return { error: insertErr.message }
+
+  // Auto-generate a group name from participants' first names if one isn't set yet
+  let groupName = lesson.group_name
+  if (!groupName) {
+    const allIds = [lesson.student_id, ...(existingParts ?? []).map((p: any) => p.student_id), studentId]
+    const { data: profiles } = await supabase.from('profiles').select('full_name').in('id', allIds)
+    groupName = profiles?.length ? profiles.map(p => p.full_name.split(' ')[0]).join(' & ') : null
+  }
+
+  const { error: updateErr } = await supabase
+    .from('lessons')
+    .update({ is_group: true, group_name: groupName })
+    .eq('id', lessonId)
+  if (updateErr) return { error: updateErr.message }
+
+  return { success: true }
+}
+
 export async function createLesson(data: {
   student_id: string
   student_ids?: string[]

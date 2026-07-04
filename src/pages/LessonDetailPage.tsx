@@ -8,7 +8,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { useTimezone } from '@/lib/hooks/useTimezone'
 import { LessonNotesEditor } from '@/components/lesson/LessonNotesEditor'
 import { LessonAttachments } from '@/components/lesson/LessonAttachments'
-import { markLessonComplete, updateGroupName } from '@/lib/api/lessons'
+import { markLessonComplete, updateGroupName, addLessonParticipant } from '@/lib/api/lessons'
 import { cancelLesson } from '@/lib/api/bookings'
 import { toast } from 'sonner'
 import { PDFDownloadButton } from '@/components/pdf/PDFDownloadButton'
@@ -33,6 +33,10 @@ export function LessonDetailPage() {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [editingGroupName, setEditingGroupName] = useState(false)
   const [groupNameValue, setGroupNameValue] = useState('')
+  const [addingStudent, setAddingStudent] = useState(false)
+  const [addableStudents, setAddableStudents] = useState<{ id: string; full_name: string }[]>([])
+  const [studentToAdd, setStudentToAdd] = useState('')
+  const [savingParticipant, setSavingParticipant] = useState(false)
 
   const isTeacher = profile?.role === 'teacher'
 
@@ -121,6 +125,34 @@ export function LessonDetailPage() {
     } else {
       setLesson((prev: any) => ({ ...prev, group_name: groupNameValue.trim() }))
       setEditingGroupName(false)
+    }
+  }
+
+  async function openAddStudent() {
+    if (!user) return
+    const { data } = await supabase
+      .from('teacher_student_relationships')
+      .select('student:profiles!teacher_student_relationships_student_id_fkey(id, full_name)')
+      .eq('teacher_id', user.id)
+      .eq('status', 'active')
+    const taken = new Set([lesson.student_id, ...participants.map((p: any) => p.id)])
+    const all = (data ?? []).map((r: any) => r.student).filter(Boolean)
+    setAddableStudents(all.filter((s: any) => !taken.has(s.id)))
+    setStudentToAdd('')
+    setAddingStudent(true)
+  }
+
+  async function handleAddParticipant() {
+    if (!lessonId || !studentToAdd) return
+    setSavingParticipant(true)
+    const result = await addLessonParticipant(lessonId, studentToAdd)
+    setSavingParticipant(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      setAddingStudent(false)
+      toast.success('Student added — this is now a group lesson.')
+      await loadData()
     }
   }
 
@@ -253,6 +285,43 @@ export function LessonDetailPage() {
               filename={`lesson-notes-${lesson.scheduled_start.slice(0, 10)}.pdf`}
               label="Save PDF"
             />
+          )}
+          {isTeacher && lesson.status !== 'cancelled' && (
+            addingStudent ? (
+              <div className="flex items-center gap-1.5">
+                <select
+                  autoFocus
+                  value={studentToAdd}
+                  onChange={e => setStudentToAdd(e.target.value)}
+                  className="text-sm border border-input rounded px-2 py-1 bg-background"
+                >
+                  <option value="">Select student…</option>
+                  {addableStudents.map(s => (
+                    <option key={s.id} value={s.id}>{s.full_name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddParticipant}
+                  disabled={!studentToAdd || savingParticipant}
+                  className="text-sm bg-brand text-white px-3 py-1 rounded hover:bg-brand-dark transition-colors disabled:opacity-50"
+                >
+                  {savingParticipant ? 'Adding…' : 'Add'}
+                </button>
+                <button
+                  onClick={() => setAddingStudent(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700 px-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={openAddStudent}
+                className="text-sm border border-gray-200 text-gray-600 px-3 py-1 rounded hover:bg-gray-50 transition-colors"
+              >
+                + Add Student
+              </button>
+            )
           )}
           {isTeacher && lesson.status === 'scheduled' && (
             <button
