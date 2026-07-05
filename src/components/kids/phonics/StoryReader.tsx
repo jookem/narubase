@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { speak } from '@/lib/tts'
+import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
-import { useStorySceneTuning } from './storySceneTuning'
+import { useStorySceneTuning, entranceCss, emphasisCss, travelCss, combineAnimations } from './storySceneTuning'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const ACCENT = '#F2879B'
@@ -112,23 +113,18 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
   const isLast = pageIdx === pages.length - 1
   const { motionTarget, others } = sceneForPage(page, unit)
 
-  // 'start' -> mascot at its resting spot; 'moving' -> sliding toward the
-  // target prop with a run animation; 'arrived' -> back to a gentle idle
-  // float at the destination. Reset on page/unit change only (same
-  // dependency shape as the TTS effect below) so it never replays on an
-  // unrelated re-render.
-  const [motionPhase, setMotionPhase] = useState<'start' | 'moving' | 'arrived'>('start')
+  // 'moving' -> mascot travels the kg-arcMove curved path toward the target
+  // prop, with a travel-style wobble layered on top; 'arrived' -> settles
+  // into a gentle idle. Unlike a CSS `transition`, a CSS `animation` always
+  // plays its full keyframe sequence once applied, so no reflow-timing hack
+  // is needed to kick it off — just set the phase straight from the current
+  // scene on page/unit change.
+  const [phase, setPhase] = useState<'idle' | 'moving' | 'arrived'>(() => motionTarget ? 'moving' : 'idle')
   useEffect(() => {
-    setMotionPhase('start')
-    // Two rAFs (not a magic setTimeout) guarantee the 'start' position has
-    // actually painted before we flip to 'moving', so the CSS transition
-    // always has a from-state to animate away from instead of occasionally
-    // teleporting on a slow frame.
-    let raf2 = 0
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setMotionPhase('moving'))
-    })
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
+    const moving = !!motionTarget
+    setPhase(moving ? 'moving' : 'idle')
+    if (moving && t.motionSoundEnabled) sfxMotionStart()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageIdx, unit])
 
   useEffect(() => { setPageIdx(0) }, [unit])
@@ -173,7 +169,13 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         {others.length > 0 && (
           <div key={`others-${pageIdx}`} style={{ position: 'absolute', top: 10, left: 10, right: 10, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: motionTarget ? 'flex-start' : 'center', zIndex: 1 }}>
             {others.map((m, i) => (
-              <span key={m.word.word} style={{ fontSize: t.othersFontSize, display: 'inline-block', animation: `kg-pop .4s ease-out ${i * 0.06}s backwards, kg-floaty ${t.floatyDurationSec + 0.2}s ease-in-out ${i * 0.25 + 0.4}s infinite` }}>
+              <span key={m.word.word} style={{
+                fontSize: t.othersFontSize, display: 'inline-block',
+                animation: combineAnimations(
+                  entranceCss(t.props, i * t.propsEntranceStaggerSec),
+                  emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + i * t.propsEmphasisStaggerSec),
+                ),
+              }}>
                 {m.word.emoji}
               </span>
             ))}
@@ -182,35 +184,54 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
 
         {/* Destination prop the mascot is moving toward */}
         {motionTarget && (
-          <div key={`target-${pageIdx}`} style={{ position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: 1, animation: `kg-pop .4s ease-out backwards, kg-twinkle ${t.twinkleDurationSec}s ease-in-out .4s infinite` }}>
+          <div key={`target-${pageIdx}`} style={{
+            position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: 1,
+            animation: combineAnimations(
+              entranceCss(t.target),
+              emphasisCss(t.target.emphasis, t.target.emphasisDurationSec, t.target.easing, t.target.durationSec + t.target.delaySec),
+            ),
+          }}>
             {motionTarget.word.emoji}
           </div>
         )}
 
-        {/* Mascot: idles in place normally, or slides toward the destination prop */}
+        {/* Mascot: idles in place normally, or travels a curved kg-arcMove
+            path toward the destination prop (mirrors the source deck's
+            hand-drawn bezier motion paths instead of a straight slide) */}
         <div
-          onTransitionEnd={e => { if (e.propertyName === 'left' && motionPhase === 'moving') setMotionPhase('arrived') }}
+          onAnimationEnd={e => {
+            if (e.animationName === 'kg-arcMove' && phase === 'moving') {
+              setPhase('arrived')
+              if (t.motionSoundEnabled) sfxArrive()
+            }
+          }}
           style={{
             position: 'absolute',
             bottom: t.mascotBottom,
-            left: motionTarget ? (motionPhase === 'start' ? `${t.mascotStartLeftPct}%` : `${t.mascotArrivedLeftPct}%`) : 'calc(50% - 33px)',
+            left: motionTarget ? `${phase === 'arrived' ? t.mascotArrivedLeftPct : t.mascotStartLeftPct}%` : 'calc(50% - 33px)',
             fontSize: t.mascotFontSize,
             zIndex: 2,
-            transition: motionTarget ? `left ${t.transitionDurationSec}s cubic-bezier(.45,.05,.25,1)` : undefined,
-            animation: motionTarget && motionPhase === 'moving'
-              ? `kg-storyRun ${t.runCycleDurationSec}s ease-in-out infinite`
-              : motionTarget && motionPhase === 'arrived'
-                ? `kg-floaty-land ${t.floatyDurationSec}s ease-in-out infinite`
-                : `kg-floaty ${t.floatyDurationSec}s ease-in-out infinite`,
-          }}
+            '--arc-start': `${t.mascotStartLeftPct}%`,
+            '--arc-mid': `${(t.mascotStartLeftPct + t.mascotArrivedLeftPct) / 2}%`,
+            '--arc-end': `${t.mascotArrivedLeftPct}%`,
+            '--arc-height': `${t.arcHeightPx}px`,
+            animation: motionTarget && phase === 'moving'
+              ? `kg-arcMove ${t.transitionDurationSec}s ${t.motionEasing} forwards`
+              : emphasisCss(
+                  t.mascotIdle.effect, t.mascotIdle.durationSec, t.mascotIdle.easing, 0,
+                  t.mascotIdle.effect === 'float' && motionTarget && phase === 'arrived' ? 'kg-floaty-land' : undefined,
+                ),
+          } as CSSProperties}
         >
-          {unit.mascotEmoji}
+          <span style={{ display: 'inline-block', animation: phase === 'moving' ? travelCss(t.travelStyle, t.travelDurationSec) : undefined }}>
+            {unit.mascotEmoji}
+          </span>
         </div>
       </div>
 
       {/* Sentence card */}
       <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '28px 24px', boxShadow: '0 8px 0 #EEDAC6', textAlign: 'center', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div key={pageIdx} style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, animation: 'kg-pop .35s ease-out' }}>
+        <div key={pageIdx} style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, animation: entranceCss(t.sentence) }}>
           {renderHighlighted(page.text, page.highlight)}
         </div>
       </div>

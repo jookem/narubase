@@ -23,6 +23,22 @@ function beep(freq: number, t0: number, dur: number, type: OscillatorType = 'sin
   o.start(t); o.stop(t + dur + 0.03)
 }
 
+// Like beep(), but sweeps frequency from f0 to f1 instead of holding steady —
+// needed for a "boing" cue, which reads as a pitch bend, not a fixed note.
+function sweep(f0: number, f1: number, t0: number, dur: number, vol = 0.16) {
+  if (!ac) return
+  const o = ac.createOscillator(), g = ac.createGain()
+  o.type = 'sine'
+  o.connect(g); g.connect(ac.destination)
+  const t = ac.currentTime + t0
+  o.frequency.setValueAtTime(f0, t)
+  o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t + dur)
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.02)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+  o.start(t); o.stop(t + dur + 0.03)
+}
+
 export function sfxCorrect() {
   if (!ensureAudio()) return
   ;[523.25, 659.25, 783.99].forEach((f, k) => beep(f, k * 0.1, 0.2, 'triangle', 0.18))
@@ -45,4 +61,18 @@ export function sfxBlend() {
   if (!ensureAudio()) return
   beep(440, 0, 0.1, 'triangle', 0.16)
   beep(660, 0.08, 0.16, 'triangle', 0.16)
+}
+
+// Springy downward pitch bend — cue for Phonics Quest's story mascot
+// setting off along its motion path. Original synthesis, not extracted
+// from the source lesson deck's bundled stock "boing" clip.
+export function sfxMotionStart() {
+  if (!ensureAudio()) return
+  sweep(320, 90, 0, 0.26, 0.14)
+}
+
+// Short bright blip — cue for the mascot arriving at its destination.
+export function sfxArrive() {
+  if (!ensureAudio()) return
+  beep(900, 0, 0.09, 'triangle', 0.18)
 }
