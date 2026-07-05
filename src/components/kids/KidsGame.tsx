@@ -294,6 +294,7 @@ export function KidsGame() {
         '@keyframes kg-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}',
         '@keyframes kg-bounceIn{0%{transform:scale(.6)}60%{transform:scale(1.08)}100%{transform:scale(1)}}',
         '@keyframes kg-storyRun{0%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-6px) rotate(-6deg)}50%{transform:translateY(0) rotate(0deg)}75%{transform:translateY(-6px) rotate(6deg)}100%{transform:translateY(0) rotate(0deg)}}',
+        '@keyframes kg-floaty-land{0%,50%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-8px) rotate(5deg)}75%{transform:translateY(-8px) rotate(-5deg)}}',
         '.kg-hub-scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(200,170,150,0.5) transparent}',
         '.kg-hub-scroll::-webkit-scrollbar{width:8px}',
         '.kg-hub-scroll::-webkit-scrollbar-track{background:transparent}',

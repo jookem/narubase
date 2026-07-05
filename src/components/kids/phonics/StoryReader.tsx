@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { speak } from '@/lib/tts'
 import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
+import { useStorySceneTuning } from './storySceneTuning'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const ACCENT = '#F2879B'
@@ -8,6 +9,7 @@ const ACCENT = '#F2879B'
 interface Props {
   unit: PhonicsUnit
   onDone: () => void
+  initialPageIndex?: number
 }
 
 function renderHighlighted(text: string, highlights: string[]) {
@@ -102,8 +104,9 @@ function sceneForPage(page: StoryPage, unit: PhonicsUnit) {
 // highlighted so the story reads as a continuation of what Word Builder /
 // Family Match just taught, not a disconnected reward reel. No mic/
 // pronunciation-check here — the teacher supervises reading aloud in person.
-export function StoryReader({ unit, onDone }: Props) {
-  const [pageIdx, setPageIdx] = useState(0)
+export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
+  const t = useStorySceneTuning()
+  const [pageIdx, setPageIdx] = useState(initialPageIndex)
   const pages = unit.storyPages
   const page = pages[pageIdx]
   const isLast = pageIdx === pages.length - 1
@@ -117,8 +120,15 @@ export function StoryReader({ unit, onDone }: Props) {
   const [motionPhase, setMotionPhase] = useState<'start' | 'moving' | 'arrived'>('start')
   useEffect(() => {
     setMotionPhase('start')
-    const t = setTimeout(() => setMotionPhase('moving'), 90)
-    return () => clearTimeout(t)
+    // Two rAFs (not a magic setTimeout) guarantee the 'start' position has
+    // actually painted before we flip to 'moving', so the CSS transition
+    // always has a from-state to animate away from instead of occasionally
+    // teleporting on a slow frame.
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setMotionPhase('moving'))
+    })
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
   }, [pageIdx, unit])
 
   useEffect(() => { setPageIdx(0) }, [unit])
@@ -152,18 +162,18 @@ export function StoryReader({ unit, onDone }: Props) {
 
       {/* Scene: mascot + the props this sentence actually mentions */}
       <div style={{
-        position: 'relative', width: '100%', maxWidth: 380, margin: '0 auto', height: 128,
-        background: 'linear-gradient(180deg, #FFF9F1 0%, #FBF0E4 65%, #F3E3D0 100%)',
+        position: 'relative', width: '100%', maxWidth: t.sceneMaxWidth, margin: '0 auto', height: t.sceneHeight,
+        background: `linear-gradient(180deg, ${t.bgTop} 0%, ${t.bgMid} 65%, ${t.bgBottom} 100%)`,
         borderRadius: 24, overflow: 'hidden', boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.04)',
       }}>
         {/* ground strip so "moving toward X" reads as a mini scene, not two floating emoji */}
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: '#EAD9C4' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: t.groundColor }} />
 
         {/* Words this page mentions that aren't the movement destination */}
         {others.length > 0 && (
-          <div style={{ position: 'absolute', top: 10, left: 10, right: 10, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: motionTarget ? 'flex-start' : 'center' }}>
+          <div key={`others-${pageIdx}`} style={{ position: 'absolute', top: 10, left: 10, right: 10, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: motionTarget ? 'flex-start' : 'center', zIndex: 1 }}>
             {others.map((m, i) => (
-              <span key={m.word.word} style={{ fontSize: 32, display: 'inline-block', animation: `kg-floaty 2.6s ease-in-out ${i * 0.25}s infinite` }}>
+              <span key={m.word.word} style={{ fontSize: t.othersFontSize, display: 'inline-block', animation: `kg-pop .4s ease-out ${i * 0.06}s backwards, kg-floaty ${t.floatyDurationSec + 0.2}s ease-in-out ${i * 0.25 + 0.4}s infinite` }}>
                 {m.word.emoji}
               </span>
             ))}
@@ -172,7 +182,7 @@ export function StoryReader({ unit, onDone }: Props) {
 
         {/* Destination prop the mascot is moving toward */}
         {motionTarget && (
-          <div style={{ position: 'absolute', bottom: 18, right: '8%', fontSize: 44, animation: 'kg-twinkle 1.8s ease-in-out infinite' }}>
+          <div key={`target-${pageIdx}`} style={{ position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: 1, animation: `kg-pop .4s ease-out backwards, kg-twinkle ${t.twinkleDurationSec}s ease-in-out .4s infinite` }}>
             {motionTarget.word.emoji}
           </div>
         )}
@@ -182,13 +192,16 @@ export function StoryReader({ unit, onDone }: Props) {
           onTransitionEnd={e => { if (e.propertyName === 'left' && motionPhase === 'moving') setMotionPhase('arrived') }}
           style={{
             position: 'absolute',
-            bottom: 12,
-            left: motionTarget ? (motionPhase === 'start' ? '6%' : '58%') : 'calc(50% - 33px)',
-            fontSize: 66,
-            transition: motionTarget ? 'left 1.05s cubic-bezier(.45,.05,.25,1)' : undefined,
+            bottom: t.mascotBottom,
+            left: motionTarget ? (motionPhase === 'start' ? `${t.mascotStartLeftPct}%` : `${t.mascotArrivedLeftPct}%`) : 'calc(50% - 33px)',
+            fontSize: t.mascotFontSize,
+            zIndex: 2,
+            transition: motionTarget ? `left ${t.transitionDurationSec}s cubic-bezier(.45,.05,.25,1)` : undefined,
             animation: motionTarget && motionPhase === 'moving'
-              ? 'kg-storyRun .35s ease-in-out infinite'
-              : 'kg-floaty 2.4s ease-in-out infinite',
+              ? `kg-storyRun ${t.runCycleDurationSec}s ease-in-out infinite`
+              : motionTarget && motionPhase === 'arrived'
+                ? `kg-floaty-land ${t.floatyDurationSec}s ease-in-out infinite`
+                : `kg-floaty ${t.floatyDurationSec}s ease-in-out infinite`,
           }}
         >
           {unit.mascotEmoji}
@@ -197,7 +210,7 @@ export function StoryReader({ unit, onDone }: Props) {
 
       {/* Sentence card */}
       <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '28px 24px', boxShadow: '0 8px 0 #EEDAC6', textAlign: 'center', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4 }}>
+        <div key={pageIdx} style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, animation: 'kg-pop .35s ease-out' }}>
           {renderHighlighted(page.text, page.highlight)}
         </div>
       </div>

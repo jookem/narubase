@@ -4,8 +4,9 @@ import { GrammarBankManager } from '@/components/students/GrammarBankManager'
 import { EikenPictureManager } from '@/components/eiken/EikenPictureManager'
 import { PuzzleDeckManager } from '@/components/students/PuzzleDeckManager'
 import { SituationsManager } from '@/pages/SituationsPage'
+import { StoryLab } from '@/components/kids/phonics/StoryLab'
 
-type Tab = 'vocab' | 'grammar' | 'eiken' | 'puzzles' | 'situations'
+type Tab = 'vocab' | 'grammar' | 'eiken' | 'puzzles' | 'situations' | 'phonicsStory'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'vocab',      label: 'Vocabulary Decks' },
@@ -13,6 +14,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'eiken',      label: 'Eiken Picture Bank' },
   { id: 'puzzles',    label: 'Train Puzzles' },
   { id: 'situations', label: 'Vroid' },
+  { id: 'phonicsStory', label: 'Phonics Story Lab' },
 ]
 
 export function MaterialsPage() {
@@ -47,6 +49,7 @@ export function MaterialsPage() {
         {tab === 'eiken'      && <EikenPictureManager />}
         {tab === 'puzzles'    && <PuzzleDeckManager />}
         {tab === 'situations' && <SituationsManager />}
+        {tab === 'phonicsStory' && <StoryLab />}
       </div>
     </div>
   )
