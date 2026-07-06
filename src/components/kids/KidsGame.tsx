@@ -1226,6 +1226,17 @@ export function KidsGame() {
                     ]).map(btn => (
                       <button key={btn.r} onClick={() => {
                         rateVocabCard(card.id, card.mastery_level, btn.r, card.interval_days, card.ease_factor)
+                        if (btn.r === 'again') {
+                          // Reinsert a couple of cards ahead so the child sees this
+                          // word again before finishing the pass, instead of it
+                          // just being marked and never resurfacing.
+                          const insertAt = studyIdx + 1 + 2
+                          setStudyPool(pool => {
+                            const next = [...pool]
+                            next.splice(insertAt, 0, card)
+                            return next
+                          })
+                        }
                         setStudyIdx(i => i + 1)
                         setStudyFlipped(false)
                       }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, background: btn.bg, borderRadius: 16, padding: '12px 8px', boxShadow: `0 4px 0 ${btn.sh}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

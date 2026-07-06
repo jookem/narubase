@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { rateVocabCard } from '@/lib/api/lessons'
 import type { PhonicsBankRow } from '@/lib/api/phonics'
@@ -20,23 +20,38 @@ const RATING_QUALITY: Record<'again' | 'hard' | 'good' | 'easy', number> = {
 // KidsGame's inline "study" screen (same colors/labels/rateVocabCard call),
 // so this checkpoint feels identical to the vocab review a student already
 // knows, just scoped to the family they just learned.
+//
+// `queue` drives what's shown next, not a fixed index — "Again" requeues
+// the card a couple of slots later instead of just advancing past it, so a
+// missed word is guaranteed to come back around before the checkpoint ends.
+// Progress/score are tracked per-word-id so repeats don't distort either.
 export function SrsCheckpoint({ words, onDone }: Props) {
-  const [idx, setIdx] = useState(0)
+  const [queue, setQueue] = useState<CheckpointCard[]>(words)
   const [flipped, setFlipped] = useState(false)
-  const [qualitySum, setQualitySum] = useState(0)
+  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set())
+  const qualityByIdRef = useRef<Record<string, number>>({})
 
-  const card = words[idx]
-  const isLast = idx === words.length - 1
+  const card = queue[0]
 
   function rate(rating: 'again' | 'hard' | 'good' | 'easy') {
     rateVocabCard(card.id, card.mastery_level, rating, card.interval_days, card.ease_factor)
-    const nextSum = qualitySum + RATING_QUALITY[rating]
-    if (isLast) {
-      onDone(nextSum / words.length)
-    } else {
-      setQualitySum(nextSum)
-      setIdx(i => i + 1)
-      setFlipped(false)
+    qualityByIdRef.current[card.id] = RATING_QUALITY[rating]
+    setFlipped(false)
+
+    const rest = queue.slice(1)
+    if (rating === 'again') {
+      // Requeue a couple of cards later, not immediately, so the child gets
+      // another real attempt instead of an instant back-to-back repeat.
+      const pos = Math.min(rest.length, 2)
+      setQueue([...rest.slice(0, pos), card, ...rest.slice(pos)])
+      return
+    }
+
+    setClearedIds(s => new Set(s).add(card.id))
+    setQueue(rest)
+    if (rest.length === 0) {
+      const total = Object.values(qualityByIdRef.current).reduce((a, b) => a + b, 0)
+      onDone(total / words.length)
     }
   }
 
@@ -45,10 +60,10 @@ export function SrsCheckpoint({ words, onDone }: Props) {
       <div style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#A98B77', marginBottom: 6 }}>
           <span>どのくらいわかった？</span>
-          <span>{idx + 1} / {words.length}</span>
+          <span>{clearedIds.size} / {words.length}</span>
         </div>
         <div style={{ height: 8, background: '#EDE0D4', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${(idx / words.length) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
+          <div style={{ height: '100%', width: `${(clearedIds.size / words.length) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
         </div>
       </div>
 
