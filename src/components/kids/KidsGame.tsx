@@ -188,6 +188,13 @@ export function KidsGame() {
   const [wOptions, setWOptions] = useState<string[]>([])
   const [wWrong, setWWrong] = useState<string | null>(null)
   const [wElapsed, setWElapsed] = useState(0)
+  const [wordsDone, setWordsDone] = useState(false)
+  // Only session mode (a specific Study word list) has a finish line — free
+  // -play (assignedVocab/general VOCAB) stays endless like it always has.
+  // Tracks progress against the *current* session pool only; `key` mirrors
+  // wordsQueueRef's own pool-key so a new/replayed session resets cleanly.
+  const wordsSessionRef = useRef<{ active: boolean; total: number; key: string }>({ active: false, total: 0, key: '' })
+  const wordsCorrectRef = useRef(0)
 
   // Session / Study
   const [sessionWords, setSessionWords] = useState<SessionWord[]>([])
@@ -600,10 +607,24 @@ export function KidsGame() {
     return ref.current.indices.pop()!
   }
 
+  // Entry point (hub tile + "Play Again") — always starts a fresh pass so a
+  // replayed or newly-sized session can't be mistaken for a continuing one.
+  function startWords() {
+    wordsSessionRef.current = { active: false, total: 0, key: '' }
+    wordsCorrectRef.current = 0
+    setWordsDone(false)
+    setupWords()
+  }
+
   function setupWords() {
     if (sessionWords.length >= 3) {
       const pool = sessionWords
-      const ti = nextFromQueue(wordsQueueRef, pool.length, `session:${pool.length}`)
+      const poolKey = `session:${pool.length}`
+      if (wordsSessionRef.current.key !== poolKey) {
+        wordsSessionRef.current = { active: true, total: pool.length, key: poolKey }
+        wordsCorrectRef.current = 0
+      }
+      const ti = nextFromQueue(wordsQueueRef, pool.length, poolKey)
       const target = pool[ti]
       const others = shuffleArr(pool.filter((_, k) => k !== ti)).slice(0, 2)
       const opts = shuffleArr([target, ...others]).map(x => x.word)
@@ -613,6 +634,7 @@ export function KidsGame() {
       setTimeout(() => speak(target.word.toLowerCase()), 350)
       return
     }
+    wordsSessionRef.current = { active: false, total: 0, key: '' }
     const useAssigned = assignedVocab.length >= 3
     if (useAssigned) {
       const pool = assignedVocab
@@ -638,8 +660,17 @@ export function KidsGame() {
   }
 
   function checkWord(label: string) {
-    if (label === wTarget) { speak(label); grantStar(false); setTimeout(() => setupWords(), 1250) }
-    else { sfxWrong(); setWWrong(label); setTimeout(() => setWWrong(null), 550) }
+    if (label === wTarget) {
+      speak(label); grantStar(false)
+      if (wordsSessionRef.current.active) {
+        wordsCorrectRef.current += 1
+        if (wordsCorrectRef.current >= wordsSessionRef.current.total) {
+          setTimeout(() => setWordsDone(true), 1250)
+          return
+        }
+      }
+      setTimeout(() => setupWords(), 1250)
+    } else { sfxWrong(); setWWrong(label); setTimeout(() => setWWrong(null), 550) }
   }
 
   // ── Spelling Stage ─────────────────────────────────────────────
@@ -879,7 +910,7 @@ export function KidsGame() {
             ] as const).map(s => (
               <button key={s.key}
                 onClick={() => {
-                  if (s.key === 'words') setupWords()
+                  if (s.key === 'words') startWords()
                   else if (s.key === 'sing') startSing()
                   else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') startZoo()
@@ -1020,7 +1051,19 @@ export function KidsGame() {
       )}
 
       {/* ═══════════════ WORDS ═══════════════ */}
-      {screen === 'words' && (
+      {screen === 'words' && wordsDone && (
+        <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+          <div style={{ fontSize: 60 }}>🎉</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶできた！</div>
+          <div style={{ fontSize: 15, color: '#A98B77' }}>All session words done!</div>
+          <button onClick={startWords}
+            style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16, padding: '12px 28px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
+            もう一度あそぶ · Play Again
+          </button>
+        </div>
+      )}
+
+      {screen === 'words' && !wordsDone && (
         <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '20px 20px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
             <div style={{ textAlign: 'center' }}>
