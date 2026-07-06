@@ -11,7 +11,7 @@ const BUBBLE_W = 128
 const BUBBLE_H = 48
 const NET_W = 46
 const NET_X = 10
-const TRAVEL_MS = 5000
+const TRAVEL_MS = 7500
 const TRAVEL_DIST = FIELD_W + BUBBLE_W + 30
 const SPEED = TRAVEL_DIST / TRAVEL_MS // px per ms
 
@@ -194,6 +194,22 @@ export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordCompl
     setNetLane(idx)
   }
 
+  function moveNet(delta: number) {
+    const idx = Math.max(0, Math.min(LANES - 1, netLaneRef.current + delta))
+    netLaneRef.current = idx
+    setNetLane(idx)
+  }
+
+  // Arrow keys as an alternative to dragging — same net, same lanes.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'ArrowUp') { e.preventDefault(); moveNet(-1) }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); moveNet(1) }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   function handlePointerDown(e: React.PointerEvent) {
     draggingRef.current = true
     setNetToClientY(e.clientY)
@@ -283,7 +299,7 @@ export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordCompl
         ))}
       </div>
 
-      <div style={{ fontSize: 12, color: '#A98B77', fontWeight: 700 }}>あみをうごかしてね · drag the net up/down</div>
+      <div style={{ fontSize: 12, color: '#A98B77', fontWeight: 700 }}>あみをうごかしてね · drag the net, or use ↑ ↓</div>
 
       {/* End screen */}
       {phase === 'end' && (

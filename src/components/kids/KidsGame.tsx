@@ -220,6 +220,7 @@ export function KidsGame() {
   // Assigned vocabulary
   const { user } = useAuth()
   const [assignedVocab, setAssignedVocab] = useState<VocabularyBankEntry[]>([])
+  const [vocabLoaded, setVocabLoaded] = useState(false)
 
   // Refs
   const zooAnimalRef = useRef<HTMLDivElement>(null)
@@ -265,6 +266,14 @@ export function KidsGame() {
     } catch { /* ignore corrupt/unavailable storage */ }
   }, [user])
 
+  function buildStudyPool(): StudyCard[] {
+    return shuffleArr(
+      assignedVocab
+        .map(e => ({ id: e.id, word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word, mastery_level: e.mastery_level, interval_days: e.interval_days, ease_factor: e.ease_factor }))
+        .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
+    ).slice(0, 5)
+  }
+
   // ── Load assigned vocabulary ───────────────────────────────────
   useEffect(() => {
     if (!user) return
@@ -272,11 +281,23 @@ export function KidsGame() {
       // Phonics-sourced words ride the same SRS table but shouldn't surface
       // in these generic vocab minigames — Phonics Quest reviews them itself.
       if (entries?.length) setAssignedVocab(entries.filter(e => !e.is_phonics))
+      setVocabLoaded(true)
     })
     supabase.from('profiles').select('full_name').eq('id', user.id).single()
       .then(({ data }) => { if (data?.full_name) setPlayer1Name(data.full_name.split(' ')[0]) })
     getClassmates(user.id).then(list => setClassmates(list))
   }, [user])
+
+  // If "Study Words" was clicked before the vocab fetch above resolved,
+  // studyPool got built from an empty assignedVocab and the screen falsely
+  // showed "No vocabulary yet!" — once real data arrives, rebuild it so the
+  // student doesn't have to back out and retry.
+  useEffect(() => {
+    if (screen === 'study' && studyPool.length === 0 && assignedVocab.length > 0) {
+      setStudyPool(buildStudyPool())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignedVocab])
 
   // ── Inject font + animations ───────────────────────────────────
   useEffect(() => {
@@ -852,12 +873,7 @@ export function KidsGame() {
                   else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') startZoo()
                   else if (s.key === 'study') {
-                    const pool = shuffleArr(
-                      assignedVocab
-                        .map(e => ({ id: e.id, word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word, mastery_level: e.mastery_level, interval_days: e.interval_days, ease_factor: e.ease_factor }))
-                        .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
-                    ).slice(0, 5)
-                    setStudyPool(pool); setStudyTurn(1)
+                    setStudyPool(buildStudyPool()); setStudyTurn(1)
                     setP1StudyDone(false); setP2StudyDone(false)
                     setStudyIdx(0); setStudyFlipped(false); setScreen('study')
                   }
@@ -1024,6 +1040,12 @@ export function KidsGame() {
 
       {/* ═══════════════ STUDY ═══════════════ */}
       {screen === 'study' && (() => {
+        if (studyPool.length === 0 && !vocabLoaded) return (
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 48 }}>📚</div>
+            <div style={{ fontSize: 16, color: '#A98B77' }}>よみこみちゅう… Loading…</div>
+          </div>
+        )
         if (studyPool.length === 0) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>📚</div>
