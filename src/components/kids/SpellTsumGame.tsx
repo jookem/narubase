@@ -96,17 +96,29 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
 
   // Finite queue: one pass through all words, then end (if session) or reshuffle (if endless)
   const isSession = sessionWords.length > 0
-  const remainingRef = useRef<SessionWord[]>(shuffleArr([...wordPool]))
+  const remainingRef = useRef<SessionWord[] | undefined>(undefined)
+  const firstWordRef = useRef<SessionWord | undefined>(undefined)
+  // Pop the first word and seed the remaining queue exactly once. Guarded by
+  // the ref (not a useState lazy initializer) so it stays correct even
+  // though this runs in the render body: without the guard, every re-render
+  // (the 1s elapsed timer, drag updates, etc.) would silently .shift() one
+  // more word off the queue, draining a 5-word session before the child
+  // ever finishes the first one and kicking the game to the end screen.
+  if (remainingRef.current === undefined) {
+    const queue = shuffleArr([...wordPool])
+    firstWordRef.current = queue.shift()!
+    remainingRef.current = queue
+  }
 
   function getNext(): SessionWord | null {
-    if (remainingRef.current.length === 0) {
+    if (remainingRef.current!.length === 0) {
       if (isSession) return null
       remainingRef.current = shuffleArr([...wordPool])
     }
-    return remainingRef.current.shift()!
+    return remainingRef.current!.shift()!
   }
 
-  const first = getNext()!
+  const first = firstWordRef.current!
 
   const [balls, setBalls]             = useState<TsumBall[]>(() => buildGrid(first.word))
   const [target, setTarget]           = useState<SessionWord>(first)
@@ -122,6 +134,7 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
   const [showStreak, setShowStreak]   = useState(false)
   const [wrongReveal, setWrongReveal] = useState(false)
   const [revealChain, setRevealChain] = useState<number[]>([])
+  const [hintOn, setHintOn]           = useState(false)
 
   const gridRef        = useRef<HTMLDivElement>(null)
   const draggingRef    = useRef(false)
@@ -131,6 +144,19 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
   const streakBestRef  = useRef(0)
 
   useEffect(() => { chainRef.current = chain }, [chain])
+
+  // Nudge a stuck child toward the next correct ball — covers both "hasn't
+  // picked the first letter yet" (chain.length === 0) and "paused mid-word"
+  // (chain.length > 0), since both just reset `chain`/`target` and restart
+  // this same countdown. Cleared the instant they make progress or the word
+  // changes, so it never fires while they're actively working.
+  const HINT_DELAY_MS = 6000
+  useEffect(() => {
+    setHintOn(false)
+    if (phase !== 'playing' || revealingRef.current) return
+    const id = setTimeout(() => setHintOn(true), HINT_DELAY_MS)
+    return () => clearTimeout(id)
+  }, [chain, target, phase])
 
   // Count-up timer
   useEffect(() => {
@@ -241,6 +267,13 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
     }
   }
 
+  // Any ball matching the next needed character works (the game only checks
+  // char, not a "designated" position), so reuse the same resolution the
+  // wrong-answer reveal already uses to pick a real, selectable next ball.
+  const hintBallId = hintOn && !wrongReveal && chain.length < target.word.length
+    ? findCorrectChain(target.word, balls)[chain.length]
+    : undefined
+
   const displayChain = wrongReveal ? revealChain : chain
   const chainPts = displayChain.map(id => {
     const b = balls.find(bb => bb.id === id)!
@@ -327,16 +360,18 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
         {balls.map(b => {
           const inChain   = displayChain.includes(b.id)
           const isReveal  = wrongReveal && inChain
+          const isHint    = b.id === hintBallId
           return (
             <div key={b.id} style={{
               position: 'absolute',
               left: b.col * (BALL + GAP), top: b.row * (BALL + GAP),
               width: BALL, height: BALL, borderRadius: '50%',
               background: isReveal ? '#FFF0C0' : b.bg,
-              boxShadow: isReveal ? '0 4px 0 #D4A800, 0 0 0 3px #F0D060' : `0 4px 0 ${b.sh}`,
+              boxShadow: isReveal ? '0 4px 0 #D4A800, 0 0 0 3px #F0D060' : isHint ? `0 4px 0 ${b.sh}, 0 0 0 4px #F2879B` : `0 4px 0 ${b.sh}`,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               transition: 'transform .15s, opacity .3s',
               transform: b.popping ? 'scale(0)' : inChain ? 'scale(1.12)' : 'scale(1)',
+              animation: isHint ? 'kg-twinkle .8s ease-in-out infinite' : undefined,
               opacity: b.popping ? 0 : 1,
               userSelect: 'none',
             }}>
