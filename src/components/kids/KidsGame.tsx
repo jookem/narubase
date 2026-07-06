@@ -196,8 +196,23 @@ export function KidsGame() {
   const wordsSessionRef = useRef<{ active: boolean; total: number; key: string }>({ active: false, total: 0, key: '' })
   const wordsCorrectRef = useRef(0)
 
-  // Session / Study
-  const [sessionWords, setSessionWords] = useState<SessionWord[]>([])
+  // Session / Study — persisted to sessionStorage (per user) so this
+  // survives navigating away and back to the Kids tab. Without this, every
+  // time <KidsGame> unmounts (switching to another tab in GamesPage, which
+  // is a full unmount, not just a hide) the whole session was silently
+  // discarded, so Word Match/Spelling would each fall back to independently
+  // sampling assignedVocab — hence "not sharing the same words anymore".
+  // A fresh set now only comes from finishing Study or the explicit
+  // "clear session" button, never from merely leaving the screen.
+  const [sessionWords, setSessionWordsState] = useState<SessionWord[]>([])
+  function setSessionWords(words: SessionWord[]) {
+    setSessionWordsState(words)
+    if (!user) return
+    try {
+      if (words.length > 0) sessionStorage.setItem(`narubase:kids:sessionWords:${user.id}`, JSON.stringify(words))
+      else sessionStorage.removeItem(`narubase:kids:sessionWords:${user.id}`)
+    } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
+  }
   const [studyPool, setStudyPool] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
@@ -270,6 +285,15 @@ export function KidsGame() {
     const id = setInterval(() => setSingElapsed(Math.floor((Date.now() - singStartRef.current) / 1000)), 200)
     return () => clearInterval(id)
   }, [screen, singTarget])
+
+  // ── Restore the persisted study session, if any ─────────────────
+  useEffect(() => {
+    if (!user) return
+    try {
+      const raw = sessionStorage.getItem(`narubase:kids:sessionWords:${user.id}`)
+      if (raw) setSessionWordsState(JSON.parse(raw))
+    } catch { /* ignore corrupt/unavailable storage */ }
+  }, [user])
 
   // ── Load assigned vocabulary ───────────────────────────────────
   useEffect(() => {
@@ -598,6 +622,13 @@ export function KidsGame() {
   }
 
   // ── Tea-Time Words ─────────────────────────────────────────────
+  // Content-based, not just length: every Study session is always exactly
+  // 5 words, so a length-only key (`session:5`) would look identical across
+  // two totally different sessions and never actually reset progress.
+  function wordsKey(prefix: string, words: { word: string }[]): string {
+    return `${prefix}:${words.map(w => w.word).join('|')}`
+  }
+
   function nextFromQueue(ref: React.MutableRefObject<{ key: string; indices: number[] }>, poolSize: number, poolKey: string): number {
     const q = ref.current
     if (q.key !== poolKey || q.indices.length === 0) {
@@ -619,7 +650,7 @@ export function KidsGame() {
   function setupWords() {
     if (sessionWords.length >= 3) {
       const pool = sessionWords
-      const poolKey = `session:${pool.length}`
+      const poolKey = wordsKey('session', pool)
       if (wordsSessionRef.current.key !== poolKey) {
         wordsSessionRef.current = { active: true, total: pool.length, key: poolKey }
         wordsCorrectRef.current = 0
@@ -638,7 +669,7 @@ export function KidsGame() {
     const useAssigned = assignedVocab.length >= 3
     if (useAssigned) {
       const pool = assignedVocab
-      const ti = nextFromQueue(wordsQueueRef, pool.length, `assigned:${pool.length}`)
+      const ti = nextFromQueue(wordsQueueRef, pool.length, wordsKey('assigned', pool))
       const target = pool[ti]
       const others = shuffleArr(pool.filter((_, k) => k !== ti)).slice(0, 2)
       const opts = shuffleArr([target, ...others]).map(x => x.word)
@@ -886,12 +917,22 @@ export function KidsGame() {
                   <span style={{ opacity: .4 }}>·</span>
                   <span>{player2Name} {p2StudyDone ? '✓' : '—'}</span>
                   {sessionWords.length > 0 && <><span style={{ opacity: .4 }}>·</span><span>{sessionWords.length} words</span></>}
+                  <button onClick={() => { setSessionWords([]); setP1StudyDone(false); setP2StudyDone(false) }}
+                    title="Clear session — start a fresh word set next time you Study"
+                    style={{ border: 'none', cursor: 'pointer', background: 'none', color: '#2E7DA8', opacity: 0.6, fontSize: 13, fontWeight: 800, padding: 0, lineHeight: 1 }}>
+                    ✕
+                  </button>
                 </div>
               )
             ) : (
               sessionWords.length > 0 && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
                   📚 セッション中 · {sessionWords.length} words ready
+                  <button onClick={() => setSessionWords([])}
+                    title="Clear session — start a fresh word set next time you Study"
+                    style={{ border: 'none', cursor: 'pointer', background: 'none', color: '#2E7DA8', opacity: 0.6, fontSize: 13, fontWeight: 800, padding: 0, lineHeight: 1 }}>
+                    ✕
+                  </button>
                 </div>
               )
             )}
