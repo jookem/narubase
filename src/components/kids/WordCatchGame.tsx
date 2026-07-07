@@ -253,53 +253,70 @@ export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordCompl
         <div style={{ fontWeight: 800, fontSize: 18, color: '#6B4F3F' }}>{score.toLocaleString()} pts</div>
       </div>
 
-      {/* Play field: 3 lanes, net on the left, words fly in from the right */}
-      <div
-        ref={fieldRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        style={{
-          position: 'relative', width: FIELD_W, height: LANE_H * LANES,
-          background: 'linear-gradient(180deg, #EAF6FF 0%, #DCEEFB 100%)',
-          borderRadius: 24, overflow: 'hidden', touchAction: 'none', cursor: 'grab',
-          boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.04)',
-        }}
-      >
-        {/* Lane dividers */}
-        {[1, 2].map(i => (
-          <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: i * LANE_H, height: 1, background: 'rgba(107,79,63,0.08)' }} />
-        ))}
+      {/* Play field: 3 lanes, net on the left, words fly in from the right.
+          Up/down tap buttons sit alongside as a guaranteed-reliable control
+          for touch devices (and as a backup to the arrow-key listener). */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          ref={fieldRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          style={{
+            position: 'relative', width: FIELD_W, height: LANE_H * LANES,
+            background: 'linear-gradient(180deg, #EAF6FF 0%, #DCEEFB 100%)',
+            borderRadius: 24, overflow: 'hidden', touchAction: 'none', cursor: 'grab',
+            boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.04)',
+          }}
+        >
+          {/* Lane dividers */}
+          {[1, 2].map(i => (
+            <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: i * LANE_H, height: 1, background: 'rgba(107,79,63,0.08)' }} />
+          ))}
 
-        {/* Net */}
-        <div style={{
-          position: 'absolute', left: NET_X, top: netLane * LANE_H + LANE_H / 2 - NET_W / 2,
-          width: NET_W, height: NET_W, fontSize: NET_W, lineHeight: 1, zIndex: 2,
-          transition: 'top .16s ease-out', pointerEvents: 'none', userSelect: 'none',
-        }}>
-          🥅
+          {/* Net — mirrored so its opening faces right, toward the incoming words */}
+          <div style={{
+            position: 'absolute', left: NET_X, top: netLane * LANE_H + LANE_H / 2 - NET_W / 2,
+            width: NET_W, height: NET_W, fontSize: NET_W, lineHeight: 1, zIndex: 2,
+            transform: 'scaleX(-1)',
+            transition: 'top .16s ease-out', pointerEvents: 'none', userSelect: 'none',
+          }}>
+            🥅
+          </div>
+
+          {/* Flying word bubbles */}
+          {lanes.map((l, i) => (
+            <div key={`${roundKey}-${i}`}
+              ref={el => { bubbleElsRef.current[i] = el }}
+              style={{
+                position: 'absolute', top: i * LANE_H + (LANE_H - BUBBLE_H) / 2, left: laneXRef.current[i],
+                width: BUBBLE_W, height: BUBBLE_H, borderRadius: 16,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: phase === 'caught' && l.isTarget ? '#EEFCF0' : '#FFFFFF',
+                boxShadow: phase === 'caught' && l.isTarget ? '0 4px 0 #B8DFB8, 0 0 0 3px #5AB468' : '0 4px 0 #EEDAC6',
+                fontWeight: 800, fontSize: 17, color: '#5A4336', userSelect: 'none',
+                animation: phase === 'caught' && l.isTarget ? 'kg-pop .35s ease-out' : undefined,
+              }}>
+              {l.word}
+            </div>
+          ))}
         </div>
 
-        {/* Flying word bubbles */}
-        {lanes.map((l, i) => (
-          <div key={`${roundKey}-${i}`}
-            ref={el => { bubbleElsRef.current[i] = el }}
-            style={{
-              position: 'absolute', top: i * LANE_H + (LANE_H - BUBBLE_H) / 2, left: laneXRef.current[i],
-              width: BUBBLE_W, height: BUBBLE_H, borderRadius: 16,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: phase === 'caught' && l.isTarget ? '#EEFCF0' : '#FFFFFF',
-              boxShadow: phase === 'caught' && l.isTarget ? '0 4px 0 #B8DFB8, 0 0 0 3px #5AB468' : '0 4px 0 #EEDAC6',
-              fontWeight: 800, fontSize: 17, color: '#5A4336', userSelect: 'none',
-              animation: phase === 'caught' && l.isTarget ? 'kg-pop .35s ease-out' : undefined,
-            }}>
-            {l.word}
-          </div>
-        ))}
+        {/* Up/down net controls */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button onClick={() => moveNet(-1)} aria-label="Move net up"
+            style={{ border: 'none', cursor: 'pointer', width: 44, height: 44, borderRadius: 14, background: '#FFFFFF', boxShadow: '0 4px 0 #E7D3C0', fontSize: 20, color: '#6B4F3F' }}>
+            ▲
+          </button>
+          <button onClick={() => moveNet(1)} aria-label="Move net down"
+            style={{ border: 'none', cursor: 'pointer', width: 44, height: 44, borderRadius: 14, background: '#FFFFFF', boxShadow: '0 4px 0 #E7D3C0', fontSize: 20, color: '#6B4F3F' }}>
+            ▼
+          </button>
+        </div>
       </div>
 
-      <div style={{ fontSize: 12, color: '#A98B77', fontWeight: 700 }}>あみをうごかしてね · drag the net, or use ↑ ↓</div>
+      <div style={{ fontSize: 12, color: '#A98B77', fontWeight: 700 }}>あみをうごかしてね · drag, tap ▲▼, or use ↑ ↓</div>
 
       {/* End screen */}
       {phase === 'end' && (
