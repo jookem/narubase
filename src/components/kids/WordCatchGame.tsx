@@ -33,6 +33,14 @@ function shuffleArr<T>(a: T[]): T[] {
   return arr
 }
 
+function buildPool(sessionW: SessionWord[], vocab: VocabularyBankEntry[]): PoolEntry[] {
+  if (sessionW.length > 0) return sessionW.map(w => ({ word: w.word, clue: w.hint, isEmoji: false }))
+  if (vocab.length >= 3) return vocab.map(e => ({
+    word: e.word.trim(), clue: e.definition_ja ?? e.definition_en ?? e.reading ?? e.word, isEmoji: false,
+  }))
+  return FALLBACK.map(([word, emoji]) => ({ word, clue: emoji, isEmoji: true }))
+}
+
 function pickOptions(pool: PoolEntry[], target: PoolEntry): LaneWord[] {
   const others = shuffleArr(pool.filter(w => w.word !== target.word)).slice(0, 2)
   return shuffleArr([target, ...others]).map(o => ({ word: o.word, isTarget: o.word === target.word }))
@@ -41,6 +49,9 @@ function pickOptions(pool: PoolEntry[], target: PoolEntry): LaneWord[] {
 interface Props {
   assignedVocab: VocabularyBankEntry[]
   sessionWords: SessionWord[]
+  isDuo?: boolean
+  assignedVocab2?: VocabularyBankEntry[]
+  sessionWords2?: SessionWord[]
   onBack: () => void
   onWordComplete?: () => void
   sfxCorrect: () => void
@@ -55,40 +66,56 @@ interface Props {
 // way to end a round is to actually catch the target. Low-stress by design
 // for young ESL learners; skill comes from reading + reacting, not from
 // punishing mistakes.
-export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordComplete, sfxCorrect, sfxTap, speak }: Props) {
-  const [wordPool] = useState<PoolEntry[]>(() => {
-    if (sessionWords.length > 0) return sessionWords.map(w => ({ word: w.word, clue: w.hint, isEmoji: false }))
-    if (assignedVocab.length >= 3) return assignedVocab.map(e => ({
-      word: e.word.trim(), clue: e.definition_ja ?? e.definition_en ?? e.reading ?? e.word, isEmoji: false,
-    }))
-    return FALLBACK.map(([word, emoji]) => ({ word, clue: emoji, isEmoji: true }))
-  })
+//
+// Duo mode: each player has their own pool + finite session queue (built
+// from their own assignedVocab/sessionWords, not shared) so player 2 never
+// sees player 1's words. Whichever players actually have session data must
+// exhaust their own queue before the round truly ends; a player with no
+// session data (free-play) never blocks that.
+export function WordCatchGame({
+  assignedVocab, sessionWords, isDuo, assignedVocab2 = [], sessionWords2 = [],
+  onBack, onWordComplete, sfxCorrect, sfxTap, speak,
+}: Props) {
+  const [pool1] = useState<PoolEntry[]>(() => buildPool(sessionWords, assignedVocab))
+  const [pool2] = useState<PoolEntry[]>(() => isDuo ? buildPool(sessionWords2, assignedVocab2) : [])
+  const isSession1 = sessionWords.length > 0
+  const isSession2 = !!isDuo && sessionWords2.length > 0
 
-  // Finite queue of *targets* only (session mode) — distractors can repeat
-  // freely, but every session word is guaranteed to be the target at least
-  // once before the round queue runs out. Guarded ref-init (not a call in
-  // the render body) so re-renders never silently drain it — the same bug
-  // class fixed in SpellTsumGame.
-  const isSession = sessionWords.length > 0
-  const remainingRef = useRef<PoolEntry[] | undefined>(undefined)
+  // Two independent finite queues of *targets* (session mode) — distractors
+  // can repeat freely, but every session word is guaranteed to be the
+  // target at least once for its own player before that player's queue
+  // empties. Guarded ref-init (not a call in the render body) so re-renders
+  // never silently drain it — the same bug class fixed in SpellTsumGame.
+  const remaining1Ref = useRef<PoolEntry[] | undefined>(undefined)
+  const remaining2Ref = useRef<PoolEntry[] | undefined>(undefined)
   const firstTargetRef = useRef<PoolEntry | undefined>(undefined)
-  if (remainingRef.current === undefined) {
-    const queue = shuffleArr([...wordPool])
+  const done1Ref = useRef(false)
+  const done2Ref = useRef(false)
+  if (remaining1Ref.current === undefined) {
+    const queue = shuffleArr([...pool1])
     firstTargetRef.current = queue.shift()!
-    remainingRef.current = queue
+    remaining1Ref.current = queue
+  }
+  if (isDuo && remaining2Ref.current === undefined) {
+    remaining2Ref.current = shuffleArr([...pool2])
   }
 
-  function getNextTarget(): PoolEntry | null {
+  function getNextTargetFor(turnNum: 1 | 2): PoolEntry | null {
+    const pool = turnNum === 1 ? pool1 : pool2
+    const isSession = turnNum === 1 ? isSession1 : isSession2
+    const remainingRef = turnNum === 1 ? remaining1Ref : remaining2Ref
     if (remainingRef.current!.length === 0) {
-      if (isSession) return null
-      remainingRef.current = shuffleArr([...wordPool])
+      if (isSession) { (turnNum === 1 ? done1Ref : done2Ref).current = true; return null }
+      remainingRef.current = shuffleArr([...pool])
     }
     return remainingRef.current!.shift()!
   }
 
   const first = firstTargetRef.current!
 
-  const [lanes, setLanes] = useState<LaneWord[]>(() => pickOptions(wordPool, first))
+  const [turn, setTurn] = useState<1 | 2>(1)
+  const turnRef = useRef<1 | 2>(1)
+  const [lanes, setLanes] = useState<LaneWord[]>(() => pickOptions(pool1, first))
   const [clue, setClue] = useState(first.clue)
   const [isEmojiClue, setIsEmojiClue] = useState(first.isEmoji)
   const [netLane, setNetLane] = useState(1)
@@ -174,9 +201,31 @@ export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordCompl
   }
 
   function advanceRound() {
-    const next = getNextTarget()
-    if (!next) { setPhase('end'); return }
-    setLanes(pickOptions(wordPool, next))
+    // Flip locally in sync with our own round cadence — not tied to the
+    // parent's star-reward timer, which runs on a different delay.
+    const nextTurn: 1 | 2 = isDuo && turnRef.current === 1 ? 2 : 1
+    const next = getNextTargetFor(isDuo ? nextTurn : 1)
+    if (!next) {
+      // This player's queue just ran out — the round only truly ends once
+      // every player who actually has session data has exhausted theirs.
+      // A free-play player (no session for them) never blocks ending.
+      const p1Finished = !isSession1 || done1Ref.current
+      const p2Finished = !isDuo || !isSession2 || done2Ref.current
+      if ((isSession1 || isSession2) && p1Finished && p2Finished) { setPhase('end'); return }
+      // Otherwise just hand off to whichever player still has words left.
+      const fallbackTurn: 1 | 2 = nextTurn === 1 ? 2 : 1
+      const fallback = getNextTargetFor(isDuo ? fallbackTurn : 1)
+      if (!fallback) { setPhase('end'); return }
+      turnRef.current = fallbackTurn; setTurn(fallbackTurn)
+      setLanes(pickOptions(fallbackTurn === 1 ? pool1 : pool2, fallback))
+      setClue(fallback.clue); setIsEmojiClue(fallback.isEmoji)
+      resetLanePositions(); setRoundKey(k => k + 1); setPhase('playing')
+      setTimeout(() => speak(fallback.word.toLowerCase()), 400)
+      return
+    }
+    turnRef.current = isDuo ? nextTurn : 1
+    setTurn(turnRef.current)
+    setLanes(pickOptions(turnRef.current === 1 ? pool1 : pool2, next))
     setClue(next.clue); setIsEmojiClue(next.isEmoji)
     resetLanePositions()
     setRoundKey(k => k + 1)
@@ -229,7 +278,7 @@ export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordCompl
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>Catch it! 🥅</div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>Catch and Match 🥅</div>
           <div style={{ fontSize: 13, color: '#A98B77' }}>ただしいことばをあみでキャッチ！</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '5px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 52 }}>
@@ -251,6 +300,9 @@ export function WordCatchGame({ assignedVocab, sessionWords, onBack, onWordCompl
       {/* Score */}
       <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
         <div style={{ fontWeight: 800, fontSize: 18, color: '#6B4F3F' }}>{score.toLocaleString()} pts</div>
+        {isDuo && (
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#A98B77' }}>Player {turn}'s turn</div>
+        )}
       </div>
 
       {/* Play field: 3 lanes, net on the left, words fly in from the right.

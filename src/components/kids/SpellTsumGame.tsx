@@ -67,9 +67,25 @@ function findCorrectChain(word: string, balls: TsumBall[]): number[] {
   return ids
 }
 
+function buildWordPool(sessionW: SessionWord[], vocab: VocabularyBankEntry[]): SessionWord[] {
+  if (sessionW.length > 0) return sessionW
+  const spellable = vocab.filter(e => {
+    const w = e.word.trim()
+    return w.length >= 2 && w.length <= 8 && /^[a-zA-Z]+$/.test(w)
+  })
+  if (spellable.length > 0) return spellable.map(e => ({
+    word: e.word.trim().toUpperCase(),
+    hint: e.definition_ja ?? e.definition_en ?? e.word,
+  }))
+  return FALLBACK
+}
+
 interface Props {
   assignedVocab: VocabularyBankEntry[]
   sessionWords: SessionWord[]
+  isDuo?: boolean
+  assignedVocab2?: VocabularyBankEntry[]
+  sessionWords2?: SessionWord[]
   onBack: () => void
   onEnd?: (stats: { score: number; correct: number; attempted: number; streak: number }) => void
   onWordComplete?: () => void   // called once per correctly-spelled word — lets the
@@ -80,45 +96,56 @@ interface Props {
   speak: (t: string) => void
 }
 
-export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWordComplete, sfxCorrect, sfxWrong, sfxTap, speak }: Props) {
-  const [wordPool] = useState<SessionWord[]>(() => {
-    if (sessionWords.length > 0) return sessionWords
-    const spellable = assignedVocab.filter(e => {
-      const w = e.word.trim()
-      return w.length >= 2 && w.length <= 8 && /^[a-zA-Z]+$/.test(w)
-    })
-    if (spellable.length > 0) return spellable.map(e => ({
-      word: e.word.trim().toUpperCase(),
-      hint: e.definition_ja ?? e.definition_en ?? e.word,
-    }))
-    return FALLBACK
-  })
+// Duo mode: each player has their own word pool + finite session queue
+// (built from their own assignedVocab/sessionWords, not shared) so player 2
+// never spells player 1's words. Whichever players actually have session
+// data must exhaust their own queue before the game truly ends; a player
+// with no session data (free-play) never blocks that. See WordCatchGame.tsx
+// for the same pattern applied to that game.
+export function SpellTsumGame({
+  assignedVocab, sessionWords, isDuo, assignedVocab2 = [], sessionWords2 = [],
+  onBack, onEnd, onWordComplete, sfxCorrect, sfxWrong, sfxTap, speak,
+}: Props) {
+  const [pool1] = useState<SessionWord[]>(() => buildWordPool(sessionWords, assignedVocab))
+  const [pool2] = useState<SessionWord[]>(() => isDuo ? buildWordPool(sessionWords2, assignedVocab2) : [])
+  const isSession1 = sessionWords.length > 0
+  const isSession2 = !!isDuo && sessionWords2.length > 0
 
-  // Finite queue: one pass through all words, then end (if session) or reshuffle (if endless)
-  const isSession = sessionWords.length > 0
-  const remainingRef = useRef<SessionWord[] | undefined>(undefined)
+  // Two independent finite queues: one pass through all of a player's own
+  // words, then that player is "done" (session mode) or reshuffles forever
+  // (free-play). Guarded ref-init (not a call in the render body) so
+  // re-renders never silently drain it — without this, every re-render (the
+  // 1s elapsed timer, drag updates, etc.) would silently .shift() one more
+  // word off the queue, draining a 5-word session before the child ever
+  // finishes the first one and kicking the game to the end screen.
+  const remaining1Ref = useRef<SessionWord[] | undefined>(undefined)
+  const remaining2Ref = useRef<SessionWord[] | undefined>(undefined)
   const firstWordRef = useRef<SessionWord | undefined>(undefined)
-  // Pop the first word and seed the remaining queue exactly once. Guarded by
-  // the ref (not a useState lazy initializer) so it stays correct even
-  // though this runs in the render body: without the guard, every re-render
-  // (the 1s elapsed timer, drag updates, etc.) would silently .shift() one
-  // more word off the queue, draining a 5-word session before the child
-  // ever finishes the first one and kicking the game to the end screen.
-  if (remainingRef.current === undefined) {
-    const queue = shuffleArr([...wordPool])
+  const done1Ref = useRef(false)
+  const done2Ref = useRef(false)
+  if (remaining1Ref.current === undefined) {
+    const queue = shuffleArr([...pool1])
     firstWordRef.current = queue.shift()!
-    remainingRef.current = queue
+    remaining1Ref.current = queue
+  }
+  if (isDuo && remaining2Ref.current === undefined) {
+    remaining2Ref.current = shuffleArr([...pool2])
   }
 
-  function getNext(): SessionWord | null {
+  function getNextFor(turnNum: 1 | 2): SessionWord | null {
+    const pool = turnNum === 1 ? pool1 : pool2
+    const isSession = turnNum === 1 ? isSession1 : isSession2
+    const remainingRef = turnNum === 1 ? remaining1Ref : remaining2Ref
     if (remainingRef.current!.length === 0) {
-      if (isSession) return null
-      remainingRef.current = shuffleArr([...wordPool])
+      if (isSession) { (turnNum === 1 ? done1Ref : done2Ref).current = true; return null }
+      remainingRef.current = shuffleArr([...pool])
     }
     return remainingRef.current!.shift()!
   }
 
   const first = firstWordRef.current!
+  const [turn, setTurn] = useState<1 | 2>(1)
+  const turnRef = useRef<1 | 2>(1)
 
   const [balls, setBalls]             = useState<TsumBall[]>(() => buildGrid(first.word))
   const [target, setTarget]           = useState<SessionWord>(first)
@@ -193,8 +220,28 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
     revealingRef.current = false
     setWrongReveal(false); setRevealChain([])
     setChain([]); chainRef.current = []
-    const nxt = getNext()
-    if (!nxt) { setPhase('end'); return }
+
+    // Flip locally in sync with our own round cadence — not tied to the
+    // parent's star-reward timer, which runs on a different delay.
+    const nextTurn: 1 | 2 = isDuo && turnRef.current === 1 ? 2 : 1
+    let nxt = getNextFor(isDuo ? nextTurn : 1)
+    let resolvedTurn = nextTurn
+    if (!nxt) {
+      // This player's queue just ran out — only truly end once every player
+      // who actually has session data has exhausted theirs. A free-play
+      // player (no session for them) never blocks ending.
+      const p1Finished = !isSession1 || done1Ref.current
+      const p2Finished = !isDuo || !isSession2 || done2Ref.current
+      if ((isSession1 || isSession2) && p1Finished && p2Finished) { setPhase('end'); return }
+      // Otherwise hand off to whichever player still has words left.
+      const fallbackTurn: 1 | 2 = nextTurn === 1 ? 2 : 1
+      const fallback = getNextFor(isDuo ? fallbackTurn : 1)
+      if (!fallback) { setPhase('end'); return }
+      nxt = fallback; resolvedTurn = fallbackTurn
+    }
+
+    turnRef.current = isDuo ? resolvedTurn : 1
+    setTurn(turnRef.current)
     setTarget(nxt)
     setBalls(buildGrid(nxt.word))
     wordStartRef.current = Date.now()
@@ -330,6 +377,10 @@ export function SpellTsumGame({ assignedVocab, sessionWords, onBack, onEnd, onWo
           )}
         </div>
       </div>
+
+      {isDuo && (
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#A98B77' }}>Player {turn}'s turn</div>
+      )}
 
       {/* ── Japanese hint ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 20, fontWeight: 800, color: '#5A4336', letterSpacing: 1 }}>

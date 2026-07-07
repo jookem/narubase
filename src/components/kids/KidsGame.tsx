@@ -193,6 +193,19 @@ export function KidsGame() {
       else sessionStorage.removeItem(`narubase:kids:sessionWords:${user.id}`)
     } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
   }
+  // Player 2's own session word set — separate from `sessionWords` (player
+  // 1's) so duo mode doesn't collapse both players onto one shared list.
+  // Keyed by player2Id too, so switching to a different classmate doesn't
+  // reuse a stale previous partner's words.
+  const [sessionWords2, setSessionWords2State] = useState<SessionWord[]>([])
+  function setSessionWords2(words: SessionWord[]) {
+    setSessionWords2State(words)
+    if (!user || !player2Id) return
+    try {
+      if (words.length > 0) sessionStorage.setItem(`narubase:kids:sessionWords2:${user.id}:${player2Id}`, JSON.stringify(words))
+      else sessionStorage.removeItem(`narubase:kids:sessionWords2:${user.id}:${player2Id}`)
+    } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
+  }
   const [studyPool, setStudyPool] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
@@ -217,10 +230,14 @@ export function KidsGame() {
   const [sTiles, setSTiles] = useState<Tile[]>([])
   const [sShake, setSShake] = useState(false)
 
-  // Assigned vocabulary
+  // Assigned vocabulary — player1Id is always the logged-in host; player2's
+  // own bank is fetched separately (by their real classmate id) so duo mode
+  // doesn't just reuse the host's words for both players.
   const { user } = useAuth()
   const [assignedVocab, setAssignedVocab] = useState<VocabularyBankEntry[]>([])
   const [vocabLoaded, setVocabLoaded] = useState(false)
+  const [assignedVocab2, setAssignedVocab2] = useState<VocabularyBankEntry[]>([])
+  const [vocab2Loaded, setVocab2Loaded] = useState(false)
 
   // Refs
   const zooAnimalRef = useRef<HTMLDivElement>(null)
@@ -266,9 +283,18 @@ export function KidsGame() {
     } catch { /* ignore corrupt/unavailable storage */ }
   }, [user])
 
-  function buildStudyPool(): StudyCard[] {
+  useEffect(() => {
+    setSessionWords2State([])
+    if (!user || !player2Id) return
+    try {
+      const raw = sessionStorage.getItem(`narubase:kids:sessionWords2:${user.id}:${player2Id}`)
+      if (raw) setSessionWords2State(JSON.parse(raw))
+    } catch { /* ignore corrupt/unavailable storage */ }
+  }, [user, player2Id])
+
+  function buildStudyPool(vocab: VocabularyBankEntry[] = assignedVocab): StudyCard[] {
     return shuffleArr(
-      assignedVocab
+      vocab
         .map(e => ({ id: e.id, word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word, mastery_level: e.mastery_level, interval_days: e.interval_days, ease_factor: e.ease_factor }))
         .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
     ).slice(0, 5)
@@ -288,16 +314,32 @@ export function KidsGame() {
     getClassmates(user.id).then(list => setClassmates(list))
   }, [user])
 
-  // If "Study Words" was clicked before the vocab fetch above resolved,
+  // Player 2's own vocab — fetched as soon as a real classmate is picked
+  // (not the "skip" no-id flow), so it's ready well before they'd ever need
+  // it (they only play after player 1 finishes their own turn/pass).
+  useEffect(() => {
+    setAssignedVocab2([]); setVocab2Loaded(false)
+    if (!player2Id) return
+    getStudentVocab(player2Id).then(({ entries }) => {
+      if (entries?.length) setAssignedVocab2(entries.filter(e => !e.is_phonics))
+      setVocab2Loaded(true)
+    })
+  }, [player2Id])
+
+  // If "Flashcard Fiesta" (Study Words) was clicked before the vocab fetch above resolved,
   // studyPool got built from an empty assignedVocab and the screen falsely
   // showed "No vocabulary yet!" — once real data arrives, rebuild it so the
-  // student doesn't have to back out and retry.
+  // student doesn't have to back out and retry. Turn-aware so this also
+  // covers player 2's own vocab arriving late during their turn.
   useEffect(() => {
-    if (screen === 'study' && studyPool.length === 0 && assignedVocab.length > 0) {
+    if (screen !== 'study' || studyPool.length > 0) return
+    if (studyTurn === 2 && player2Id) {
+      if (assignedVocab2.length > 0) setStudyPool(buildStudyPool(assignedVocab2))
+    } else if (assignedVocab.length > 0) {
       setStudyPool(buildStudyPool())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignedVocab])
+  }, [assignedVocab, assignedVocab2])
 
   // ── Inject font + animations ───────────────────────────────────
   useEffect(() => {
@@ -338,25 +380,6 @@ export function KidsGame() {
       try { document.head.removeChild(link) } catch {}
     }
   }, [])
-
-  // ── Stroke animation interval ──────────────────────────────────
-  useEffect(() => {
-    if (screen !== 'trace' && screen !== 'zoo') return
-    const key = traceCase === 'lower'
-      ? WORDS[letterIndex][0].toLowerCase()
-      : WORDS[letterIndex][0]
-    const S = (traceCase === 'lower' ? LSTROKES : STROKES)[key]
-    if (!S || S.length < 2) return
-    const id = setInterval(() => {
-      if (screenRef.current !== 'trace') return
-      setActiveStroke(s => {
-        const next = (s + 1) % S.length
-        activeStrokeRef.current = next
-        return next
-      })
-    }, 1500)
-    return () => clearInterval(id)
-  }, [screen, letterIndex, traceCase])
 
   // ── Redraw guide when trace state changes ──────────────────────
   useEffect(() => {
@@ -535,9 +558,28 @@ export function KidsGame() {
     ctx.moveTo(mid.x, mid.y)
     prevPointRef.current = p
   }
-  function traceUp() { drawingRef.current = false; prevPointRef.current = null }
+  // Recognizes just-drawn strokes and moves the guide on to the next one —
+  // does NOT gate whole-letter completion (できた！/Feed! still always
+  // succeed regardless of accuracy, matching this app's low-stress, no
+  // -penalty tone elsewhere); this only decides when to advance the guide.
+  function traceUp() {
+    drawingRef.current = false; prevPointRef.current = null
+    if (screenRef.current !== 'trace' && screenRef.current !== 'zoo') return
+    const S = getStrokes(); if (!S) return
+    const idx = activeStrokeRef.current
+    if (idx >= S.length - 1) return // already on the last stroke — nothing to advance to
+    if (calcAccuracyFor([idx]) >= 40) {
+      sfxTap()
+      const next = idx + 1
+      setActiveStroke(next); activeStrokeRef.current = next
+      setTimeout(() => drawGuide(), 30)
+    }
+  }
 
-  function calcAccuracy(): number {
+  // Shared sampling core: what fraction of the given strokes' guide path has
+  // ink under it. `calcAccuracy()` (whole letter) and traceUp()'s per-stroke
+  // recognition both reduce to this with a different stroke-index list.
+  function calcAccuracyFor(strokeIndices: number[]): number {
     const draw = drawCanvasRef.current; if (!draw) return 0
     const drawCtx = draw.getContext('2d'); if (!drawCtx) return 0
     const { data: drawData } = drawCtx.getImageData(0, 0, 520, 520)
@@ -550,7 +592,8 @@ export function KidsGame() {
     const L = 130, R = 390, T = 95, B = 425
     if (!S) return 0
     let total = 0, covered = 0
-    S.forEach(stroke => {
+    strokeIndices.forEach(idx => {
+      const stroke = S[idx]; if (!stroke) return
       for (let si = 0; si < stroke.length - 1; si++) {
         const [ax, ay] = stroke[si], [bx, by] = stroke[si + 1]
         const px0 = L + ax * (R - L), py0 = T + ay * (B - T)
@@ -570,6 +613,11 @@ export function KidsGame() {
       }
     })
     return total === 0 ? 0 : Math.min(100, Math.round(covered / total * 100))
+  }
+
+  function calcAccuracy(): number {
+    const S = getStrokes(); if (!S) return 0
+    return calcAccuracyFor(S.map((_, i) => i))
   }
 
   // ── Letter navigation ──────────────────────────────────────────
@@ -830,11 +878,10 @@ export function KidsGame() {
               (p1StudyDone || p2StudyDone) && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
                   📚
-                  <span>{player1Name} {p1StudyDone ? '✓' : '—'}</span>
+                  <span>{player1Name} {p1StudyDone ? `✓ (${sessionWords.length})` : '—'}</span>
                   <span style={{ opacity: .4 }}>·</span>
-                  <span>{player2Name} {p2StudyDone ? '✓' : '—'}</span>
-                  {sessionWords.length > 0 && <><span style={{ opacity: .4 }}>·</span><span>{sessionWords.length} words</span></>}
-                  <button onClick={() => { setSessionWords([]); setP1StudyDone(false); setP2StudyDone(false) }}
+                  <span>{player2Name} {p2StudyDone ? `✓ (${sessionWords2.length})` : '—'}</span>
+                  <button onClick={() => { setSessionWords([]); setSessionWords2([]); setP1StudyDone(false); setP2StudyDone(false) }}
                     title="Clear session — start a fresh word set next time you Study"
                     style={{ border: 'none', cursor: 'pointer', background: 'none', color: '#2E7DA8', opacity: 0.6, fontSize: 13, fontWeight: 800, padding: 0, lineHeight: 1 }}>
                     ✕
@@ -858,12 +905,12 @@ export function KidsGame() {
           <div className="kg-hub-scroll" style={{ flex: 1, padding: '4px 20px 24px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16, width: '100%', maxWidth: 800, margin: '0 auto' }}>
             {([
-              { key: 'study' as Screen, title: 'Study Words',   jp: 'たんごれんしゅう', skill: '📚 Review', emoji: '📚', bg: sessionWords.length > 0 ? '#D4ECF8' : '#EDE4FF' },
-              { key: 'sing'  as Screen, title: 'ABC Listen',     jp: 'もじをきこう', skill: '👂 Listening', emoji: '👂', bg: '#FBD9E1' },
+              { key: 'sing'  as Screen, title: 'Sound Safari',   jp: 'もじをきこう', skill: '👂 Listening', emoji: '👂', bg: '#FBD9E1' },
               { key: 'zoo'   as Screen, title: 'Alphabet Zoo',  jp: 'どうぶつえん', skill: '✏️ Writing',  emoji: '🦁', bg: '#D4F0D8' },
-              { key: 'words' as Screen, title: 'Word Match',    jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
-              { key: 'spell' as Screen, title: 'Spelling',      jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
-              { key: 'like'  as Screen, title: 'Like & Dislike',jp: 'すきなもの',   skill: '💬 Speaking',  emoji: '🔮', bg: '#F0E0FF' },
+              { key: 'study' as Screen, title: 'Flashcard Fiesta', jp: 'たんごれんしゅう', skill: '📚 Review', emoji: '📚', bg: sessionWords.length > 0 ? '#D4ECF8' : '#EDE4FF' },
+              { key: 'words' as Screen, title: 'Catch and Match', jp: 'たんごあそび', skill: '🍰 Vocabulary',emoji: '🍰', bg: '#D8ECC4' },
+              { key: 'spell' as Screen, title: 'Spelling Stacker', jp: 'スペリング',   skill: '🎸 Spelling',  emoji: '🎸', bg: '#CFE7F6' },
+              { key: 'like'  as Screen, title: 'Thumbs Up, Thumbs Down', jp: 'すきなもの',   skill: '💬 Speaking',  emoji: '🔮', bg: '#F0E0FF' },
               { key: 'phonics' as Screen, title: 'Phonics Quest', jp: 'フォニックス', skill: '🔤 Reading', emoji: '🦆', bg: '#FFE4C4' },
             ] as const).map(s => (
               <button key={s.key}
@@ -1008,6 +1055,9 @@ export function KidsGame() {
         <WordCatchGame
           assignedVocab={assignedVocab}
           sessionWords={sessionWords}
+          isDuo={player === 'duo'}
+          assignedVocab2={assignedVocab2}
+          sessionWords2={sessionWords2}
           onBack={() => setScreen('hub')}
           onWordComplete={() => { if (player === 'duo') grantStar(false) }}
           sfxCorrect={sfxCorrect}
@@ -1021,6 +1071,9 @@ export function KidsGame() {
         <SpellTsumGame
           assignedVocab={assignedVocab}
           sessionWords={sessionWords}
+          isDuo={player === 'duo'}
+          assignedVocab2={assignedVocab2}
+          sessionWords2={sessionWords2}
           onBack={() => setScreen('hub')}
           onEnd={stats => {
             if (user) saveKidSession({
@@ -1040,7 +1093,7 @@ export function KidsGame() {
 
       {/* ═══════════════ STUDY ═══════════════ */}
       {screen === 'study' && (() => {
-        if (studyPool.length === 0 && !vocabLoaded) return (
+        if (studyPool.length === 0 && !(studyTurn === 2 && player2Id ? vocab2Loaded : vocabLoaded)) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>📚</div>
             <div style={{ fontSize: 16, color: '#A98B77' }}>よみこみちゅう… Loading…</div>
@@ -1069,7 +1122,13 @@ export function KidsGame() {
                 <span style={{ fontSize: 13 }}>Pass the device to {player2Name}</span>
               </div>
               <button
-                onClick={() => { setP1StudyDone(true); setStudyTurn(2); setStudyIdx(0); setStudyFlipped(false) }}
+                onClick={() => {
+                  // Player 2 gets their own vocab bank, not player 1's — falls
+                  // back to sharing player 1's pool only if P2 was "skipped"
+                  // (no real classmate id, so there's nothing else to pull from).
+                  setStudyPool(player2Id ? buildStudyPool(assignedVocab2) : buildStudyPool())
+                  setP1StudyDone(true); setStudyTurn(2); setStudyIdx(0); setStudyFlipped(false)
+                }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
                 {player2Name}の番 →
               </button>
@@ -1089,8 +1148,9 @@ export function KidsGame() {
               <div style={{ fontSize: 15, color: '#A98B77' }}>{studyPool.length} words reviewed — ready to play!</div>
               <button
                 onClick={() => {
-                  if (duo && studyTurn === 2) setP2StudyDone(true); else setP1StudyDone(true)
-                  setSessionWords(studyPool); setScreen('hub')
+                  if (duo && studyTurn === 2) { setP2StudyDone(true); setSessionWords2(studyPool) }
+                  else { setP1StudyDone(true); setSessionWords(studyPool) }
+                  setScreen('hub')
                 }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#8BC273', color: '#fff', boxShadow: '0 5px 0 #6FA458' }}>
                 ゲームをはじめよう →
