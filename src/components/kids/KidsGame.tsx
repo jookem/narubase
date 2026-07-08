@@ -206,7 +206,30 @@ export function KidsGame() {
       else sessionStorage.removeItem(`narubase:kids:sessionWords2:${user.id}:${player2Id}`)
     } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
   }
-  const [studyPool, setStudyPool] = useState<StudyCard[]>([])
+  // The active study pool — persisted so re-opening Flashcard Fiesta shows
+  // the SAME words again instead of silently rerolling a new random set
+  // every time. A fresh set only ever comes from an explicit "✕ clear
+  // session" or a brand-new player 2. `studyPool2` remembers player 2's own
+  // stable set separately (keyed by player2Id) since `studyPool` itself is
+  // shared/overwritten at the P1→P2 handoff to whichever player is up.
+  const [studyPool, setStudyPoolState] = useState<StudyCard[]>([])
+  function setStudyPool(pool: StudyCard[]) {
+    setStudyPoolState(pool)
+    if (!user) return
+    try {
+      if (pool.length > 0) sessionStorage.setItem(`narubase:kids:studyPool:${user.id}`, JSON.stringify(pool))
+      else sessionStorage.removeItem(`narubase:kids:studyPool:${user.id}`)
+    } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
+  }
+  const [studyPool2, setStudyPool2State] = useState<StudyCard[]>([])
+  function setStudyPool2(pool: StudyCard[]) {
+    setStudyPool2State(pool)
+    if (!user || !player2Id) return
+    try {
+      if (pool.length > 0) sessionStorage.setItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`, JSON.stringify(pool))
+      else sessionStorage.removeItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
+    } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
+  }
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
   const [studyTurn, setStudyTurn] = useState<1 | 2>(1)
@@ -292,6 +315,23 @@ export function KidsGame() {
     } catch { /* ignore corrupt/unavailable storage */ }
   }, [user, player2Id])
 
+  useEffect(() => {
+    if (!user) return
+    try {
+      const raw = sessionStorage.getItem(`narubase:kids:studyPool:${user.id}`)
+      if (raw) setStudyPoolState(JSON.parse(raw))
+    } catch { /* ignore corrupt/unavailable storage */ }
+  }, [user])
+
+  useEffect(() => {
+    setStudyPool2State([])
+    if (!user || !player2Id) return
+    try {
+      const raw = sessionStorage.getItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
+      if (raw) setStudyPool2State(JSON.parse(raw))
+    } catch { /* ignore corrupt/unavailable storage */ }
+  }, [user, player2Id])
+
   function buildStudyPool(vocab: VocabularyBankEntry[] = assignedVocab): StudyCard[] {
     return shuffleArr(
       vocab
@@ -334,7 +374,10 @@ export function KidsGame() {
   useEffect(() => {
     if (screen !== 'study' || studyPool.length > 0) return
     if (studyTurn === 2 && player2Id) {
-      if (assignedVocab2.length > 0) setStudyPool(buildStudyPool(assignedVocab2))
+      if (assignedVocab2.length > 0) {
+        const pool = buildStudyPool(assignedVocab2)
+        setStudyPool2(pool); setStudyPool(pool)
+      }
     } else if (assignedVocab.length > 0) {
       setStudyPool(buildStudyPool())
     }
@@ -881,7 +924,7 @@ export function KidsGame() {
                   <span>{player1Name} {p1StudyDone ? `✓ (${sessionWords.length})` : '—'}</span>
                   <span style={{ opacity: .4 }}>·</span>
                   <span>{player2Name} {p2StudyDone ? `✓ (${sessionWords2.length})` : '—'}</span>
-                  <button onClick={() => { setSessionWords([]); setSessionWords2([]); setP1StudyDone(false); setP2StudyDone(false) }}
+                  <button onClick={() => { setSessionWords([]); setSessionWords2([]); setStudyPool([]); setStudyPool2([]); setP1StudyDone(false); setP2StudyDone(false) }}
                     title="Clear session — start a fresh word set next time you Study"
                     style={{ border: 'none', cursor: 'pointer', background: 'none', color: '#2E7DA8', opacity: 0.6, fontSize: 13, fontWeight: 800, padding: 0, lineHeight: 1 }}>
                     ✕
@@ -892,7 +935,7 @@ export function KidsGame() {
               sessionWords.length > 0 && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
                   📚 セッション中 · {sessionWords.length} words ready
-                  <button onClick={() => setSessionWords([])}
+                  <button onClick={() => { setSessionWords([]); setStudyPool([]) }}
                     title="Clear session — start a fresh word set next time you Study"
                     style={{ border: 'none', cursor: 'pointer', background: 'none', color: '#2E7DA8', opacity: 0.6, fontSize: 13, fontWeight: 800, padding: 0, lineHeight: 1 }}>
                     ✕
@@ -920,7 +963,11 @@ export function KidsGame() {
                   else if (s.key === 'spell') setScreen('spell')
                   else if (s.key === 'zoo') startZoo()
                   else if (s.key === 'study') {
-                    setStudyPool(buildStudyPool()); setStudyTurn(1)
+                    // Reuse the existing session's words if there is one —
+                    // a fresh random set only ever comes from an explicit
+                    // "✕ clear session", not from merely reopening this tile.
+                    if (studyPool.length === 0) setStudyPool(buildStudyPool())
+                    setStudyTurn(1)
                     setP1StudyDone(false); setP2StudyDone(false)
                     setStudyIdx(0); setStudyFlipped(false); setScreen('study')
                   }
@@ -1126,7 +1173,13 @@ export function KidsGame() {
                   // Player 2 gets their own vocab bank, not player 1's — falls
                   // back to sharing player 1's pool only if P2 was "skipped"
                   // (no real classmate id, so there's nothing else to pull from).
-                  setStudyPool(player2Id ? buildStudyPool(assignedVocab2) : buildStudyPool())
+                  // Reuses player 2's own existing pool if they already have
+                  // one, same "don't reroll words" rule as player 1.
+                  const p2Pool = player2Id
+                    ? (studyPool2.length > 0 ? studyPool2 : buildStudyPool(assignedVocab2))
+                    : buildStudyPool()
+                  if (player2Id && studyPool2.length === 0) setStudyPool2(p2Pool)
+                  setStudyPool(p2Pool)
                   setP1StudyDone(true); setStudyTurn(2); setStudyIdx(0); setStudyFlipped(false)
                 }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
@@ -1213,11 +1266,9 @@ export function KidsGame() {
                           // word again before finishing the pass, instead of it
                           // just being marked and never resurfacing.
                           const insertAt = studyIdx + 1 + 2
-                          setStudyPool(pool => {
-                            const next = [...pool]
-                            next.splice(insertAt, 0, card)
-                            return next
-                          })
+                          const next = [...studyPool]
+                          next.splice(insertAt, 0, card)
+                          setStudyPool(next)
                         }
                         setStudyIdx(i => i + 1)
                         setStudyFlipped(false)
