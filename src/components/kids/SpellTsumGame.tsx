@@ -150,7 +150,6 @@ export function SpellTsumGame({
   const [balls, setBalls]             = useState<TsumBall[]>(() => buildGrid(first.word))
   const [target, setTarget]           = useState<SessionWord>(first)
   const [chain, setChain]             = useState<number[]>([])
-  const [dragPos, setDragPos]         = useState<{ x: number; y: number } | null>(null)
   const [score, setScore]             = useState(0)
   const [combo, setCombo]             = useState(1)
   const [streak, setStreak]           = useState(0)
@@ -164,7 +163,6 @@ export function SpellTsumGame({
   const [hintOn, setHintOn]           = useState(false)
 
   const gridRef        = useRef<HTMLDivElement>(null)
-  const draggingRef    = useRef(false)
   const chainRef       = useRef<number[]>([])
   const revealingRef   = useRef(false)
   const wordStartRef   = useRef(Date.now())
@@ -256,52 +254,20 @@ export function SpellTsumGame({
     wordStartRef.current = Date.now()
   }
 
-  function handleDown(e: React.PointerEvent) {
+  // Tap-to-select: each letter is its own press+release, so the player can lift
+  // their finger between picks instead of holding one continuous drag. A tap
+  // that matches the next needed letter extends the chain; a tap that doesn't
+  // is treated as a mistake (reveal the answer, reset streak, retry the word).
+  function handleTap(e: React.PointerEvent) {
     if (phase !== 'playing' || revealingRef.current) return
     e.preventDefault()
     const { x, y } = getGridXY(e)
     const ball = getBallAt(x, y)
-    if (!ball || ball.char !== target.word[0]) return
-    draggingRef.current = true
-    setChain([ball.id]); chainRef.current = [ball.id]
-    setDragPos({ x: ball.col * (BALL + GAP) + BALL / 2, y: ball.row * (BALL + GAP) + BALL / 2 })
-    sfxTap()
-    try { gridRef.current?.setPointerCapture(e.pointerId) } catch {}
-  }
-
-  function handleMove(e: React.PointerEvent) {
-    if (!draggingRef.current) return
-    const { x, y } = getGridXY(e)
-    setDragPos({ x, y })
-    const ball = getBallAt(x, y)
     if (!ball) return
     const cur = chainRef.current
     if (cur.includes(ball.id)) return
-    if (ball.char !== target.word[cur.length]) return
-    const nc = [...cur, ball.id]
-    setChain(nc); chainRef.current = nc
-    sfxTap()
-  }
 
-  function handleUp() {
-    if (!draggingRef.current) return
-    draggingRef.current = false; setDragPos(null)
-    const cur = chainRef.current
-    if (cur.length === target.word.length) {
-      const secsTaken = Math.max(1, Math.round((Date.now() - wordStartRef.current) / 1000))
-      const speedBonus = Math.max(0, 200 - secsTaken * 15)
-      const nc = Math.min(4, +(combo + 0.5).toFixed(1))
-      const pts = Math.round((100 + speedBonus) * nc)
-      setScore(s => s + pts); setCombo(nc)
-      const ns = streak + 1; setStreak(ns)
-      if (ns > streakBestRef.current) streakBestRef.current = ns
-      setWordsAttempted(w => w + 1); setWordsCorrect(w => w + 1)
-      sfxCorrect(); speak(target.word.toLowerCase())
-      onWordComplete?.()
-      if (ns % 3 === 0) { setShowStreak(true); setTimeout(() => setShowStreak(false), 1800) }
-      setBalls(bs => bs.map(b => cur.includes(b.id) ? { ...b, popping: true } : b))
-      setTimeout(() => advanceToNext(), 420)
-    } else if (cur.length > 0) {
+    if (ball.char !== target.word[cur.length]) {
       sfxWrong(); setCombo(1); setStreak(0)
       setWordsAttempted(w => w + 1)
       // Show correct answer briefly, then retry the same word
@@ -311,6 +277,27 @@ export function SpellTsumGame({
       setChain([]); chainRef.current = []
       const wordSnapshot = target.word
       setTimeout(() => retryCurrentWord(wordSnapshot), 2200)
+      return
+    }
+
+    const nc = [...cur, ball.id]
+    setChain(nc); chainRef.current = nc
+    sfxTap()
+
+    if (nc.length === target.word.length) {
+      const secsTaken = Math.max(1, Math.round((Date.now() - wordStartRef.current) / 1000))
+      const speedBonus = Math.max(0, 200 - secsTaken * 15)
+      const ncombo = Math.min(4, +(combo + 0.5).toFixed(1))
+      const pts = Math.round((100 + speedBonus) * ncombo)
+      setScore(s => s + pts); setCombo(ncombo)
+      const ns = streak + 1; setStreak(ns)
+      if (ns > streakBestRef.current) streakBestRef.current = ns
+      setWordsAttempted(w => w + 1); setWordsCorrect(w => w + 1)
+      sfxCorrect(); speak(target.word.toLowerCase())
+      onWordComplete?.()
+      if (ns % 3 === 0) { setShowStreak(true); setTimeout(() => setShowStreak(false), 1800) }
+      setBalls(bs => bs.map(b => nc.includes(b.id) ? { ...b, popping: true } : b))
+      setTimeout(() => advanceToNext(), 420)
     }
   }
 
@@ -326,7 +313,7 @@ export function SpellTsumGame({
     const b = balls.find(bb => bb.id === id)!
     return { x: b.col * (BALL + GAP) + BALL / 2, y: b.row * (BALL + GAP) + BALL / 2 }
   })
-  const linePts = !wrongReveal && dragPos ? [...chainPts, dragPos] : chainPts
+  const linePts = chainPts
 
   const gridW   = COLS * (BALL + GAP) - GAP
   const gridH   = ROWS * (BALL + GAP) - GAP
@@ -402,11 +389,8 @@ export function SpellTsumGame({
       {/* ── Ball grid ── */}
       <div
         ref={gridRef}
-        onPointerDown={handleDown}
-        onPointerMove={handleMove}
-        onPointerUp={handleUp}
-        onPointerLeave={handleUp}
-        style={{ position: 'relative', width: gridW, height: gridH, touchAction: 'none', cursor: revealingRef.current ? 'default' : 'crosshair', flexShrink: 0 }}
+        onPointerDown={handleTap}
+        style={{ position: 'relative', width: gridW, height: gridH, touchAction: 'none', cursor: revealingRef.current ? 'default' : 'pointer', flexShrink: 0 }}
       >
         {balls.map(b => {
           const inChain   = displayChain.includes(b.id)
