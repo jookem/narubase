@@ -150,6 +150,7 @@ export function SpellTsumGame({
   const [balls, setBalls]             = useState<TsumBall[]>(() => buildGrid(first.word))
   const [target, setTarget]           = useState<SessionWord>(first)
   const [chain, setChain]             = useState<number[]>([])
+  const [dragPos, setDragPos]         = useState<{ x: number; y: number } | null>(null)
   const [score, setScore]             = useState(0)
   const [combo, setCombo]             = useState(1)
   const [streak, setStreak]           = useState(0)
@@ -163,6 +164,7 @@ export function SpellTsumGame({
   const [hintOn, setHintOn]           = useState(false)
 
   const gridRef        = useRef<HTMLDivElement>(null)
+  const draggingRef    = useRef(false)
   const chainRef       = useRef<number[]>([])
   const revealingRef   = useRef(false)
   const wordStartRef   = useRef(Date.now())
@@ -254,32 +256,23 @@ export function SpellTsumGame({
     wordStartRef.current = Date.now()
   }
 
-  // Tap-to-select: each letter is its own press+release, so the player can lift
-  // their finger between picks instead of holding one continuous drag. A tap
-  // that matches the next needed letter extends the chain; a tap that doesn't
-  // is treated as a mistake (reveal the answer, reset streak, retry the word).
-  function handleTap(e: React.PointerEvent) {
-    if (phase !== 'playing' || revealingRef.current) return
-    e.preventDefault()
-    const { x, y } = getGridXY(e)
-    const ball = getBallAt(x, y)
-    if (!ball) return
+  function triggerWrong() {
+    sfxWrong(); setCombo(1); setStreak(0)
+    setWordsAttempted(w => w + 1)
+    // Show correct answer briefly, then retry the same word
+    revealingRef.current = true
+    const correctIds = findCorrectChain(target.word, balls)
+    setRevealChain(correctIds); setWrongReveal(true)
+    setChain([]); chainRef.current = []
+    const wordSnapshot = target.word
+    setTimeout(() => retryCurrentWord(wordSnapshot), 2200)
+  }
+
+  // Extends the chain by one ball if it's the next needed letter. Shared by
+  // both a discrete tap and a live drag hover, so a continuous drag and a
+  // series of separate taps produce the exact same result.
+  function extendChain(ball: TsumBall) {
     const cur = chainRef.current
-    if (cur.includes(ball.id)) return
-
-    if (ball.char !== target.word[cur.length]) {
-      sfxWrong(); setCombo(1); setStreak(0)
-      setWordsAttempted(w => w + 1)
-      // Show correct answer briefly, then retry the same word
-      revealingRef.current = true
-      const correctIds = findCorrectChain(target.word, balls)
-      setRevealChain(correctIds); setWrongReveal(true)
-      setChain([]); chainRef.current = []
-      const wordSnapshot = target.word
-      setTimeout(() => retryCurrentWord(wordSnapshot), 2200)
-      return
-    }
-
     const nc = [...cur, ball.id]
     setChain(nc); chainRef.current = nc
     sfxTap()
@@ -297,8 +290,50 @@ export function SpellTsumGame({
       onWordComplete?.()
       if (ns % 3 === 0) { setShowStreak(true); setTimeout(() => setShowStreak(false), 1800) }
       setBalls(bs => bs.map(b => nc.includes(b.id) ? { ...b, popping: true } : b))
+      draggingRef.current = false; setDragPos(null)
       setTimeout(() => advanceToNext(), 420)
     }
+  }
+
+  // Selecting a letter works both as a series of independent taps (press,
+  // release, press the next ball separately) and as one continuous drag
+  // (press and slide across several correct balls without lifting). Pressing
+  // directly on a ball that isn't the next needed letter is a deliberate
+  // wrong pick and counts as a mistake; merely passing over a wrong ball
+  // while dragging toward the right one does not — lifting the finger mid-word
+  // just pauses, it's never itself a mistake.
+  function handleDown(e: React.PointerEvent) {
+    if (phase !== 'playing' || revealingRef.current) return
+    e.preventDefault()
+    const { x, y } = getGridXY(e)
+    const ball = getBallAt(x, y)
+    if (!ball) return
+    const cur = chainRef.current
+    if (cur.includes(ball.id)) return
+
+    if (ball.char !== target.word[cur.length]) { triggerWrong(); return }
+
+    draggingRef.current = true
+    setDragPos({ x: ball.col * (BALL + GAP) + BALL / 2, y: ball.row * (BALL + GAP) + BALL / 2 })
+    try { gridRef.current?.setPointerCapture(e.pointerId) } catch {}
+    extendChain(ball)
+  }
+
+  function handleMove(e: React.PointerEvent) {
+    if (!draggingRef.current) return
+    const { x, y } = getGridXY(e)
+    setDragPos({ x, y })
+    const ball = getBallAt(x, y)
+    if (!ball) return
+    const cur = chainRef.current
+    if (cur.includes(ball.id)) return
+    if (ball.char !== target.word[cur.length]) return
+    extendChain(ball)
+  }
+
+  function handleUp() {
+    draggingRef.current = false
+    setDragPos(null)
   }
 
   // Any ball matching the next needed character works (the game only checks
@@ -313,7 +348,7 @@ export function SpellTsumGame({
     const b = balls.find(bb => bb.id === id)!
     return { x: b.col * (BALL + GAP) + BALL / 2, y: b.row * (BALL + GAP) + BALL / 2 }
   })
-  const linePts = chainPts
+  const linePts = !wrongReveal && dragPos ? [...chainPts, dragPos] : chainPts
 
   const gridW   = COLS * (BALL + GAP) - GAP
   const gridH   = ROWS * (BALL + GAP) - GAP
@@ -389,7 +424,10 @@ export function SpellTsumGame({
       {/* ── Ball grid ── */}
       <div
         ref={gridRef}
-        onPointerDown={handleTap}
+        onPointerDown={handleDown}
+        onPointerMove={handleMove}
+        onPointerUp={handleUp}
+        onPointerLeave={handleUp}
         style={{ position: 'relative', width: gridW, height: gridH, touchAction: 'none', cursor: revealingRef.current ? 'default' : 'pointer', flexShrink: 0 }}
       >
         {balls.map(b => {

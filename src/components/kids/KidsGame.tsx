@@ -149,7 +149,7 @@ export function KidsGame() {
   const [screen, setScreen] = useState<Screen>('hub')
   const [stars, setStars] = useState(0)
   const [player, setPlayer] = useState<'solo' | 'duo'>('solo')
-  const [turn, setTurn] = useState(1)
+  const [turn, setTurn] = useState<1 | 2>(1)
   const [stars1, setStars1] = useState(0)
   const [stars2, setStars2] = useState(0)
   const [sfxOn, setSfxOn] = useState(true)
@@ -230,9 +230,14 @@ export function KidsGame() {
       else sessionStorage.removeItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
     } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
   }
+  // studyIdx/studyIdx2 are independent per-player progress cursors so duo
+  // mode can alternate card-by-card (turn state reuses the same top-level
+  // `turn` the other minigames use, keeping the top-bar turn pill and each
+  // card's "X's turn" label in sync) instead of P1 finishing their whole
+  // pool before P2 starts.
   const [studyIdx, setStudyIdx] = useState(0)
+  const [studyIdx2, setStudyIdx2] = useState(0)
   const [studyFlipped, setStudyFlipped] = useState(false)
-  const [studyTurn, setStudyTurn] = useState<1 | 2>(1)
   const [p1StudyDone, setP1StudyDone] = useState(false)
   const [p2StudyDone, setP2StudyDone] = useState(false)
 
@@ -298,13 +303,22 @@ export function KidsGame() {
   }, [screen, singTarget])
 
   // ── Restore the persisted study session, if any ─────────────────
+  // Keyed on user?.id (a stable primitive), not the `user` object itself —
+  // AuthContext hands back a brand-new `user` object on every SIGNED_IN /
+  // USER_UPDATED event (cross-tab sync, PWA background-resume) even when
+  // it's the same already-logged-in student. Depending on `user` directly
+  // made these effects re-fire spuriously mid-session; sessionWords2/
+  // studyPool2 unconditionally reset to [] before restoring, so a spurious
+  // re-fire could wipe player 2's session and never restore it if the
+  // sessionStorage read happened to fail — surfacing as "Spelling
+  // Stacker/Catch and Match drew from a different word group."
   useEffect(() => {
     if (!user) return
     try {
       const raw = sessionStorage.getItem(`narubase:kids:sessionWords:${user.id}`)
       if (raw) setSessionWordsState(JSON.parse(raw))
     } catch { /* ignore corrupt/unavailable storage */ }
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
     setSessionWords2State([])
@@ -313,7 +327,7 @@ export function KidsGame() {
       const raw = sessionStorage.getItem(`narubase:kids:sessionWords2:${user.id}:${player2Id}`)
       if (raw) setSessionWords2State(JSON.parse(raw))
     } catch { /* ignore corrupt/unavailable storage */ }
-  }, [user, player2Id])
+  }, [user?.id, player2Id])
 
   useEffect(() => {
     if (!user) return
@@ -321,7 +335,7 @@ export function KidsGame() {
       const raw = sessionStorage.getItem(`narubase:kids:studyPool:${user.id}`)
       if (raw) setStudyPoolState(JSON.parse(raw))
     } catch { /* ignore corrupt/unavailable storage */ }
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
     setStudyPool2State([])
@@ -330,7 +344,7 @@ export function KidsGame() {
       const raw = sessionStorage.getItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
       if (raw) setStudyPool2State(JSON.parse(raw))
     } catch { /* ignore corrupt/unavailable storage */ }
-  }, [user, player2Id])
+  }, [user?.id, player2Id])
 
   function buildStudyPool(vocab: VocabularyBankEntry[] = assignedVocab): StudyCard[] {
     return shuffleArr(
@@ -352,7 +366,7 @@ export function KidsGame() {
     supabase.from('profiles').select('full_name').eq('id', user.id).single()
       .then(({ data }) => { if (data?.full_name) setPlayer1Name(data.full_name.split(' ')[0]) })
     getClassmates(user.id).then(list => setClassmates(list))
-  }, [user])
+  }, [user?.id])
 
   // Player 2's own vocab — fetched as soon as a real classmate is picked
   // (not the "skip" no-id flow), so it's ready well before they'd ever need
@@ -369,25 +383,23 @@ export function KidsGame() {
       if (entries?.length) setAssignedVocab2(entries.filter(e => !e.is_phonics))
       setVocab2Loaded(true)
     })
-  }, [player2Id, user])
+  }, [player2Id, user?.id])
 
   // If "Flashcard Fiesta" (Study Words) was clicked before the vocab fetch above resolved,
   // studyPool got built from an empty assignedVocab and the screen falsely
   // showed "No vocabulary yet!" — once real data arrives, rebuild it so the
-  // student doesn't have to back out and retry. Turn-aware so this also
-  // covers player 2's own vocab arriving late during their turn.
+  // student doesn't have to back out and retry. Builds BOTH players' pools
+  // independently (not turn-gated) since duo mode now alternates card-by-card
+  // and needs both decks ready up front, not just whichever player is up.
   useEffect(() => {
-    if (screen !== 'study' || studyPool.length > 0) return
-    if (studyTurn === 2 && player2Id) {
-      if (assignedVocab2.length > 0) {
-        const pool = buildStudyPool(assignedVocab2)
-        setStudyPool2(pool); setStudyPool(pool)
-      }
-    } else if (assignedVocab.length > 0) {
-      setStudyPool(buildStudyPool())
+    if (screen !== 'study') return
+    if (studyPool.length === 0 && assignedVocab.length > 0) setStudyPool(buildStudyPool())
+    if (player === 'duo' && studyPool2.length === 0) {
+      if (player2Id) { if (assignedVocab2.length > 0) setStudyPool2(buildStudyPool(assignedVocab2)) }
+      else setStudyPool2(buildStudyPool())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignedVocab, assignedVocab2])
+  }, [assignedVocab, assignedVocab2, screen])
 
   // ── Inject font + animations ───────────────────────────────────
   useEffect(() => {
@@ -972,9 +984,16 @@ export function KidsGame() {
                     // a fresh random set only ever comes from an explicit
                     // "✕ clear session", not from merely reopening this tile.
                     if (studyPool.length === 0) setStudyPool(buildStudyPool())
-                    setStudyTurn(1)
+                    // Player 2's own pool: if their vocab hasn't loaded yet,
+                    // leave studyPool2 empty — the vocab-arrival effect below
+                    // fills it in once assignedVocab2 resolves.
+                    if (player === 'duo' && studyPool2.length === 0) {
+                      if (player2Id) { if (assignedVocab2.length > 0) setStudyPool2(buildStudyPool(assignedVocab2)) }
+                      else setStudyPool2(buildStudyPool())
+                    }
+                    setTurn(1)
                     setP1StudyDone(false); setP2StudyDone(false)
-                    setStudyIdx(0); setStudyFlipped(false); setScreen('study')
+                    setStudyIdx(0); setStudyIdx2(0); setStudyFlipped(false); setScreen('study')
                   }
                   else { setScreen(s.key); if (s.key === 'trace') setTimeout(() => drawGuide(), 40) }
                 }}
@@ -1145,13 +1164,21 @@ export function KidsGame() {
 
       {/* ═══════════════ STUDY ═══════════════ */}
       {screen === 'study' && (() => {
-        if (studyPool.length === 0 && !(studyTurn === 2 && player2Id ? vocab2Loaded : vocabLoaded)) return (
+        const p1Loaded = vocabLoaded
+        const p2Loaded = !duo ? true : (player2Id ? vocab2Loaded : vocabLoaded)
+        if (studyPool.length === 0 && !p1Loaded) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>📚</div>
             <div style={{ fontSize: 16, color: '#A98B77' }}>よみこみちゅう… Loading…</div>
           </div>
         )
-        if (studyPool.length === 0) return (
+        if (duo && studyPool2.length === 0 && !p2Loaded) return (
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 48 }}>📚</div>
+            <div style={{ fontSize: 16, color: '#A98B77' }}>よみこみちゅう… Loading…</div>
+          </div>
+        )
+        if (studyPool.length === 0 && (!duo || studyPool2.length === 0)) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 48 }}>📚</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F' }}>No vocabulary yet!</div>
@@ -1159,74 +1186,54 @@ export function KidsGame() {
           </div>
         )
 
-        const allDone = studyIdx >= studyPool.length
-        const card    = studyPool[Math.min(studyIdx, studyPool.length - 1)]
-        const isLast  = studyIdx === studyPool.length - 1
-
-        if (allDone) {
-          // Duo mode: P1 just finished → hand off to P2 before going to hub
-          if (duo && studyTurn === 1 && !p2StudyDone) return (
-            <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center' }}>
-              <div style={{ fontSize: 64 }}>🤝</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>{player1Name}、よくできました！</div>
-              <div style={{ fontSize: 15, color: '#A98B77', lineHeight: 1.6 }}>
-                {player2Name}にデバイスをわたしてね<br/>
-                <span style={{ fontSize: 13 }}>Pass the device to {player2Name}</span>
-              </div>
-              <button
-                onClick={() => {
-                  // Player 2 gets their own vocab bank, not player 1's — falls
-                  // back to sharing player 1's pool only if P2 was "skipped"
-                  // (no real classmate id, so there's nothing else to pull from).
-                  // Reuses player 2's own existing pool if they already have
-                  // one, same "don't reroll words" rule as player 1.
-                  const p2Pool = player2Id
-                    ? (studyPool2.length > 0 ? studyPool2 : buildStudyPool(assignedVocab2))
-                    : buildStudyPool()
-                  if (player2Id && studyPool2.length === 0) setStudyPool2(p2Pool)
-                  setStudyPool(p2Pool)
-                  setP1StudyDone(true); setStudyTurn(2); setStudyIdx(0); setStudyFlipped(false)
-                }}
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 5px 0 #D96C81' }}>
-                {player2Name}の番 →
-              </button>
-              <button
-                onClick={() => { setP1StudyDone(true); setSessionWords(studyPool); setScreen('hub') }}
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '10px 24px', borderRadius: '999px', background: '#F5EDE6', color: '#B79A86' }}>
-                スキップしてゲームへ
-              </button>
-            </div>
-          )
-
-          // Solo, or duo P2 finished
-          return (
-            <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
-              <div style={{ fontSize: 60 }}>🎉</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
-              <div style={{ fontSize: 15, color: '#A98B77' }}>{studyPool.length} words reviewed — ready to play!</div>
-              <button
-                onClick={() => {
-                  if (duo && studyTurn === 2) { setP2StudyDone(true); setSessionWords2(studyPool) }
-                  else { setP1StudyDone(true); setSessionWords(studyPool) }
-                  setScreen('hub')
-                }}
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#8BC273', color: '#fff', boxShadow: '0 5px 0 #6FA458' }}>
-                ゲームをはじめよう →
-              </button>
-            </div>
-          )
+        // Alternate turn-by-turn: prefer whoever `turn` says is up, but a
+        // player whose own pool is already exhausted (or empty) never blocks
+        // the other from continuing — same fallback pattern WordCatchGame /
+        // SpellTsumGame use for their duo queues. Returns null once BOTH
+        // players' pools are exhausted.
+        function resolveActivePlayer(preferred: 1 | 2): 1 | 2 | null {
+          const prefIdx  = preferred === 1 ? studyIdx : studyIdx2
+          const prefPool = preferred === 1 ? studyPool : studyPool2
+          if (prefIdx < prefPool.length) return preferred
+          if (!duo) return null
+          const other = preferred === 1 ? 2 : 1
+          const otherIdx  = other === 1 ? studyIdx : studyIdx2
+          const otherPool = other === 1 ? studyPool : studyPool2
+          return otherIdx < otherPool.length ? other : null
         }
+
+        const activePlayer = resolveActivePlayer(duo ? turn : 1)
+
+        if (activePlayer === null) return (
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 60 }}>🎉</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
+            <div style={{ fontSize: 15, color: '#A98B77' }}>
+              {duo ? studyPool.length + studyPool2.length : studyPool.length} words reviewed — ready to play!
+            </div>
+            <button
+              onClick={() => setScreen('hub')}
+              style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 17, padding: '14px 32px', borderRadius: '999px', background: '#8BC273', color: '#fff', boxShadow: '0 5px 0 #6FA458' }}>
+              ゲームをはじめよう →
+            </button>
+          </div>
+        )
+
+        const isP1      = activePlayer === 1
+        const activePool = isP1 ? studyPool : studyPool2
+        const activeIdx  = isP1 ? studyIdx : studyIdx2
+        const card       = activePool[Math.min(activeIdx, activePool.length - 1)]
 
         return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
             {/* Progress bar */}
             <div style={{ width: '100%', maxWidth: 400 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#A98B77', marginBottom: 6 }}>
-                <span>{duo ? `${studyTurn === 1 ? player1Name : player2Name}の` : ''}たんごれんしゅう 📚</span>
-                <span>{studyIdx + 1} / {studyPool.length}</span>
+                <span>{duo ? `${isP1 ? player1Name : player2Name}の` : ''}たんごれんしゅう 📚</span>
+                <span>{activeIdx + 1} / {activePool.length}</span>
               </div>
               <div style={{ height: 8, background: '#EDE0D4', borderRadius: 8, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(studyIdx / studyPool.length) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
+                <div style={{ height: '100%', width: `${(activeIdx / activePool.length) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
               </div>
             </div>
 
@@ -1266,17 +1273,36 @@ export function KidsGame() {
                     ]).map(btn => (
                       <button key={btn.r} onClick={() => {
                         rateVocabCard(card.id, card.mastery_level, btn.r, card.interval_days, card.ease_factor)
+
+                        let nextPool = activePool
                         if (btn.r === 'again') {
                           // Reinsert a couple of cards ahead so the child sees this
                           // word again before finishing the pass, instead of it
                           // just being marked and never resurfacing.
-                          const insertAt = studyIdx + 1 + 2
-                          const next = [...studyPool]
-                          next.splice(insertAt, 0, card)
-                          setStudyPool(next)
+                          const insertAt = activeIdx + 1 + 2
+                          nextPool = [...activePool]
+                          nextPool.splice(insertAt, 0, card)
+                          if (isP1) setStudyPool(nextPool); else setStudyPool2(nextPool)
                         }
-                        setStudyIdx(i => i + 1)
+                        const nextIdx = activeIdx + 1
+                        if (isP1) setStudyIdx(nextIdx); else setStudyIdx2(nextIdx)
                         setStudyFlipped(false)
+
+                        const justFinished = nextIdx >= nextPool.length
+                        if (justFinished) {
+                          if (isP1) { setP1StudyDone(true); setSessionWords(nextPool) }
+                          else { setP2StudyDone(true); setSessionWords2(nextPool) }
+                        }
+                        if (duo) {
+                          // Hand off to the other player next round — unless
+                          // their own pool is already exhausted, in which case
+                          // leave `turn` as-is so resolveActivePlayer keeps
+                          // serving the player who still has cards left.
+                          const other = isP1 ? 2 : 1
+                          const otherIdx  = isP1 ? studyIdx2 : studyIdx
+                          const otherPool = isP1 ? studyPool2 : studyPool
+                          if (otherIdx < otherPool.length) setTurn(other)
+                        }
                       }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, background: btn.bg, borderRadius: 16, padding: '12px 8px', boxShadow: `0 4px 0 ${btn.sh}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <div style={{ fontSize: 15, fontWeight: 800, color: btn.col }}>{btn.label}</div>
                         <div style={{ fontSize: 11, color: btn.col, opacity: 0.75 }}>{btn.sub}</div>
@@ -1285,8 +1311,8 @@ export function KidsGame() {
                   </div>
                 </>
               ) : (
-                studyIdx > 0 && (
-                  <button onClick={() => { setStudyIdx(i => i - 1); setStudyFlipped(false) }}
+                activeIdx > 0 && (
+                  <button onClick={() => { if (isP1) setStudyIdx(i => i - 1); else setStudyIdx2(i => i - 1); setStudyFlipped(false) }}
                     style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '10px 20px', borderRadius: '999px', background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 4px 0 #E7D3C0' }}>
                     ← もどる
                   </button>
