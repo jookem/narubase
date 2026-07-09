@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { getStudentVocab, rateVocabCard } from '@/lib/api/lessons'
+import { getStudentVocab, getClassmateVocab, rateVocabCard } from '@/lib/api/lessons'
 import { getClassmates, saveKidSession, type Classmate } from '@/lib/api/kids'
 import { supabase } from '@/lib/supabase'
 import type { VocabularyBankEntry } from '@/lib/types/database'
@@ -359,12 +359,17 @@ export function KidsGame() {
   // it (they only play after player 1 finishes their own turn/pass).
   useEffect(() => {
     setAssignedVocab2([]); setVocab2Loaded(false)
-    if (!player2Id) return
-    getStudentVocab(player2Id).then(({ entries }) => {
+    if (!player2Id || !user) return
+    // A plain getStudentVocab(player2Id) is blocked by RLS ("students read
+    // their own vocabulary" only) since we're authenticated as player 1, not
+    // player2Id — it would silently come back empty and Flashcard Fiesta
+    // would show "No vocabulary yet!" after the hand-off. Go through the
+    // classmate RPC instead, which checks player1/player2 share a teacher.
+    getClassmateVocab(user.id, player2Id).then(({ entries }) => {
       if (entries?.length) setAssignedVocab2(entries.filter(e => !e.is_phonics))
       setVocab2Loaded(true)
     })
-  }, [player2Id])
+  }, [player2Id, user])
 
   // If "Flashcard Fiesta" (Study Words) was clicked before the vocab fetch above resolved,
   // studyPool got built from an empty assignedVocab and the screen falsely

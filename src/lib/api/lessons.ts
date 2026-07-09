@@ -806,6 +806,26 @@ export async function getStudentVocab(
   return { entries: allEntries }
 }
 
+/**
+ * Fetch a classmate's vocabulary bank for local duo play (one login, two kids
+ * passing the device). "Students read their own vocabulary" RLS blocks a
+ * plain select on someone else's rows, so this goes through the
+ * get_classmate_vocab() SECURITY DEFINER RPC, which verifies the two share
+ * an active teacher before returning anything and applies the same
+ * deck-template overlay getStudentVocab() does.
+ */
+export async function getClassmateVocab(
+  requestingStudentId: string,
+  classmateId: string,
+): Promise<{ entries: import('@/lib/types/database').VocabularyBankEntry[]; error?: string }> {
+  const { data, error } = await supabase.rpc('get_classmate_vocab', {
+    requesting_student_id: requestingStudentId,
+    classmate_id: classmateId,
+  })
+  if (error) return { entries: [], error: error.message }
+  return { entries: (data as any[]) ?? [] }
+}
+
 export async function removeDeckFromStudent(
   deckId: string,
   studentId: string,
