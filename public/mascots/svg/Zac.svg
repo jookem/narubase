@@ -1,0 +1,29 @@
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 285.35 220.59">
+  <path d="M233.17,166.8a4.2,4.2,0,0,1-.36-8.38c6-.53,23.25-3.2,30.53-9.08,9-7.23,14-18.33,14-18.44a4.2,4.2,0,0,1,7.68,3.4c-.23.53-5.83,13-16.4,21.57-10.77,8.71-34.09,10.83-35.08,10.92Z" transform="translate(0 0)" style="fill: #5a2b2b"></path>
+  <path d="M134.25,195.08V206.4q0,8.79,11,8.79t11-8.79V195.08C156.3,188,134.25,187.61,134.25,195.08Z" transform="translate(0 0)" style="fill: #b9b4c4"></path>
+  <path d="M134.25,198.19v8.21q0,8.79,11,8.79t11-8.79v-7.9" transform="translate(0 0)" style="fill: none;stroke: #5a2b2b;stroke-linecap: round;stroke-linejoin: round;stroke-width: 7.787499904632568px"></path>
+  <path d="M194.75,195.08V206.4q0,8.79,11,8.79t11-8.79V195.08C216.8,188,194.75,187.61,194.75,195.08Z" transform="translate(0 0)" style="fill: #b9b4c4"></path>
+  <path d="M194.75,198.19v8.21q0,8.79,11,8.79t11-8.79v-7.9" transform="translate(0 0)" style="fill: none;stroke: #5a2b2b;stroke-linecap: round;stroke-linejoin: round;stroke-width: 7.787499904632568px"></path>
+  <path d="M182.48,208.64c-27.37,0-58.78-3.75-58.78-33,0-38,23.07-62.49,58.78-62.49,37.35,0,58.78,22.78,58.78,62.49C241.26,204.89,209.85,208.64,182.48,208.64Z" transform="translate(0 0)" style="fill: #b9b4c4;stroke: #5a2b2b;stroke-miterlimit: 10;stroke-width: 7.8px"></path>
+  <circle cx="42.1" cy="42.1" r="34.3" style="fill: #b9b4c4"></circle>
+  <circle cx="154.5" cy="42.1" r="34.3" style="fill: #b9b4c4"></circle>
+  <circle cx="42.1" cy="42.1" r="20" style="fill: #f4c7d0"></circle>
+  <circle cx="154.5" cy="42.1" r="20" style="fill: #f4c7d0"></circle>
+  <ellipse cx="98.3" cy="104.5" rx="74.9" ry="68.6" style="fill: #b9b4c4"></ellipse>
+  <circle cx="67.1" cy="104.5" r="18.7" style="fill: #3a2320"></circle>
+  <circle cx="62.2" cy="97.4" r="7.9" style="fill: #fff"></circle>
+  <circle cx="73.1" cy="110.5" r="3.7" style="fill: #fff"></circle>
+  <circle cx="129.5" cy="104.5" r="18.7" style="fill: #3a2320"></circle>
+  <circle cx="124.6" cy="97.4" r="7.9" style="fill: #fff"></circle>
+  <ellipse cx="54.6" cy="132.6" rx="14.4" ry="9.4" style="fill: #f4a6b4"></ellipse>
+  <ellipse cx="142" cy="131" rx="14.4" ry="9.4" style="fill: #f4a6b4"></ellipse>
+  <circle cx="135.5" cy="110.5" r="3.7" style="fill: #fff"></circle>
+  <path d="M98.3,128.2c0,6.2-3.1,10.4-9.4,12.5m9.4-12.5c0,6.2,3.1,10.4,9.4,12.5" transform="translate(0 0)" style="fill: none;stroke: #5a2b2b;stroke-linecap: round;stroke-linejoin: round;stroke-width: 7.48799991607666px"></path>
+  <path d="M88.9,120.1l-34.3-6.2m34.3,12.4L54.6,131m53.1-10.9,34.3-6.2m-34.3,12.4L142,131" transform="translate(0 0)" style="fill: none;stroke: #5a2b2b;stroke-linecap: round;stroke-linejoin: round;stroke-width: 3.74399995803833px"></path>
+  <ellipse cx="98.3" cy="120.1" rx="10" ry="8.1" style="fill: #8f5b6a"></ellipse>
+  <path d="M146.38,196.55v11.34q0,8.79,11,8.79t11-8.79V196.55C168.45,189.49,146.38,189.08,146.38,196.55Z" transform="translate(0 0)" style="fill: #b9b4c4"></path>
+  <path d="M146.38,199.66v8.25q0,8.79,11,8.79t11-8.79V200" transform="translate(0 0)" style="fill: none;stroke: #5a2b2b;stroke-linecap: round;stroke-linejoin: round;stroke-width: 7.787499904632568px"></path>
+  <path d="M206.9,196.55v11.34q0,8.79,11,8.79t11-8.79V196.55C229,189.49,206.9,189.08,206.9,196.55Z" transform="translate(0 0)" style="fill: #b9b4c4"></path>
+  <path d="M206.9,199.66v8.25q0,8.79,11,8.79t11-8.79V200" transform="translate(0 0)" style="fill: none;stroke: #5a2b2b;stroke-linecap: round;stroke-linejoin: round;stroke-width: 7.787499904632568px"></path>
+  <path d="M154.5,7.8a34.3,34.3,0,0,1,11.18,66.73,63.49,63.49,0,0,1,7.52,30c0,37.89-33.53,68.6-74.9,68.6s-74.9-30.71-74.9-68.6a63.49,63.49,0,0,1,7.52-30,34.3,34.3,0,1,1,45.33-35.6,81.75,81.75,0,0,1,44.1,0A34.3,34.3,0,0,1,154.5,7.8m0-7.8a42.1,42.1,0,0,0-40.18,29.54,89.83,89.83,0,0,0-32,0A42.1,42.1,0,1,0,20.59,78.29a70.79,70.79,0,0,0-5,26.21c0,42.13,37.1,76.4,82.7,76.4S181,146.63,181,104.5a70.79,70.79,0,0,0-5-26.21A42.1,42.1,0,0,0,154.5,0Z" transform="translate(0 0)" style="fill: #5a2b2b"></path>
+</svg>

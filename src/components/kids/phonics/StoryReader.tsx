@@ -3,6 +3,7 @@ import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
 import { useStorySceneTuning, entranceCss, emphasisCss, travelCss, combineAnimations } from './storySceneTuning'
+import { mascotSvgUrl } from './mascotAssets'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const ACCENT = '#F2879B'
@@ -224,7 +225,12 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
           } as CSSProperties}
         >
           <span style={{ display: 'inline-block', animation: phase === 'moving' ? travelCss(t.travelStyle, t.travelDurationSec) : undefined }}>
-            {unit.mascotEmoji}
+            <img
+              src={mascotSvgUrl(unit.mascotName, phase === 'arrived')}
+              alt={unit.mascotName}
+              draggable={false}
+              style={{ display: 'block', width: t.mascotFontSize, height: t.mascotFontSize, objectFit: 'contain' }}
+            />
           </span>
         </div>
       </div>

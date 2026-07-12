@@ -11,6 +11,7 @@ import { FamilyMatch } from './FamilyMatch'
 import { StoryReader } from './StoryReader'
 import { SrsCheckpoint } from './SrsCheckpoint'
 import { LevelComplete } from './LevelComplete'
+import { Mascot } from './Mascot'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -24,7 +25,10 @@ function nextUnit(unit: PhonicsUnit): PhonicsUnit | null {
 function LevelHeader({ unit, onMap }: { unit: PhonicsUnit; onMap: () => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <div style={{ fontSize: 16, fontWeight: 800, color: '#6B4F3F' }}>{unit.mascotEmoji} {unit.mascotName}'s "{unit.rime}" level</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 800, color: '#6B4F3F' }}>
+        <Mascot name={unit.mascotName} size={26} />
+        {unit.mascotName}'s "{unit.rime}" level
+      </div>
       <button
         onClick={onMap}
         style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '6px 14px', borderRadius: '999px', background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 3px 0 #E7D3C0' }}>

@@ -4,6 +4,7 @@ import { launchConfetti } from '@/lib/confetti'
 import { recordPhonicsLevelComplete } from '@/lib/api/phonics'
 import { saveKidSession } from '@/lib/api/kids'
 import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
+import { Mascot } from './Mascot'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -53,7 +54,9 @@ export function LevelComplete({ unit, matchStars, srsScore, wordsLearned, hasNex
 
   return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center', fontFamily: FONT }}>
-      <div style={{ fontSize: 72, animation: 'kg-bounceIn .4s ease-out' }}>{unit.mascotEmoji}</div>
+      <div style={{ animation: 'kg-bounceIn .4s ease-out' }}>
+        <Mascot name={unit.mascotName} pose="arrived" loop size={96} />
+      </div>
       <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>Level Complete!</div>
       <div style={{ fontSize: 36, display: 'flex', gap: 4 }}>
         {[1, 2, 3].map(i => (
