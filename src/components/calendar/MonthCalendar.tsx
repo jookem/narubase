@@ -146,7 +146,7 @@ export function MonthCalendar({ lessons, pendingRequests, role, teacherColorMap 
               key={day.toISOString()}
               onClick={() => setSelected(isSelected ? null : day)}
               className={`
-                min-h-[80px] p-1.5 text-left border-r border-b border-gray-200 transition-colors
+                min-h-[128px] p-1.5 text-left border-r border-b border-gray-200 transition-colors
                 ${isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'}
                 ${isSelected ? 'ring-2 ring-inset ring-brand' : ''}
               `}
@@ -158,13 +158,13 @@ export function MonthCalendar({ lessons, pendingRequests, role, teacherColorMap 
                 {format(day, 'd')}
               </span>
 
-              <div className="mt-0.5 space-y-0.5">
-                {dayLessons.slice(0, 2).map(l => {
+              <div className="mt-0.5 space-y-[2px]">
+                {dayLessons.slice(0, 5).map(l => {
                   const tc = l.teacher_id && teacherColorMap ? teacherColorMap[l.teacher_id] : null
                   return (
                   <div
                     key={l.id}
-                    className={`text-xs px-1 py-0.5 rounded truncate ${
+                    className={`text-[10px] leading-tight px-1 py-[1px] rounded truncate ${
                       l.status === 'completed' ? 'bg-green-100 text-green-700' :
                       l.status === 'cancelled' ? 'bg-gray-100 text-gray-400 line-through' :
                       tc ? `${tc.bg} ${tc.text}` : 'bg-brand-light text-brand-dark'
@@ -176,14 +176,14 @@ export function MonthCalendar({ lessons, pendingRequests, role, teacherColorMap 
                   </div>
                   )
                 })}
-                {dayRequests.slice(0, 1).map(r => (
-                  <div key={r.id} className="text-xs px-1 py-0.5 rounded truncate bg-orange-100 text-orange-700">
+                {dayRequests.slice(0, 2).map(r => (
+                  <div key={r.id} className="text-[10px] leading-tight px-1 py-[1px] rounded truncate bg-orange-100 text-orange-700">
                     {formatInTimeZone(new Date(r.requested_start), TZ, 'h:mm')} req
                   </div>
                 ))}
-                {(dayLessons.length + dayRequests.length) > 3 && (
-                  <div className="text-xs text-gray-400 px-1">
-                    +{dayLessons.length + dayRequests.length - 3} more
+                {(dayLessons.length + dayRequests.length) > 7 && (
+                  <div className="text-[10px] text-gray-400 px-1">
+                    +{dayLessons.length + dayRequests.length - 7} more
                   </div>
                 )}
               </div>
