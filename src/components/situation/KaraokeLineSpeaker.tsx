@@ -11,13 +11,13 @@ interface Props {
 const MAX_ATTEMPTS = 2
 
 export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningChange }: Props) {
-  const { tokens, matchedCount, listening, transcript, passed, isSupported, startListening, stopListening, reset, forcePass } =
+  const { tokens, results, pct, listening, transcript, passed, isSupported, startListening, stopListening, reset, forcePass } =
     useSpeechKaraoke(text, onPassed)
 
   useEffect(() => { onListeningChange?.(listening) }, [listening])
 
-  const pct = tokens.length > 0 ? matchedCount / tokens.length : 0
   const failed = !listening && transcript.length > 0 && !passed
+  const currentIdx = results.findIndex(r => !r)
 
   // Track failed attempts and auto-advance after MAX_ATTEMPTS
   const [attempts, setAttempts] = useState(0)
@@ -44,20 +44,26 @@ export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningCha
 
       {/* Karaoke text */}
       <div className="flex flex-wrap gap-x-2 gap-y-1.5">
-        {tokens.map((token, i) => (
-          <span
-            key={i}
-            className={`text-lg sm:text-2xl font-bold transition-all duration-150 ${
-              i < matchedCount
-                ? 'text-yellow-300 drop-shadow-[0_0_6px_rgba(253,224,71,0.5)]'
-                : listening && i === matchedCount
-                ? 'text-white/60'
-                : 'text-white/30'
-            }`}
-          >
-            {token.display}
-          </span>
-        ))}
+        {tokens.map((token, i) => {
+          const isMatched = results[i]
+          const isMissed = failed && !isMatched
+          return (
+            <span
+              key={i}
+              className={`text-lg sm:text-2xl font-bold transition-all duration-150 ${
+                isMatched
+                  ? 'text-yellow-300 drop-shadow-[0_0_6px_rgba(253,224,71,0.5)]'
+                  : isMissed
+                  ? 'text-red-400/70 line-through decoration-2'
+                  : listening && i === currentIdx
+                  ? 'text-white/60'
+                  : 'text-white/30'
+              }`}
+            >
+              {token.display}
+            </span>
+          )
+        })}
       </div>
 
       {/* Live transcript */}
@@ -71,7 +77,7 @@ export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningCha
       </div>
 
       {/* Progress bar */}
-      {(listening || matchedCount > 0) && !passed && (
+      {(listening || pct > 0) && !passed && (
         <div className="h-1 bg-white/10 rounded-full overflow-hidden">
           <div
             className="h-full bg-yellow-400 transition-all duration-200"
@@ -130,9 +136,12 @@ export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningCha
         </p>
       )}
 
-      {failed && attempts < MAX_ATTEMPTS && (
+      {failed && (
         <p className="text-center text-xs text-gray-500">
-          Need {Math.round(PASS_THRESHOLD * 100)}% of words — try again ({MAX_ATTEMPTS - attempts} left)
+          {Math.round(pct * 100)}% correct
+          {attempts < MAX_ATTEMPTS
+            ? ` — need ${Math.round(PASS_THRESHOLD * 100)}%, try again (${MAX_ATTEMPTS - attempts} left)`
+            : ' — moving on'}
         </p>
       )}
     </div>
