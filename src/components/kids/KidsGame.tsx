@@ -155,6 +155,8 @@ export function KidsGame() {
   const [sfxOn, setSfxOn] = useState(true)
   const [justRewarded, setJustRewarded] = useState(false)
   const [scorer, setScorer] = useState(0)
+  const [wordsPerSession, setWordsPerSessionState] = useState(5)
+  const [showSettings, setShowSettings] = useState(false)
 
   // Multi-student
   const [player1Name, setPlayer1Name] = useState('Player 1')
@@ -346,12 +348,30 @@ export function KidsGame() {
     } catch { /* ignore corrupt/unavailable storage */ }
   }, [user?.id, player2Id])
 
+  // Words-per-session preference — persisted per-student in localStorage
+  // (not sessionStorage) so it sticks across visits, not just the tab.
+  useEffect(() => {
+    if (!user) return
+    try {
+      const raw = localStorage.getItem(`narubase:kids:wordsPerSession:${user.id}`)
+      if (raw) setWordsPerSessionState(Number(raw))
+    } catch { /* ignore corrupt/unavailable storage */ }
+  }, [user?.id])
+
+  function setWordsPerSession(n: number) {
+    setWordsPerSessionState(n)
+    if (user) {
+      try { localStorage.setItem(`narubase:kids:wordsPerSession:${user.id}`, String(n)) }
+      catch { /* ignore unavailable storage */ }
+    }
+  }
+
   function buildStudyPool(vocab: VocabularyBankEntry[] = assignedVocab): StudyCard[] {
     return shuffleArr(
       vocab
         .map(e => ({ id: e.id, word: e.word.trim().toUpperCase(), hint: e.definition_ja ?? e.definition_en ?? e.word, mastery_level: e.mastery_level, interval_days: e.interval_days, ease_factor: e.ease_factor }))
         .filter(e => e.word.length > 0 && /^[A-Z]/.test(e.word))
-    ).slice(0, 5)
+    ).slice(0, wordsPerSession)
   }
 
   // ── Load assigned vocabulary ───────────────────────────────────
@@ -889,6 +909,11 @@ export function KidsGame() {
           {/* SFX */}
           <button onClick={() => setSfxOn(v => !v)} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, width: 44, height: 44, borderRadius: '50%', fontSize: 20, background: sfxOn ? '#FFFFFF' : '#EFE4D8', boxShadow: '0 3px 0 #E7D3C0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {sfxOn ? '🔊' : '🔇'}
+          </button>
+
+          {/* Settings */}
+          <button onClick={() => setShowSettings(true)} title="Settings" style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, width: 44, height: 44, borderRadius: '50%', fontSize: 20, background: '#FFFFFF', boxShadow: '0 3px 0 #E7D3C0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            ⚙️
           </button>
 
           {/* Solo/Duo */}
@@ -1494,6 +1519,37 @@ export function KidsGame() {
                 キャンセル
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showSettings && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9997, padding: '16px' }}
+          onClick={() => setShowSettings(false)}>
+          <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '24px 28px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '100%', maxWidth: 360, animation: 'kg-pop .4s ease-out' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}>⚙️ Settings</div>
+            <div style={{ fontSize: 13, color: '#A98B77', textAlign: 'center', marginBottom: 6, marginTop: 3 }}>せってい</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#6B4F3F', marginTop: 16, marginBottom: 4 }}>Words per study session</div>
+            <div style={{ fontSize: 12, color: '#A98B77', marginBottom: 10 }}>Flashcard Fiesta · たんごれんしゅう</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[5, 10, 15].map(n => (
+                <button key={n} onClick={() => setWordsPerSession(n)}
+                  style={{
+                    flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 16,
+                    padding: '12px 8px', borderRadius: 14,
+                    background: wordsPerSession === n ? '#F2879B' : '#F5EDE6',
+                    color: wordsPerSession === n ? '#fff' : '#B79A86',
+                    boxShadow: wordsPerSession === n ? '0 4px 0 #D96C81' : '0 4px 0 #E7D3C0',
+                  }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowSettings(false)}
+              style={{ marginTop: 18, width: '100%', border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '10px 8px', borderRadius: 12, background: '#F5EDE6', color: '#B79A86' }}>
+              閉じる Close
+            </button>
           </div>
         </div>
       )}
