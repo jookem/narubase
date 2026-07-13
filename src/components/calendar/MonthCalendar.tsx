@@ -146,19 +146,19 @@ export function MonthCalendar({ lessons, pendingRequests, role, teacherColorMap 
               key={day.toISOString()}
               onClick={() => setSelected(isSelected ? null : day)}
               className={`
-                min-h-[128px] p-1.5 text-left border-r border-b border-gray-200 transition-colors
+                relative min-h-[128px] p-1.5 text-left border-r border-b border-gray-200 transition-colors
                 ${isCurrentMonth ? 'bg-white hover:bg-gray-50' : 'bg-gray-50'}
                 ${isSelected ? 'ring-2 ring-inset ring-brand' : ''}
               `}
             >
               <span className={`
-                text-xs font-medium inline-flex h-6 w-6 items-center justify-center rounded-full
+                absolute top-1.5 left-1.5 text-xs font-medium inline-flex h-6 w-6 items-center justify-center rounded-full
                 ${today ? 'bg-brand text-white' : isCurrentMonth ? 'text-gray-900' : 'text-gray-300'}
               `}>
                 {format(day, 'd')}
               </span>
 
-              <div className="mt-0.5 space-y-[2px]">
+              <div className="mt-7 space-y-[2px]">
                 {dayLessons.slice(0, 5).map(l => {
                   const tc = l.teacher_id && teacherColorMap ? teacherColorMap[l.teacher_id] : null
                   return (
