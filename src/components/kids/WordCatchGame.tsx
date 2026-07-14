@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import type { SessionWord } from './SpellTsumGame'
-import { sfxWhistle } from '@/lib/sfx'
+import { sfxWhistle, sfxCheer } from '@/lib/sfx'
 import { launchGoalConfetti } from '@/lib/confetti'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
@@ -16,6 +16,15 @@ const NET_X = 10
 const TRAVEL_MS = 6000
 const TRAVEL_DIST = FIELD_W + BUBBLE_W + 30
 const SPEED = TRAVEL_DIST / TRAVEL_MS // px per ms
+
+// Speed ramps up with the current clean-catch streak, capped so it never
+// gets unplayable.
+const MIN_TRAVEL_MS = 3200
+const STREAK_SPEEDUP_MS = 300
+function speedForStreak(streak: number): number {
+  const travelMs = Math.max(MIN_TRAVEL_MS, TRAVEL_MS - streak * STREAK_SPEEDUP_MS)
+  return TRAVEL_DIST / travelMs
+}
 
 const FALLBACK: [string, string][] = [
   ['Apple', '🍎'], ['Cat', '🐱'], ['Dog', '🐶'], ['Fish', '🐟'], ['Ball', '⚽'], ['Guitar', '🎸'],
@@ -141,6 +150,7 @@ export function WordCatchGame({
   const [score, setScore] = useState(0)
   const [wordsCorrect, setWordsCorrect] = useState(0)
   const [elapsed, setElapsed] = useState(0)
+  const [streak, setStreak] = useState(0)
 
   const fieldRef      = useRef<HTMLDivElement>(null)
   const bubbleElsRef  = useRef<(HTMLDivElement | null)[]>([null, null, null])
@@ -149,11 +159,19 @@ export function WordCatchGame({
   const netLaneRef     = useRef(1)
   const roundWonRef    = useRef(false)
   const draggingRef    = useRef(false)
+  // Streak logic lives in refs (not just state) because resetLanePositions
+  // and the RAF tick loop need the current value synchronously — state
+  // updates aren't visible until the next render.
+  const streakRef          = useRef(0)
+  const missedThisRoundRef = useRef(false)
+  const currentSpeedRef    = useRef(SPEED)
 
   function resetLanePositions() {
     laneXRef.current = [0, 1, 2].map(() => FIELD_W + Math.random() * 60)
     checkedRef.current = [false, false, false]
     roundWonRef.current = false
+    missedThisRoundRef.current = false
+    currentSpeedRef.current = speedForStreak(streakRef.current)
   }
 
   // Seed positions once, same guarded style as the queue above.
@@ -182,12 +200,15 @@ export function WordCatchGame({
       last = now
       for (let i = 0; i < LANES; i++) {
         if (roundWonRef.current) break
-        laneXRef.current[i] -= SPEED * dt
+        laneXRef.current[i] -= currentSpeedRef.current * dt
         if (laneXRef.current[i] <= NET_X + NET_W && !checkedRef.current[i]) {
           checkedRef.current[i] = true
           attemptCatch(i)
         }
         if (laneXRef.current[i] < -BUBBLE_W - 20) {
+          // Target sailed past uncaught (net was elsewhere) — breaks the
+          // "clean" streak even though the round itself isn't over yet.
+          if (lanes[i]?.isTarget) missedThisRoundRef.current = true
           laneXRef.current[i] = FIELD_W + Math.random() * 60
           checkedRef.current[i] = false
         }
@@ -206,15 +227,20 @@ export function WordCatchGame({
     const opt = lanes[laneIdx]
     if (opt.isTarget) {
       roundWonRef.current = true
+      const newStreak = missedThisRoundRef.current ? 0 : streakRef.current + 1
+      streakRef.current = newStreak
+      setStreak(newStreak)
       sfxCorrect(); sfxWhistle(); speak(opt.word)
       launchGoalConfetti()
+      if (newStreak > 0 && newStreak % 3 === 0) sfxCheer()
       setScore(s => s + 100)
       setWordsCorrect(c => c + 1)
       onWordComplete?.()
       setPhase('caught')
       setTimeout(() => advanceRound(), 1300)
     } else {
-      sfxTap() // harmless bounce — no penalty for a wrong-lane catch
+      missedThisRoundRef.current = true // breaks the streak — no other penalty for a wrong-lane catch
+      sfxTap()
     }
   }
 
@@ -318,6 +344,11 @@ export function WordCatchGame({
       {/* Score */}
       <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
         <div style={{ fontWeight: 800, fontSize: 18, color: '#6B4F3F' }}>{score.toLocaleString()} pts</div>
+        {streak >= 2 && (
+          <div key={streak} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 800, fontSize: 15, color: '#E0762E', animation: 'kg-pop .3s ease-out' }}>
+            🔥 x{streak}
+          </div>
+        )}
         {isDuo && (
           <div style={{ fontSize: 13, fontWeight: 700, color: '#A98B77' }}>Player {turn}'s turn</div>
         )}
@@ -382,6 +413,9 @@ export function WordCatchGame({
             }}>
               <div style={{ fontSize: 56, lineHeight: 1 }}>🙌</div>
               <div style={{ fontWeight: 900, fontSize: 20, color: '#5AB468', textShadow: '0 2px 0 #fff' }}>GOAL!</div>
+              {streak >= 2 && (
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#E0762E', textShadow: '0 2px 0 #fff' }}>🔥 {streak} in a row!</div>
+              )}
             </div>
           )}
         </div>

@@ -95,3 +95,41 @@ export function sfxWhistle() {
   }
   o.start(t); o.stop(t + dur + 0.03)
 }
+
+// Crowd cheer for a combo streak milestone — filtered noise burst (the
+// standard trick for a "crowd" texture, since no small set of oscillators
+// reads as a crowd) with a couple of bright pitch-bent "whoop" blips
+// layered on top for character.
+export function sfxCheer() {
+  if (!ensureAudio() || !ac) return
+  const dur = 1.1
+  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+  const noise = ac.createBufferSource()
+  noise.buffer = buffer
+  const filter = ac.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.value = 1200
+  filter.Q.value = 0.6
+  const g = ac.createGain()
+  noise.connect(filter); filter.connect(g); g.connect(ac.destination)
+  const t = ac.currentTime
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(0.22, t + 0.15)
+  g.gain.exponentialRampToValueAtTime(0.12, t + 0.5)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+  noise.start(t); noise.stop(t + dur)
+  ;[0.05, 0.25].forEach((delay, k) => {
+    const o = ac!.createOscillator(), og = ac!.createGain()
+    o.type = 'triangle'
+    o.connect(og); og.connect(ac!.destination)
+    const ot = t + delay
+    o.frequency.setValueAtTime(500 + k * 120, ot)
+    o.frequency.exponentialRampToValueAtTime(900 + k * 120, ot + 0.2)
+    og.gain.setValueAtTime(0.0001, ot)
+    og.gain.exponentialRampToValueAtTime(0.12, ot + 0.05)
+    og.gain.exponentialRampToValueAtTime(0.0001, ot + 0.3)
+    o.start(ot); o.stop(ot + 0.35)
+  })
+}
