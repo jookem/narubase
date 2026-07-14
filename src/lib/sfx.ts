@@ -76,3 +76,22 @@ export function sfxArrive() {
   if (!ensureAudio()) return
   beep(900, 0, 0.09, 'triangle', 0.18)
 }
+
+// Referee-style whistle for Word Catch's "goal" moment — a held high tone
+// with a fast trill (rapid pitch wobble), which is what reads as "whistle"
+// rather than a plain beep.
+export function sfxWhistle() {
+  if (!ensureAudio() || !ac) return
+  const o = ac.createOscillator(), g = ac.createGain()
+  o.type = 'square'
+  o.connect(g); g.connect(ac.destination)
+  const t = ac.currentTime
+  const dur = 0.45
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(0.16, t + 0.02)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+  for (let i = 0; i < 12; i++) {
+    o.frequency.setValueAtTime(i % 2 === 0 ? 2950 : 2800, t + i * 0.035)
+  }
+  o.start(t); o.stop(t + dur + 0.03)
+}

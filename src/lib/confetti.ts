@@ -25,3 +25,16 @@ export function launchConfetti() {
     })
   }, 350)
 }
+
+// Small single burst for a frequent in-game moment (e.g. catching a word) —
+// launchConfetti()'s three staggered bursts are sized for a one-off level
+// clear, not something that fires every few seconds.
+export function launchGoalConfetti() {
+  confetti({
+    particleCount: 40,
+    spread: 65,
+    startVelocity: 32,
+    origin: { x: 0.5, y: 0.45 },
+    colors: ['#5AB468', '#F2879B', '#7FB8E0', '#E0A52E'],
+  })
+}

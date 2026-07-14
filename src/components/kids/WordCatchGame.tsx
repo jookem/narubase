@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 import type { SessionWord } from './SpellTsumGame'
+import { sfxWhistle } from '@/lib/sfx'
+import { launchGoalConfetti } from '@/lib/confetti'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const LANES = 3
@@ -11,7 +13,7 @@ const BUBBLE_W = 128
 const BUBBLE_H = 48
 const NET_W = 46
 const NET_X = 10
-const TRAVEL_MS = 7500
+const TRAVEL_MS = 6000
 const TRAVEL_DIST = FIELD_W + BUBBLE_W + 30
 const SPEED = TRAVEL_DIST / TRAVEL_MS // px per ms
 
@@ -41,9 +43,23 @@ function buildPool(sessionW: SessionWord[], vocab: VocabularyBankEntry[]): PoolE
   return FALLBACK.map(([word, emoji]) => ({ word, clue: emoji, isEmoji: true }))
 }
 
-function pickOptions(pool: PoolEntry[], target: PoolEntry): LaneWord[] {
+// lastLaneRef (optional) blocks the target from landing in the same lane
+// two rounds in a row. A per-round shuffle is already unbiased over time,
+// but short streaks of "same lane again" read to players as broken rather
+// than as ordinary randomness, so we explicitly rule out the repeat.
+function pickOptions(pool: PoolEntry[], target: PoolEntry, lastLaneRef?: React.MutableRefObject<number | null>): LaneWord[] {
   const others = shuffleArr(pool.filter(w => w.word !== target.word)).slice(0, 2)
-  return shuffleArr([target, ...others]).map(o => ({ word: o.word, isTarget: o.word === target.word }))
+  const arr = shuffleArr([target, ...others]).map(o => ({ word: o.word, isTarget: o.word === target.word }))
+  if (lastLaneRef) {
+    const ti = arr.findIndex(o => o.isTarget)
+    if (ti === lastLaneRef.current) {
+      const others2 = [0, 1, 2].filter(i => i !== ti)
+      const swapWith = others2[Math.floor(Math.random() * others2.length)]
+      ;[arr[ti], arr[swapWith]] = [arr[swapWith], arr[ti]]
+    }
+    lastLaneRef.current = arr.findIndex(o => o.isTarget)
+  }
+  return arr
 }
 
 interface Props {
@@ -115,7 +131,8 @@ export function WordCatchGame({
 
   const [turn, setTurn] = useState<1 | 2>(1)
   const turnRef = useRef<1 | 2>(1)
-  const [lanes, setLanes] = useState<LaneWord[]>(() => pickOptions(pool1, first))
+  const lastTargetLaneRef = useRef<number | null>(null)
+  const [lanes, setLanes] = useState<LaneWord[]>(() => pickOptions(pool1, first, lastTargetLaneRef))
   const [clue, setClue] = useState(first.clue)
   const [isEmojiClue, setIsEmojiClue] = useState(first.isEmoji)
   const [netLane, setNetLane] = useState(1)
@@ -189,7 +206,8 @@ export function WordCatchGame({
     const opt = lanes[laneIdx]
     if (opt.isTarget) {
       roundWonRef.current = true
-      sfxCorrect(); speak(opt.word)
+      sfxCorrect(); sfxWhistle(); speak(opt.word)
+      launchGoalConfetti()
       setScore(s => s + 100)
       setWordsCorrect(c => c + 1)
       onWordComplete?.()
@@ -217,7 +235,7 @@ export function WordCatchGame({
       const fallback = getNextTargetFor(isDuo ? fallbackTurn : 1)
       if (!fallback) { setPhase('end'); return }
       turnRef.current = fallbackTurn; setTurn(fallbackTurn)
-      setLanes(pickOptions(fallbackTurn === 1 ? pool1 : pool2, fallback))
+      setLanes(pickOptions(fallbackTurn === 1 ? pool1 : pool2, fallback, lastTargetLaneRef))
       setClue(fallback.clue); setIsEmojiClue(fallback.isEmoji)
       resetLanePositions(); setRoundKey(k => k + 1); setPhase('playing')
       setTimeout(() => speak(fallback.word.toLowerCase()), 400)
@@ -225,7 +243,7 @@ export function WordCatchGame({
     }
     turnRef.current = isDuo ? nextTurn : 1
     setTurn(turnRef.current)
-    setLanes(pickOptions(turnRef.current === 1 ? pool1 : pool2, next))
+    setLanes(pickOptions(turnRef.current === 1 ? pool1 : pool2, next, lastTargetLaneRef))
     setClue(next.clue); setIsEmojiClue(next.isEmoji)
     resetLanePositions()
     setRoundKey(k => k + 1)
@@ -353,6 +371,19 @@ export function WordCatchGame({
               {l.word}
             </div>
           ))}
+
+          {/* Goal celebration — brief, confined to the field so it doesn't
+              block the next round's setup happening underneath */}
+          {phase === 'caught' && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 2, zIndex: 3,
+              pointerEvents: 'none', animation: 'kg-pop .4s ease-out',
+            }}>
+              <div style={{ fontSize: 56, lineHeight: 1 }}>🙌</div>
+              <div style={{ fontWeight: 900, fontSize: 20, color: '#5AB468', textShadow: '0 2px 0 #fff' }}>GOAL!</div>
+            </div>
+          )}
         </div>
 
         {/* Up/down net controls */}
