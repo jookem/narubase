@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader } from './StoryReader'
 import {
-  DEFAULT_STORY_SCENE_TUNING, StorySceneTuningContext, ENTRANCE_LABELS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
+  DEFAULT_STORY_SCENE_TUNING, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
   type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig,
-  type EntranceEffect, type EmphasisEffect, type TravelStyle, type Easing,
+  type EntranceEffect, type Direction, type EmphasisEffect, type TravelStyle, type Easing,
 } from './storySceneTuning'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
 const ENTRANCE_OPTIONS = Object.keys(ENTRANCE_LABELS) as EntranceEffect[]
+const DIRECTION_OPTIONS = Object.keys(DIRECTION_LABELS) as Direction[]
 const EMPHASIS_OPTIONS = Object.keys(EMPHASIS_LABELS) as EmphasisEffect[]
 const TRAVEL_OPTIONS = Object.keys(TRAVEL_STYLE_LABELS) as TravelStyle[]
 const EASING_OPTIONS = Object.keys(EASING_LABELS) as Easing[]
@@ -33,6 +34,14 @@ const NUMBER_FIELDS: NumberField[] = [
   { key: 'mascotFontSize', label: 'Mascot size (px)', min: 30, max: 130, step: 1 },
   { key: 'targetFontSize', label: 'Target size (px)', min: 20, max: 100, step: 1 },
   { key: 'othersFontSize', label: 'Prop size (px)', min: 16, max: 70, step: 1 },
+  { key: 'propsTop', label: 'Props from top (px)', min: 0, max: 120, step: 1 },
+  { key: 'propsLeft', label: 'Props from left (px)', min: 0, max: 200, step: 1 },
+]
+
+const Z_INDEX_FIELDS: NumberField[] = [
+  { key: 'propsZIndex', label: 'Props layer', min: 0, max: 5, step: 1 },
+  { key: 'targetZIndex', label: 'Target layer', min: 0, max: 5, step: 1 },
+  { key: 'mascotZIndex', label: 'Mascot layer', min: 0, max: 5, step: 1 },
 ]
 
 const COLOR_FIELDS: { key: keyof StorySceneTuning; label: string }[] = [
@@ -77,6 +86,23 @@ function RangeField({ label, value, min, max, step, onChange }: {
       </div>
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%' }} />
     </label>
+  )
+}
+
+// Entrance effect + direction, PowerPoint-style: direction only means
+// something (and so is only shown) for effects in DIRECTIONAL_EFFECTS.
+function EntranceEffectFields({ value, onChange }: {
+  value: EntranceConfig; onChange: (patch: Partial<EntranceConfig>) => void
+}) {
+  return (
+    <>
+      <SelectField label="Entrance" value={value.effect} options={ENTRANCE_OPTIONS} labels={ENTRANCE_LABELS}
+        onChange={effect => onChange({ effect })} />
+      {DIRECTIONAL_EFFECTS.includes(value.effect) && (
+        <SelectField label="Direction" value={value.direction} options={DIRECTION_OPTIONS} labels={DIRECTION_LABELS}
+          onChange={direction => onChange({ direction })} />
+      )}
+    </>
   )
 }
 
@@ -188,6 +214,13 @@ export function StoryLab() {
             ))}
           </Section>
 
+          <Section title="Layer order (higher = drawn on top)">
+            {Z_INDEX_FIELDS.map(f => (
+              <RangeField key={f.key} label={f.label} value={tuning[f.key] as number} min={f.min} max={f.max} step={f.step}
+                onChange={v => setField(f.key, v as StorySceneTuning[typeof f.key])} />
+            ))}
+          </Section>
+
           <Section title="Mascot travel (curved motion path)">
             <RangeField label="Slide duration (s)" value={tuning.transitionDurationSec} min={0.3} max={2.5} step={0.05}
               onChange={v => setField('transitionDurationSec', v)} />
@@ -215,8 +248,7 @@ export function StoryLab() {
           </Section>
 
           <Section title="Ambient props">
-            <SelectField label="Entrance" value={tuning.props.effect} options={ENTRANCE_OPTIONS} labels={ENTRANCE_LABELS}
-              onChange={v => patchProps({ effect: v })} />
+            <EntranceEffectFields value={tuning.props} onChange={patchProps} />
             <RangeField label="Entrance duration (s)" value={tuning.props.durationSec} min={0.1} max={1.2} step={0.05}
               onChange={v => patchProps({ durationSec: v })} />
             <RangeField label="Entrance stagger (s)" value={tuning.propsEntranceStaggerSec} min={0} max={0.3} step={0.01}
@@ -232,8 +264,7 @@ export function StoryLab() {
           </Section>
 
           <Section title="Destination prop">
-            <SelectField label="Entrance" value={tuning.target.effect} options={ENTRANCE_OPTIONS} labels={ENTRANCE_LABELS}
-              onChange={v => patchTarget({ effect: v })} />
+            <EntranceEffectFields value={tuning.target} onChange={patchTarget} />
             <RangeField label="Entrance duration (s)" value={tuning.target.durationSec} min={0.1} max={1.2} step={0.05}
               onChange={v => patchTarget({ durationSec: v })} />
             <SelectField label="Idle loop" value={tuning.target.emphasis} options={EMPHASIS_OPTIONS} labels={EMPHASIS_LABELS}
@@ -245,8 +276,7 @@ export function StoryLab() {
           </Section>
 
           <Section title="Sentence text">
-            <SelectField label="Entrance" value={tuning.sentence.effect} options={ENTRANCE_OPTIONS} labels={ENTRANCE_LABELS}
-              onChange={v => patchSentence({ effect: v })} />
+            <EntranceEffectFields value={tuning.sentence} onChange={patchSentence} />
             <RangeField label="Entrance duration (s)" value={tuning.sentence.durationSec} min={0.1} max={1.2} step={0.05}
               onChange={v => patchSentence({ durationSec: v })} />
             <SelectField label="Easing" value={tuning.sentence.easing} options={EASING_OPTIONS} labels={EASING_LABELS}

@@ -10,10 +10,18 @@ import { createContext, useContext } from 'react'
 // "Phonics Story Lab" tab) mounts a Provider with live values so every scene
 // can be tweaked and previewed without editing code.
 
-export type EntranceEffect = 'none' | 'fade' | 'wipeDown' | 'wipeRight' | 'pop' | 'bounceIn'
+// Mirrors PowerPoint's animation pane: an effect (Fade, Wipe, Fly In, ...)
+// plus, for the effects where it means anything, an independent Direction
+// (From Top/Bottom/Left/Right) — instead of baking direction into the
+// effect name (the old 'wipeDown'/'wipeRight' pair).
+export type EntranceEffect = 'none' | 'fade' | 'wipe' | 'flyIn' | 'pop' | 'bounceIn'
+export type Direction = 'fromTop' | 'fromBottom' | 'fromLeft' | 'fromRight'
 export type EmphasisEffect = 'none' | 'float' | 'wiggle' | 'spin' | 'growShrink' | 'pulse' | 'shake'
 export type TravelStyle = 'bob' | 'hop' | 'spin' | 'plain'
 export type Easing = 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'linear'
+
+// Which effects actually use `direction` — shown/enabled in the Lab only for these.
+export const DIRECTIONAL_EFFECTS: EntranceEffect[] = ['wipe', 'flyIn']
 
 // 'none' is labeled "Appear (instant)" — that IS the PPT's default entrance
 // (an instant visibility flip, no transition), so there's no separate value
@@ -21,10 +29,17 @@ export type Easing = 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'linear'
 export const ENTRANCE_LABELS: Record<EntranceEffect, string> = {
   none: 'Appear (instant)',
   fade: 'Fade In',
-  wipeDown: 'Wipe Down',
-  wipeRight: 'Wipe Right',
+  wipe: 'Wipe',
+  flyIn: 'Fly In',
   pop: 'Pop In',
   bounceIn: 'Bounce In',
+}
+
+export const DIRECTION_LABELS: Record<Direction, string> = {
+  fromTop: 'From Top',
+  fromBottom: 'From Bottom',
+  fromLeft: 'From Left',
+  fromRight: 'From Right',
 }
 
 export const EMPHASIS_LABELS: Record<EmphasisEffect, string> = {
@@ -54,10 +69,27 @@ export const EASING_LABELS: Record<Easing, string> = {
 
 const ENTRANCE_KEYFRAME: Record<Exclude<EntranceEffect, 'none'>, string> = {
   fade: 'kg-fadeIn',
-  wipeDown: 'kg-wipeDown',
-  wipeRight: 'kg-wipeRight',
+  wipe: 'kg-wipeIn',
+  flyIn: 'kg-flyIn',
   pop: 'kg-pop',
   bounceIn: 'kg-bounceIn',
+}
+
+// clip-path inset(top right bottom left) to clip from, at 0% — animates
+// toward inset(0 0 0 0) so the reveal appears to travel from that edge.
+const WIPE_START: Record<Direction, string> = {
+  fromTop: '0 0 100% 0',
+  fromBottom: '100% 0 0 0',
+  fromLeft: '0 100% 0 0',
+  fromRight: '0 0 0 100%',
+}
+
+// translate() offset to fly in from, at 0% — animates toward translate(0,0).
+const FLY_FROM: Record<Direction, { x: string; y: string }> = {
+  fromTop: { x: '0', y: '-40px' },
+  fromBottom: { x: '0', y: '40px' },
+  fromLeft: { x: '-40px', y: '0' },
+  fromRight: { x: '40px', y: '0' },
 }
 
 const EMPHASIS_KEYFRAME: Record<Exclude<EmphasisEffect, 'none'>, string> = {
@@ -77,6 +109,7 @@ const TRAVEL_KEYFRAME: Record<Exclude<TravelStyle, 'plain'>, string> = {
 
 export interface EntranceConfig {
   effect: EntranceEffect
+  direction: Direction
   durationSec: number
   delaySec: number
   easing: Easing
@@ -104,6 +137,11 @@ export interface StorySceneTuning {
   mascotFontSize: number
   targetFontSize: number
   othersFontSize: number
+  propsTop: number
+  propsLeft: number
+  mascotZIndex: number
+  targetZIndex: number
+  propsZIndex: number
   bgTop: string
   bgMid: string
   bgBottom: string
@@ -143,6 +181,11 @@ export const DEFAULT_STORY_SCENE_TUNING: StorySceneTuning = {
   mascotFontSize: 84,
   targetFontSize: 56,
   othersFontSize: 40,
+  propsTop: 10,
+  propsLeft: 10,
+  mascotZIndex: 2,
+  targetZIndex: 1,
+  propsZIndex: 1,
   bgTop: '#FFF9F1',
   bgMid: '#FBF0E4',
   bgBottom: '#F3E3D0',
@@ -157,13 +200,13 @@ export const DEFAULT_STORY_SCENE_TUNING: StorySceneTuning = {
 
   mascotIdle: { effect: 'float', durationSec: 2.4, easing: 'ease-in-out' },
 
-  props: { effect: 'pop', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'float', emphasisDurationSec: 2.6 },
+  props: { effect: 'pop', direction: 'fromBottom', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'float', emphasisDurationSec: 2.6 },
   propsEntranceStaggerSec: 0.06,
   propsEmphasisStaggerSec: 0.25,
 
-  target: { effect: 'pop', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'pulse', emphasisDurationSec: 1.8 },
+  target: { effect: 'pop', direction: 'fromBottom', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'pulse', emphasisDurationSec: 1.8 },
 
-  sentence: { effect: 'pop', durationSec: 0.35, delaySec: 0, easing: 'ease-out' },
+  sentence: { effect: 'pop', direction: 'fromBottom', durationSec: 0.35, delaySec: 0, easing: 'ease-out' },
 }
 
 export const StorySceneTuningContext = createContext<StorySceneTuning>(DEFAULT_STORY_SCENE_TUNING)
@@ -175,6 +218,19 @@ export function useStorySceneTuning(): StorySceneTuning {
 export function entranceCss(cfg: EntranceConfig, extraDelaySec = 0): string | undefined {
   if (cfg.effect === 'none') return undefined
   return `${ENTRANCE_KEYFRAME[cfg.effect]} ${cfg.durationSec}s ${cfg.easing} ${(cfg.delaySec + extraDelaySec).toFixed(3)}s backwards`
+}
+
+// CSS custom properties consumed by the kg-wipeIn/kg-flyIn keyframes to
+// steer which edge the entrance travels from — spread into the element's
+// inline style alongside `animation: entranceCss(cfg)`. Harmless to include
+// for non-directional effects (fade/pop/bounceIn just never reference them).
+export function entranceVars(direction: Direction): Record<string, string> {
+  const fly = FLY_FROM[direction]
+  return {
+    '--wipe-start': WIPE_START[direction],
+    '--fly-x': fly.x,
+    '--fly-y': fly.y,
+  }
 }
 
 export function emphasisCss(effect: EmphasisEffect, durationSec: number, easing: Easing, delaySec = 0, keyframeOverride?: string): string | undefined {

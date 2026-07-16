@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
-import { useStorySceneTuning, entranceCss, emphasisCss, travelCss, combineAnimations } from './storySceneTuning'
+import { useStorySceneTuning, entranceCss, entranceVars, emphasisCss, travelCss, combineAnimations } from './storySceneTuning'
 import { mascotSvgUrl } from './mascotAssets'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
@@ -168,15 +168,16 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
 
         {/* Words this page mentions that aren't the movement destination */}
         {others.length > 0 && (
-          <div key={`others-${pageIdx}`} style={{ position: 'absolute', top: 10, left: 10, right: 10, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: motionTarget ? 'flex-start' : 'center', zIndex: 1 }}>
+          <div key={`others-${pageIdx}`} style={{ position: 'absolute', top: t.propsTop, left: t.propsLeft, right: 10, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: motionTarget ? 'flex-start' : 'center', zIndex: t.propsZIndex }}>
             {others.map((m, i) => (
               <span key={m.word.word} style={{
                 fontSize: t.othersFontSize, display: 'inline-block',
+                ...entranceVars(t.props.direction),
                 animation: combineAnimations(
                   entranceCss(t.props, i * t.propsEntranceStaggerSec),
                   emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + i * t.propsEmphasisStaggerSec),
                 ),
-              }}>
+              } as CSSProperties}>
                 {m.word.emoji}
               </span>
             ))}
@@ -186,12 +187,13 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         {/* Destination prop the mascot is moving toward */}
         {motionTarget && (
           <div key={`target-${pageIdx}`} style={{
-            position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: 1,
+            position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: t.targetZIndex,
+            ...entranceVars(t.target.direction),
             animation: combineAnimations(
               entranceCss(t.target),
               emphasisCss(t.target.emphasis, t.target.emphasisDurationSec, t.target.easing, t.target.durationSec + t.target.delaySec),
             ),
-          }}>
+          } as CSSProperties}>
             {motionTarget.word.emoji}
           </div>
         )}
@@ -211,7 +213,7 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
             bottom: t.mascotBottom,
             left: motionTarget ? `${phase === 'arrived' ? t.mascotArrivedLeftPct : t.mascotStartLeftPct}%` : 'calc(50% - 33px)',
             fontSize: t.mascotFontSize,
-            zIndex: 2,
+            zIndex: t.mascotZIndex,
             '--arc-start': `${t.mascotStartLeftPct}%`,
             '--arc-mid': `${(t.mascotStartLeftPct + t.mascotArrivedLeftPct) / 2}%`,
             '--arc-end': `${t.mascotArrivedLeftPct}%`,
@@ -237,7 +239,7 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
 
       {/* Sentence card */}
       <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '28px 24px', boxShadow: '0 8px 0 #EEDAC6', textAlign: 'center', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div key={pageIdx} style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, animation: entranceCss(t.sentence) }}>
+        <div key={pageIdx} style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, ...entranceVars(t.sentence.direction), animation: entranceCss(t.sentence) } as CSSProperties}>
           {renderHighlighted(page.text, page.highlight)}
         </div>
       </div>
