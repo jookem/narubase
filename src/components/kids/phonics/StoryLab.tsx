@@ -7,6 +7,7 @@ import {
   type StoryPageTuning, type StoryPageEntry, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind, type MotionPathShape, type StoryTuningLookup,
   type Direction, type Easing, type TravelStyle, type StartTrigger, type RepeatMode,
 } from './storySceneTuning'
+import { searchEmoji, looksLikeEmoji } from './emojiSearch'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -259,25 +260,48 @@ function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchE
 }
 
 // A manually-added object needs nothing but an emoji to exist — no phonics
-// word required, unlike auto-detected props.
+// word required, unlike auto-detected props. Typing a plain word (not a
+// pasted emoji) surfaces matching emoji from the curated searchEmoji()
+// dictionary to pick from, rather than requiring the raw emoji character
+// itself; pasting/typing an actual emoji still adds it directly.
 function AddObjectField({ onAdd }: { onAdd: (emoji: string) => void }) {
   const [value, setValue] = useState('')
-  function submit() {
-    if (!value.trim()) return
-    onAdd(value)
+  const suggestions = looksLikeEmoji(value) ? [] : searchEmoji(value)
+
+  function pick(emoji: string) {
+    onAdd(emoji)
     setValue('')
   }
+  function submit() {
+    if (!value.trim()) return
+    pick(suggestions.length ? suggestions[0].emoji : value)
+  }
   return (
-    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-      <input
-        type="text" value={value} placeholder="🐝 emoji…"
-        onChange={e => setValue(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') submit() }}
-        style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
-      />
-      <button onClick={submit} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '6px 12px', borderRadius: 8, background: '#F0F8FF', color: '#5A4336' }}>
-        + Add object
-      </button>
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
+        <input
+          type="text" value={value} placeholder="Type a word (e.g. dog) or paste an emoji…"
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
+        />
+        <button onClick={submit} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '6px 12px', borderRadius: 8, background: '#F0F8FF', color: '#5A4336' }}>
+          + Add object
+        </button>
+      </div>
+      {suggestions.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+          {suggestions.map(s => (
+            <button
+              key={s.emoji}
+              onClick={() => pick(s.emoji)}
+              title={s.label}
+              style={{ border: 'none', cursor: 'pointer', fontSize: 20, lineHeight: 1, width: 32, height: 32, borderRadius: 8, background: '#FFFFFF', boxShadow: '0 2px 0 #E7D3C0' }}>
+              {s.emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
