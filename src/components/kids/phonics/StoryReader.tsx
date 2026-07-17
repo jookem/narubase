@@ -2,8 +2,9 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
-import { useStorySceneTuning, entranceCss, entranceVars, emphasisCss, travelCss, combineAnimations, propSlotFor } from './storySceneTuning'
+import { useStorySceneTuning, entranceCss, entranceVars, emphasisCss, travelCss, travelCssBounded, motionVars, motionCss, combineAnimations, propSlotFor } from './storySceneTuning'
 import { mascotSvgUrl } from './mascotAssets'
+import { ensureKidsGameAnimStyles } from '../kidsGameAnimStyles'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const ACCENT = '#F2879B'
@@ -108,6 +109,7 @@ function sceneForPage(page: StoryPage, unit: PhonicsUnit) {
 // pronunciation-check here — the teacher supervises reading aloud in person.
 export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
   const t = useStorySceneTuning()
+  useEffect(() => { ensureKidsGameAnimStyles() }, [])
   const [pageIdx, setPageIdx] = useState(initialPageIndex)
   const pages = unit.storyPages
   const page = pages[pageIdx]
@@ -167,17 +169,37 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         {/* Words this page mentions that aren't the movement destination —
             each gets its own slot (position + z-index) so pages that
             mention more than one prop at once can place/stack them
-            independently instead of sharing one auto-flow container */}
+            independently instead of sharing one auto-flow container. A
+            slot with a motion path slides in from its own start point
+            instead of appearing in place. */}
         {others.map((m, i) => {
           const slot = propSlotFor(t.propSlots, i)
+          const staggerDelay = i * t.propsEntranceStaggerSec
+          if (slot.motion) {
+            const mo = slot.motion
+            return (
+              <span key={`${pageIdx}-${m.word.word}`} style={{
+                position: 'absolute', zIndex: slot.zIndex, fontSize: t.othersFontSize, display: 'inline-block',
+                ...motionVars(mo),
+                animation: combineAnimations(
+                  motionCss(mo, staggerDelay),
+                  emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, mo.durationSec + mo.delaySec + staggerDelay),
+                ),
+              } as CSSProperties}>
+                <span style={{ display: 'inline-block', animation: travelCssBounded(mo.travelStyle, mo.travelDurationSec, mo.durationSec, staggerDelay) }}>
+                  {m.word.emoji}
+                </span>
+              </span>
+            )
+          }
           return (
             <span key={`${pageIdx}-${m.word.word}`} style={{
               position: 'absolute', left: `${slot.xPct}%`, top: `${slot.yPct}%`, zIndex: slot.zIndex,
               fontSize: t.othersFontSize, display: 'inline-block',
               ...entranceVars(t.props.direction),
               animation: combineAnimations(
-                entranceCss(t.props, i * t.propsEntranceStaggerSec),
-                emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + i * t.propsEmphasisStaggerSec),
+                entranceCss(t.props, staggerDelay),
+                emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + staggerDelay),
               ),
             } as CSSProperties}>
               {m.word.emoji}
@@ -185,8 +207,22 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
           )
         })}
 
-        {/* Destination prop the mascot is moving toward */}
-        {motionTarget && (
+        {/* Destination prop the mascot is moving toward — same
+            static-vs-motion-path choice as the ambient props above */}
+        {motionTarget && (t.targetMotion ? (
+          <div key={`target-${pageIdx}`} style={{
+            position: 'absolute', zIndex: t.targetZIndex, fontSize: t.targetFontSize,
+            ...motionVars(t.targetMotion),
+            animation: combineAnimations(
+              motionCss(t.targetMotion),
+              emphasisCss(t.target.emphasis, t.target.emphasisDurationSec, t.target.easing, t.targetMotion.durationSec + t.targetMotion.delaySec),
+            ),
+          } as CSSProperties}>
+            <span style={{ display: 'inline-block', animation: travelCssBounded(t.targetMotion.travelStyle, t.targetMotion.travelDurationSec, t.targetMotion.durationSec) }}>
+              {motionTarget.word.emoji}
+            </span>
+          </div>
+        ) : (
           <div key={`target-${pageIdx}`} style={{
             position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: t.targetZIndex,
             ...entranceVars(t.target.direction),
@@ -197,7 +233,7 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
           } as CSSProperties}>
             {motionTarget.word.emoji}
           </div>
-        )}
+        ))}
 
         {/* Mascot: idles in place normally, or travels a curved kg-arcMove
             path toward the destination prop (mirrors the source deck's

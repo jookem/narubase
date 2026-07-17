@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader } from './StoryReader'
 import {
-  DEFAULT_STORY_SCENE_TUNING, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
-  type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig, type PropSlot,
+  DEFAULT_STORY_SCENE_TUNING, DEFAULT_MOTION_PATH, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
+  type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig, type PropSlot, type MotionPath,
   type EntranceEffect, type Direction, type EmphasisEffect, type TravelStyle, type Easing,
 } from './storySceneTuning'
 
@@ -103,6 +103,42 @@ function EntranceEffectFields({ value, onChange }: {
   )
 }
 
+// Full start-position -> end-position path + travel style, PowerPoint
+// "Motion Path" style: shown whenever an object's motion is enabled
+// (non-null), replacing its static resting position.
+function MotionPathFields({ value, onChange }: {
+  value: MotionPath; onChange: (patch: Partial<MotionPath>) => void
+}) {
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Start</div>
+          <RangeField label="X (%)" value={value.startXPct} min={0} max={100} step={1}
+            onChange={v => onChange({ startXPct: v })} />
+          <RangeField label="Y (%)" value={value.startYPct} min={0} max={100} step={1}
+            onChange={v => onChange({ startYPct: v })} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>End</div>
+          <RangeField label="X (%)" value={value.endXPct} min={0} max={100} step={1}
+            onChange={v => onChange({ endXPct: v })} />
+          <RangeField label="Y (%)" value={value.endYPct} min={0} max={100} step={1}
+            onChange={v => onChange({ endYPct: v })} />
+        </div>
+      </div>
+      <SelectField label="Animation type (while moving)" value={value.travelStyle} options={TRAVEL_OPTIONS} labels={TRAVEL_STYLE_LABELS}
+        onChange={travelStyle => onChange({ travelStyle })} />
+      <RangeField label="Arc height (px, negative = up)" value={value.arcHeightPx} min={-120} max={120} step={2}
+        onChange={v => onChange({ arcHeightPx: v })} />
+      <RangeField label="Travel duration (s)" value={value.durationSec} min={0.2} max={2.5} step={0.05}
+        onChange={v => onChange({ durationSec: v })} />
+      <SelectField label="Path easing" value={value.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
+        onChange={easing => onChange({ easing })} />
+    </>
+  )
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ borderTop: '1px solid #EDE0D4', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -145,8 +181,28 @@ export function StoryLab() {
   function patchPropSlot(index: number, patch: Partial<PropSlot>) {
     setTuning(t => ({ ...t, propSlots: t.propSlots.map((s, i) => i === index ? { ...s, ...patch } : s) }))
   }
+  function patchPropSlotMotion(index: number, patch: Partial<MotionPath>) {
+    setTuning(t => ({
+      ...t,
+      propSlots: t.propSlots.map((s, i) => i === index && s.motion ? { ...s, motion: { ...s.motion, ...patch } } : s),
+    }))
+  }
+  function togglePropSlotMotion(index: number, enabled: boolean) {
+    setTuning(t => ({
+      ...t,
+      propSlots: t.propSlots.map((s, i) => i === index
+        ? { ...s, motion: enabled ? { ...DEFAULT_MOTION_PATH, endXPct: s.xPct, endYPct: s.yPct } : null }
+        : s),
+    }))
+  }
   function patchTarget(patch: Partial<EntranceEmphasisConfig>) {
     setTuning(t => ({ ...t, target: { ...t.target, ...patch } }))
+  }
+  function patchTargetMotion(patch: Partial<MotionPath>) {
+    setTuning(t => (t.targetMotion ? { ...t, targetMotion: { ...t.targetMotion, ...patch } } : t))
+  }
+  function toggleTargetMotion(enabled: boolean) {
+    setTuning(t => ({ ...t, targetMotion: enabled ? { ...DEFAULT_MOTION_PATH } : null }))
   }
   function patchSentence(patch: Partial<EntranceConfig>) {
     setTuning(t => ({ ...t, sentence: { ...t.sentence, ...patch } }))
@@ -267,10 +323,20 @@ export function StoryLab() {
             {tuning.propSlots.map((slot, i) => (
               <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 6, borderBottom: i < tuning.propSlots.length - 1 ? '1px dashed #EDE0D4' : undefined }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Prop {i + 1}</div>
-                <RangeField label="X (%)" value={slot.xPct} min={0} max={90} step={1}
-                  onChange={v => patchPropSlot(i, { xPct: v })} />
-                <RangeField label="Y (%)" value={slot.yPct} min={0} max={90} step={1}
-                  onChange={v => patchPropSlot(i, { yPct: v })} />
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="checkbox" checked={!!slot.motion} onChange={e => togglePropSlotMotion(i, e.target.checked)} />
+                  Motion path (start → end)
+                </label>
+                {slot.motion ? (
+                  <MotionPathFields value={slot.motion} onChange={patch => patchPropSlotMotion(i, patch)} />
+                ) : (
+                  <>
+                    <RangeField label="X (%)" value={slot.xPct} min={0} max={90} step={1}
+                      onChange={v => patchPropSlot(i, { xPct: v })} />
+                    <RangeField label="Y (%)" value={slot.yPct} min={0} max={90} step={1}
+                      onChange={v => patchPropSlot(i, { yPct: v })} />
+                  </>
+                )}
                 <RangeField label="Layer (z-index)" value={slot.zIndex} min={0} max={5} step={1}
                   onChange={v => patchPropSlot(i, { zIndex: v })} />
               </div>
@@ -278,9 +344,19 @@ export function StoryLab() {
           </Section>
 
           <Section title="Destination prop">
-            <EntranceEffectFields value={tuning.target} onChange={patchTarget} />
-            <RangeField label="Entrance duration (s)" value={tuning.target.durationSec} min={0.1} max={1.2} step={0.05}
-              onChange={v => patchTarget({ durationSec: v })} />
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={!!tuning.targetMotion} onChange={e => toggleTargetMotion(e.target.checked)} />
+              Motion path (start → end)
+            </label>
+            {tuning.targetMotion ? (
+              <MotionPathFields value={tuning.targetMotion} onChange={patchTargetMotion} />
+            ) : (
+              <EntranceEffectFields value={tuning.target} onChange={patchTarget} />
+            )}
+            {!tuning.targetMotion && (
+              <RangeField label="Entrance duration (s)" value={tuning.target.durationSec} min={0.1} max={1.2} step={0.05}
+                onChange={v => patchTarget({ durationSec: v })} />
+            )}
             <SelectField label="Idle loop" value={tuning.target.emphasis} options={EMPHASIS_OPTIONS} labels={EMPHASIS_LABELS}
               onChange={v => patchTarget({ emphasis: v })} />
             <RangeField label="Idle loop duration (s)" value={tuning.target.emphasisDurationSec} min={0.5} max={3} step={0.1}

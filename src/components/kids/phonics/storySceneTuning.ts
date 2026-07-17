@@ -126,17 +126,44 @@ export interface EntranceEmphasisConfig extends EntranceConfig {
   emphasisDurationSec: number
 }
 
-// One ambient prop's own position + stacking order, independent of any
-// other prop on the same page. A page can mention more than one word with
-// an emoji (e.g. "The can is in the pan" -> can + pan both shown at once),
-// and each needs to be placeable on its own — a single shared
+// A start position -> end position journey, like the mascot's existing
+// kg-arcMove travel but generalized to 2D (mascot only ever moves along
+// its fixed ground line, so it only needed a start/end X — a prop or the
+// destination target can enter from anywhere and settle anywhere). `null`
+// on the owning object means "static at its resting spot", no motion.
+export interface MotionPath {
+  startXPct: number
+  startYPct: number
+  endXPct: number
+  endYPct: number
+  durationSec: number
+  delaySec: number
+  easing: Easing
+  arcHeightPx: number   // dip/rise at the path's midpoint; 0 = straight line
+  travelStyle: TravelStyle  // wobble overlay while moving, reuses the mascot's styles
+  travelDurationSec: number
+}
+
+export const DEFAULT_MOTION_PATH: MotionPath = {
+  startXPct: 0, startYPct: 40, endXPct: 50, endYPct: 40,
+  durationSec: 0.8, delaySec: 0, easing: 'ease-in-out',
+  arcHeightPx: -40, travelStyle: 'bob', travelDurationSec: 0.35,
+}
+
+// One ambient prop's own resting position + stacking order, independent of
+// any other prop on the same page. A page can mention more than one word
+// with an emoji (e.g. "The can is in the pan" -> can + pan both shown at
+// once), and each needs to be placeable on its own — a single shared
 // top/left/z-index doesn't let you separate them. Indexed by the order
 // props appear in the sentence (1st match -> slot 0, 2nd -> slot 1, ...);
 // a page with more props than configured slots reuses the last slot.
+// `motion` set means the prop slides in along that path instead of
+// appearing in place at (xPct, yPct) — (xPct, yPct) is then unused.
 export interface PropSlot {
   xPct: number
   yPct: number
   zIndex: number
+  motion: MotionPath | null
 }
 
 export interface StorySceneTuning {
@@ -177,6 +204,7 @@ export interface StorySceneTuning {
   propSlots: PropSlot[]
 
   target: EntranceEmphasisConfig
+  targetMotion: MotionPath | null
 
   sentence: EntranceConfig
 }
@@ -212,12 +240,13 @@ export const DEFAULT_STORY_SCENE_TUNING: StorySceneTuning = {
   propsEntranceStaggerSec: 0.06,
   propsEmphasisStaggerSec: 0.25,
   propSlots: [
-    { xPct: 10, yPct: 8, zIndex: 1 },
-    { xPct: 38, yPct: 8, zIndex: 1 },
-    { xPct: 66, yPct: 8, zIndex: 1 },
+    { xPct: 10, yPct: 8, zIndex: 1, motion: null },
+    { xPct: 38, yPct: 8, zIndex: 1, motion: null },
+    { xPct: 66, yPct: 8, zIndex: 1, motion: null },
   ],
 
   target: { effect: 'pop', direction: 'fromBottom', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'pulse', emphasisDurationSec: 1.8 },
+  targetMotion: null,
 
   sentence: { effect: 'pop', direction: 'fromBottom', durationSec: 0.35, delaySec: 0, easing: 'ease-out' },
 }
@@ -256,6 +285,16 @@ export function travelCss(style: TravelStyle, durationSec: number): string | und
   return `${TRAVEL_KEYFRAME[style]} ${durationSec}s ease-in-out infinite`
 }
 
+// Same wobble as travelCss, but bounded to run out over totalDurationSec
+// instead of forever — for props/target motion paths, which (unlike the
+// mascot) don't track a moving/arrived phase in React state to swap the
+// animation off once travel finishes.
+export function travelCssBounded(style: TravelStyle, cycleDurationSec: number, totalDurationSec: number, delaySec = 0): string | undefined {
+  if (style === 'plain') return undefined
+  const iterations = Math.max(1, Math.ceil(totalDurationSec / cycleDurationSec))
+  return `${TRAVEL_KEYFRAME[style]} ${cycleDurationSec}s ease-in-out ${delaySec.toFixed(3)}s ${iterations}`
+}
+
 export function combineAnimations(...parts: (string | undefined)[]): string | undefined {
   const filtered = parts.filter((p): p is string => !!p)
   return filtered.length ? filtered.join(', ') : undefined
@@ -265,4 +304,23 @@ export function combineAnimations(...parts: (string | undefined)[]): string | un
 // slot if a page mentions more props than there are slots for.
 export function propSlotFor(slots: PropSlot[], i: number): PropSlot {
   return slots[Math.min(i, slots.length - 1)]
+}
+
+// CSS custom properties consumed by the kg-motion2D keyframe (see
+// KidsGame.tsx) — the generic start->end path used by props/target,
+// analogous to the mascot's --arc-* vars but varying both axes.
+export function motionVars(m: MotionPath): Record<string, string> {
+  return {
+    '--m-start-x': `${m.startXPct}%`,
+    '--m-start-y': `${m.startYPct}%`,
+    '--m-mid-x': `${(m.startXPct + m.endXPct) / 2}%`,
+    '--m-mid-y': `${(m.startYPct + m.endYPct) / 2}%`,
+    '--m-end-x': `${m.endXPct}%`,
+    '--m-end-y': `${m.endYPct}%`,
+    '--m-arc': `${m.arcHeightPx}px`,
+  }
+}
+
+export function motionCss(m: MotionPath, extraDelaySec = 0): string {
+  return `kg-motion2D ${m.durationSec}s ${m.easing} ${(m.delaySec + extraDelaySec).toFixed(3)}s forwards`
 }
