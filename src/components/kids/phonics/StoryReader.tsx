@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
-import { useStorySceneTuning, type SceneObjectTuning } from './storySceneTuning'
+import { useStorySceneTuning, useResolvedPageCount, type SceneObjectTuning } from './storySceneTuning'
 import { useStepTimeline } from './stepAnimation'
 import { mascotSvgUrl } from './mascotAssets'
 
@@ -110,17 +110,29 @@ function SentenceObject({ tuning, text, highlight }: { tuning: SceneObjectTuning
 // pronunciation-check here — the teacher supervises reading aloud in person.
 export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
   const [pageIdx, setPageIdx] = useState(initialPageIndex)
-  const pages = unit.storyPages
-  const page = pages[pageIdx]
-  const isLast = pageIdx === pages.length - 1
-  const propMatches = findWordMatches(page.text, page.highlight, unit.words)
-  const t = useStorySceneTuning(unit.id, pageIdx, propMatches.length)
+  const pageCount = useResolvedPageCount(unit)
+  const isLast = pageIdx === pageCount - 1
+  // `basePage` is undefined for a page added purely via the Lab (beyond
+  // phonicsContent.ts's static array) — its text/highlight then come
+  // entirely from the tuning override. propCount here is only a starting
+  // guess for buildDefaultPageTuning's fallback; the actual rendered list
+  // below is recomputed from the resolved tuning `t` itself, so a mismatch
+  // between this guess and the real (post-override) content is harmless.
+  const basePage = unit.storyPages[pageIdx]
+  const baseMatchGuess = findWordMatches(basePage?.text ?? '', basePage?.highlight ?? [], unit.words)
+  const t = useStorySceneTuning(unit.id, pageIdx, baseMatchGuess.length)
+
+  const text = t.textOverride ?? basePage?.text ?? ''
+  const highlight = t.highlightOverride ?? basePage?.highlight ?? []
+  const hidden = new Set(t.hiddenWords.map(w => w.toLowerCase()))
+  const visibleMatches = findWordMatches(text, highlight, unit.words).filter(m => !hidden.has(m.word.word.toLowerCase()))
+  const propEmojis = [...visibleMatches.map(m => m.word.emoji), ...t.extraObjects.map(o => o.emoji)]
 
   useEffect(() => {
-    const timeout = setTimeout(() => speak(page.text), 300)
+    const timeout = setTimeout(() => speak(text), 300)
     return () => clearTimeout(timeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIdx, unit])
+  }, [pageIdx, unit, text])
 
   function next() {
     if (isLast) onDone()
@@ -136,15 +148,16 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
       <div style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#A98B77', marginBottom: 4 }}>
           <span>{unit.mascotName}'s story</span>
-          <span>{pageIdx + 1} / {pages.length}</span>
+          <span>{pageIdx + 1} / {pageCount}</span>
         </div>
         <div style={{ height: 8, background: '#EDE0D4', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${((pageIdx + 1) / pages.length) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
+          <div style={{ height: '100%', width: `${((pageIdx + 1) / pageCount) * 100}%`, background: '#8BC273', borderRadius: 8, transition: 'width .3s' }} />
         </div>
       </div>
 
-      {/* Scene: mascot + the props this sentence actually mentions, each
-          with its own independently authored animation timeline */}
+      {/* Scene: mascot + the props this sentence actually mentions plus any
+          manually-added extras, each with its own independently authored
+          animation timeline */}
       <div style={{
         position: 'relative', width: '100%', maxWidth: t.sceneMaxWidth, margin: '0 auto', height: t.sceneHeight,
         background: `linear-gradient(180deg, ${t.bgTop} 0%, ${t.bgMid} 65%, ${t.bgBottom} 100%)`,
@@ -153,8 +166,8 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         {/* ground strip so the scene reads as a mini stage, not floating emoji */}
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: t.groundColor }} />
 
-        {propMatches.map((m, i) => t.props[i] && (
-          <PropObject key={`${pageIdx}-${i}`} tuning={t.props[i]} emoji={m.word.emoji} />
+        {propEmojis.map((emoji, i) => t.props[i] && (
+          <PropObject key={`${pageIdx}-${i}`} tuning={t.props[i]} emoji={emoji} />
         ))}
 
         <MascotObject key={`mascot-${pageIdx}`} tuning={t.mascot} unit={unit} motionSoundEnabled={t.motionSoundEnabled} />
@@ -162,12 +175,12 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
 
       {/* Sentence card */}
       <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '28px 24px', boxShadow: '0 8px 0 #EEDAC6', textAlign: 'center', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <SentenceObject key={`sentence-${pageIdx}`} tuning={t.sentence} text={page.text} highlight={page.highlight} />
+        <SentenceObject key={`sentence-${pageIdx}`} tuning={t.sentence} text={text} highlight={highlight} />
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
-          onClick={() => speak(page.text)}
+          onClick={() => speak(text)}
           style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '8px 18px', borderRadius: '999px', background: '#F0F8FF', color: '#7FB8E0' }}>
           🔊 Listen again
         </button>

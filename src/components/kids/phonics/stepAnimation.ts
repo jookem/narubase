@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import type { AnimationStep, TravelStyle } from './storySceneTuning'
+import type { AnimationStep, MotionPathShape, TravelStyle } from './storySceneTuning'
 
 // Translates the tuning model's declarative AnimationStep list into real
 // Web Animations API calls. WAAPI (not CSS @keyframes) is what makes true
@@ -41,6 +41,55 @@ function baseOptions(step: AnimationStep, extra: Partial<KeyframeAnimationOption
     iterations: step.repeat === 'loop' ? Infinity : 1,
     fill: 'forwards',
     ...extra,
+  }
+}
+
+// Sampled `left`/`top` keyframes for a Motion Path's shape. Straight/arc are
+// exact 2-3 point interpolations (arc's bulge is handled separately, as its
+// own transform dip Animation, so it can compose via composite:'add' — see
+// the 'arc' case below); curve/circle bake their curvature directly into
+// many sampled left/top points since there's no separate "dip" concept for
+// them, just a genuinely curved position path.
+function pathPositionKeyframes(path: MotionPathShape): Keyframe[] {
+  switch (path.type) {
+    case 'straight':
+      return [
+        { left: `${path.startXPct}%`, top: `${path.startYPct}%`, offset: 0 },
+        { left: `${path.endXPct}%`, top: `${path.endYPct}%`, offset: 1 },
+      ]
+    case 'arc':
+      return [
+        { left: `${path.startXPct}%`, top: `${path.startYPct}%`, offset: 0 },
+        { left: `${(path.startXPct + path.endXPct) / 2}%`, top: `${(path.startYPct + path.endYPct) / 2}%`, offset: 0.5 },
+        { left: `${path.endXPct}%`, top: `${path.endYPct}%`, offset: 1 },
+      ]
+    case 'curve': {
+      const SAMPLES = 20
+      const keyframes: Keyframe[] = []
+      for (let i = 0; i <= SAMPLES; i++) {
+        const t = i / SAMPLES
+        const mt = 1 - t
+        // Quadratic Bezier: B(t) = (1-t)^2 P0 + 2(1-t)t C + t^2 P1
+        const x = mt * mt * path.startXPct + 2 * mt * t * path.controlXPct + t * t * path.endXPct
+        const y = mt * mt * path.startYPct + 2 * mt * t * path.controlYPct + t * t * path.endYPct
+        keyframes.push({ left: `${x}%`, top: `${y}%`, offset: t })
+      }
+      return keyframes
+    }
+    case 'circle': {
+      const SAMPLES = 36
+      const keyframes: Keyframe[] = []
+      const startRad = path.startAngleDeg * (Math.PI / 180)
+      const endRad = path.endAngleDeg * (Math.PI / 180)
+      for (let i = 0; i <= SAMPLES; i++) {
+        const t = i / SAMPLES
+        const angle = startRad + (endRad - startRad) * t
+        const x = path.centerXPct + path.radiusPct * Math.cos(angle)
+        const y = path.centerYPct + path.radiusPct * Math.sin(angle)
+        keyframes.push({ left: `${x}%`, top: `${y}%`, offset: t })
+      }
+      return keyframes
+    }
   }
 }
 
@@ -173,39 +222,36 @@ export function buildAnimateCalls(step: AnimationStep): AnimateCall[] {
       }]
 
     case 'motionPath': {
-      const midX = (e.startXPct + e.endXPct) / 2
-      const midY = (e.startYPct + e.endYPct) / 2
       // `left`/`top` must stay composite:'replace' (the default) — position
-      // is an absolute placement, never additive. Only the arc dip's
-      // `transform` should blend with any simultaneous emphasis step, so
-      // it's split into its OWN Animation with composite:'add'; WAAPI's
+      // is an absolute placement, never additive. Only the arc bulge's
+      // `transform` dip should blend with any simultaneous emphasis step,
+      // so it's split into its OWN Animation with composite:'add'; WAAPI's
       // composite option applies to a whole Animation, not per-property,
       // so position and the dip can't share one el.animate() call without
-      // the dip's 'add' also making `left`/`top` wrongly additive.
-      const position: AnimateCall = {
-        keyframes: [
-          { left: `${e.startXPct}%`, top: `${e.startYPct}%`, offset: 0 },
-          { left: `${midX}%`, top: `${midY}%`, offset: 0.5 },
-          { left: `${e.endXPct}%`, top: `${e.endYPct}%`, offset: 1 },
-        ],
-        options: baseOptions(step),
-      }
-      const dip: AnimateCall = {
-        keyframes: [
-          { transform: 'translateY(0px)', offset: 0 },
-          { transform: `translateY(${e.arcHeightPx}px)`, offset: 0.5 },
-          { transform: 'translateY(0px)', offset: 1 },
-        ],
-        options: baseOptions(step, { composite: 'add' }),
+      // the dip's 'add' also making `left`/`top` wrongly additive. Curve/
+      // circle bake their curvature straight into the sampled position
+      // keyframes, so they need no separate dip at all.
+      const position: AnimateCall = { keyframes: pathPositionKeyframes(e.path), options: baseOptions(step) }
+      const calls: AnimateCall[] = [position]
+      if (e.path.type === 'arc') {
+        calls.push({
+          keyframes: [
+            { transform: 'translateY(0px)', offset: 0 },
+            { transform: `translateY(${e.path.arcHeightPx}px)`, offset: 0.5 },
+            { transform: 'translateY(0px)', offset: 1 },
+          ],
+          options: baseOptions(step, { composite: 'add' }),
+        })
       }
       const wobbleKeyframes = travelWobbleKeyframes(e.travelStyle)
-      if (!wobbleKeyframes) return [position, dip]
-      const iterations = Math.max(1, Math.ceil(step.durationSec / WOBBLE_CYCLE_SEC))
-      const wobble: AnimateCall = {
-        keyframes: wobbleKeyframes,
-        options: { duration: WOBBLE_CYCLE_SEC * 1000, easing: 'ease-in-out', iterations, fill: 'forwards', composite: 'add' },
+      if (wobbleKeyframes) {
+        const iterations = Math.max(1, Math.ceil(step.durationSec / WOBBLE_CYCLE_SEC))
+        calls.push({
+          keyframes: wobbleKeyframes,
+          options: { duration: WOBBLE_CYCLE_SEC * 1000, easing: 'ease-in-out', iterations, fill: 'forwards', composite: 'add' },
+        })
       }
-      return [position, dip, wobble]
+      return calls
     }
 
     case 'swap':

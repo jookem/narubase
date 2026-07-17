@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader, findWordMatches } from './StoryReader'
 import {
-  storyPageKey, getStoryTuning, buildDefaultPageTuning, createStep, StorySceneTuningContext,
-  DIRECTION_LABELS, EASING_LABELS, TRAVEL_STYLE_LABELS, EFFECT_LABELS, EFFECT_GROUPS, DIRECTIONAL_KINDS, START_TRIGGER_LABELS, REPEAT_LABELS,
-  type StoryPageTuning, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind,
+  storyPageKey, getStoryTuning, buildDefaultPageTuning, resizeProps, createStep, defaultPathForType, StorySceneTuningContext,
+  DIRECTION_LABELS, EASING_LABELS, TRAVEL_STYLE_LABELS, EFFECT_LABELS, EFFECT_GROUPS, DIRECTIONAL_KINDS, START_TRIGGER_LABELS, REPEAT_LABELS, PATH_TYPE_LABELS,
+  type StoryPageTuning, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind, type MotionPathShape, type StoryTuningLookup,
   type Direction, type Easing, type TravelStyle, type StartTrigger, type RepeatMode,
 } from './storySceneTuning'
 
@@ -15,6 +15,7 @@ const EASING_OPTIONS = Object.keys(EASING_LABELS) as Easing[]
 const TRAVEL_OPTIONS = Object.keys(TRAVEL_STYLE_LABELS) as TravelStyle[]
 const START_TRIGGER_OPTIONS = Object.keys(START_TRIGGER_LABELS) as StartTrigger[]
 const REPEAT_OPTIONS = Object.keys(REPEAT_LABELS) as RepeatMode[]
+const PATH_TYPE_OPTIONS = Object.keys(PATH_TYPE_LABELS) as MotionPathShape['type'][]
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -83,8 +84,84 @@ const miniBtnStyle: React.CSSProperties = {
 // One animation step, PowerPoint Animation-Pane style: an effect type
 // (grouped Entrance/Emphasis/Motion Path), its type-specific fields, when
 // it starts relative to the step before it, whether it repeats, and
+// Motion Path's own shape sub-fields — Straight/Arc are simple two-point
+// moves (Arc adds one bulge height); Curve is a full quadratic Bezier
+// through an arbitrary control point; Circle loops around a center point
+// from one angle to another (a 360° sweep is a full loop back to start).
+function MotionPathFields({ path, onChangeType, onPatchPath }: {
+  path: MotionPathShape
+  onChangeType: (type: MotionPathShape['type']) => void
+  onPatchPath: (patch: Partial<MotionPathShape>) => void
+}) {
+  return (
+    <>
+      <SelectField label="Path shape" value={path.type} options={PATH_TYPE_OPTIONS} labels={PATH_TYPE_LABELS}
+        onChange={onChangeType} />
+
+      {(path.type === 'straight' || path.type === 'arc') && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Start</div>
+            <RangeField label="X (%)" value={path.startXPct} min={0} max={100} step={1} onChange={v => onPatchPath({ startXPct: v })} />
+            <RangeField label="Y (%)" value={path.startYPct} min={0} max={100} step={1} onChange={v => onPatchPath({ startYPct: v })} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>End</div>
+            <RangeField label="X (%)" value={path.endXPct} min={0} max={100} step={1} onChange={v => onPatchPath({ endXPct: v })} />
+            <RangeField label="Y (%)" value={path.endYPct} min={0} max={100} step={1} onChange={v => onPatchPath({ endYPct: v })} />
+          </div>
+        </div>
+      )}
+      {path.type === 'arc' && (
+        <RangeField label="Arc height (px, negative = up)" value={path.arcHeightPx} min={-120} max={120} step={2}
+          onChange={v => onPatchPath({ arcHeightPx: v })} />
+      )}
+
+      {path.type === 'curve' && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Start</div>
+            <RangeField label="X (%)" value={path.startXPct} min={0} max={100} step={1} onChange={v => onPatchPath({ startXPct: v })} />
+            <RangeField label="Y (%)" value={path.startYPct} min={0} max={100} step={1} onChange={v => onPatchPath({ startYPct: v })} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Control</div>
+            <RangeField label="X (%)" value={path.controlXPct} min={0} max={100} step={1} onChange={v => onPatchPath({ controlXPct: v })} />
+            <RangeField label="Y (%)" value={path.controlYPct} min={0} max={100} step={1} onChange={v => onPatchPath({ controlYPct: v })} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>End</div>
+            <RangeField label="X (%)" value={path.endXPct} min={0} max={100} step={1} onChange={v => onPatchPath({ endXPct: v })} />
+            <RangeField label="Y (%)" value={path.endYPct} min={0} max={100} step={1} onChange={v => onPatchPath({ endYPct: v })} />
+          </div>
+        </div>
+      )}
+
+      {path.type === 'circle' && (
+        <>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Center</div>
+              <RangeField label="X (%)" value={path.centerXPct} min={0} max={100} step={1} onChange={v => onPatchPath({ centerXPct: v })} />
+              <RangeField label="Y (%)" value={path.centerYPct} min={0} max={100} step={1} onChange={v => onPatchPath({ centerYPct: v })} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>&nbsp;</div>
+              <RangeField label="Radius (%)" value={path.radiusPct} min={2} max={50} step={1} onChange={v => onPatchPath({ radiusPct: v })} />
+            </div>
+          </div>
+          <RangeField label="Start angle (°)" value={path.startAngleDeg} min={-360} max={360} step={5}
+            onChange={v => onPatchPath({ startAngleDeg: v })} />
+          <RangeField label="End angle (°, 360 past start = full loop)" value={path.endAngleDeg} min={-360} max={720} step={5}
+            onChange={v => onPatchPath({ endAngleDeg: v })} />
+        </>
+      )}
+    </>
+  )
+}
+
 // duration/delay/easing — independent of what kind of object owns it.
-function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchEffect, onMove, onRemove }: {
+function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchEffect, onPatchPath, onMove, onRemove }: {
   step: AnimationStep
   index: number
   total: number
@@ -92,6 +169,7 @@ function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchE
   onChangeKind: (kind: EffectKind) => void
   onPatch: (patch: Partial<AnimationStep>) => void
   onPatchEffect: (patch: Partial<StepEffect>) => void
+  onPatchPath: (patch: Partial<MotionPathShape>) => void
   onMove: (dir: -1 | 1) => void
   onRemove: () => void
 }) {
@@ -115,26 +193,13 @@ function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchE
 
       {step.effect.kind === 'motionPath' && (
         <>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Start</div>
-              <RangeField label="X (%)" value={step.effect.startXPct} min={0} max={100} step={1}
-                onChange={v => onPatchEffect({ startXPct: v })} />
-              <RangeField label="Y (%)" value={step.effect.startYPct} min={0} max={100} step={1}
-                onChange={v => onPatchEffect({ startYPct: v })} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>End</div>
-              <RangeField label="X (%)" value={step.effect.endXPct} min={0} max={100} step={1}
-                onChange={v => onPatchEffect({ endXPct: v })} />
-              <RangeField label="Y (%)" value={step.effect.endYPct} min={0} max={100} step={1}
-                onChange={v => onPatchEffect({ endYPct: v })} />
-            </div>
-          </div>
+          <MotionPathFields
+            path={step.effect.path}
+            onChangeType={type => onPatchEffect({ path: defaultPathForType(type) })}
+            onPatchPath={onPatchPath}
+          />
           <SelectField label="Travel style (while moving)" value={step.effect.travelStyle} options={TRAVEL_OPTIONS} labels={TRAVEL_STYLE_LABELS}
             onChange={travelStyle => onPatchEffect({ travelStyle })} />
-          <RangeField label="Arc height (px, negative = up)" value={step.effect.arcHeightPx} min={-120} max={120} step={2}
-            onChange={v => onPatchEffect({ arcHeightPx: v })} />
         </>
       )}
 
@@ -169,6 +234,30 @@ function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchE
         <SelectField label="Easing" value={step.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
           onChange={easing => onPatch({ easing })} />
       )}
+    </div>
+  )
+}
+
+// A manually-added object needs nothing but an emoji to exist — no phonics
+// word required, unlike auto-detected props.
+function AddObjectField({ onAdd }: { onAdd: (emoji: string) => void }) {
+  const [value, setValue] = useState('')
+  function submit() {
+    if (!value.trim()) return
+    onAdd(value)
+    setValue('')
+  }
+  return (
+    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+      <input
+        type="text" value={value} placeholder="🐝 emoji…"
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') submit() }}
+        style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
+      />
+      <button onClick={submit} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '6px 12px', borderRadius: 8, background: '#F0F8FF', color: '#5A4336' }}>
+        + Add object
+      </button>
     </div>
   )
 }
@@ -211,10 +300,30 @@ export function StoryLab() {
   const [replayNonce, setReplayNonce] = useState(0)
 
   const unit = PHONICS_UNITS[unitIdx]
-  const page = unit.storyPages[pageIdx]
-  const propMatches = findWordMatches(page.text, page.highlight, unit.words)
+  // basePage is undefined for a page that only exists because "+ Add scene"
+  // created it — its content then comes entirely from the tuning override
+  // below, never from phonicsContent.ts. baseMatchGuess only seeds
+  // buildDefaultPageTuning's fallback; the real prop list is recomputed
+  // from the resolved tuning's own overrides right after.
+  const basePage = unit.storyPages[pageIdx]
+  const baseMatchGuess = findWordMatches(basePage?.text ?? '', basePage?.highlight ?? [], unit.words)
   const currentKey = storyPageKey(unit.id, pageIdx)
-  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(propMatches.length)
+  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(baseMatchGuess.length)
+
+  // A unit's page count isn't just unit.storyPages.length — pages appended
+  // via "+ Add scene" only exist as overrides, possibly still only in this
+  // session's pageTunings (not yet saved into STORY_PAGE_TUNING). Can't use
+  // the useResolvedPageCount hook here: it reads context from the nearest
+  // ANCESTOR Provider, and the Provider StoryLab itself renders (below)
+  // wraps only <StoryReader>, not StoryLab's own render — so it would only
+  // ever see already-saved pages, missing in-session additions.
+  let pageCount = unit.storyPages.length
+  while (storyPageKey(unit.id, pageCount) in pageTunings || getStoryTuning(unit.id, pageCount)) pageCount++
+
+  const text = tuning.textOverride ?? basePage?.text ?? ''
+  const highlight = tuning.highlightOverride ?? basePage?.highlight ?? []
+  const hiddenSet = new Set(tuning.hiddenWords.map(w => w.toLowerCase()))
+  const visibleMatches = findWordMatches(text, highlight, unit.words).filter(m => !hiddenSet.has(m.word.word.toLowerCase()))
 
   // useStepTimeline only restarts an object's animations when its `steps`
   // array reference changes — which normally only happens on a real edit.
@@ -231,9 +340,10 @@ export function StoryLab() {
   }), [tuning, replayNonce])
 
   const objectOptions = [
-    { id: 'mascot', label: `🏃 Mascot` },
-    ...propMatches.map((m, i) => ({ id: `prop-${i}`, label: `${m.word.emoji} Prop ${i + 1} (${m.word.word})` })),
-    { id: 'sentence', label: '💬 Sentence text' },
+    { id: 'mascot', label: `🏃 Mascot`, kind: 'mascot' as const },
+    ...visibleMatches.map((m, i) => ({ id: `prop-${i}`, label: `${m.word.emoji} Prop ${i + 1} (${m.word.word})`, kind: 'auto' as const, word: m.word.word })),
+    ...tuning.extraObjects.map((o, j) => ({ id: `prop-${visibleMatches.length + j}`, label: `${o.emoji} Prop ${visibleMatches.length + j + 1} (custom)`, kind: 'extra' as const, extraId: o.id })),
+    { id: 'sentence', label: '💬 Sentence text', kind: 'sentence' as const },
   ]
   const selectedObject: SceneObjectTuning =
     selectedObjectId === 'mascot' ? tuning.mascot
@@ -247,11 +357,22 @@ export function StoryLab() {
     setSelectedObjectId('mascot')
   }
 
+  // Every edit funnels through here, which — after applying the change —
+  // re-derives the effective prop count (visible auto-matches + extra
+  // objects) from the UPDATED content and resizes `props` to match via
+  // resizeProps(). This is the one place that keeps `props` correctly
+  // sized no matter which specific field changed (text, a hidden word, an
+  // added/removed extra object, ...).
   function updateTuning(updater: (t: StoryPageTuning) => StoryPageTuning) {
-    setPageTunings(prev => ({
-      ...prev,
-      [currentKey]: updater(prev[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(propMatches.length)),
-    }))
+    setPageTunings(prev => {
+      const current = prev[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(baseMatchGuess.length)
+      const updated = updater(current)
+      const effectiveText = updated.textOverride ?? basePage?.text ?? ''
+      const effectiveHighlight = updated.highlightOverride ?? basePage?.highlight ?? []
+      const hidden = new Set(updated.hiddenWords.map(w => w.toLowerCase()))
+      const visibleCount = findWordMatches(effectiveText, effectiveHighlight, unit.words).filter(m => !hidden.has(m.word.word.toLowerCase())).length
+      return { ...prev, [currentKey]: resizeProps(updated, visibleCount + updated.extraObjects.length) }
+    })
   }
 
   function updateSelectedObject(updater: (o: SceneObjectTuning) => SceneObjectTuning) {
@@ -268,6 +389,55 @@ export function StoryLab() {
   function setObjectField<K extends keyof SceneObjectTuning>(key: K, value: SceneObjectTuning[K]) {
     updateSelectedObject(o => ({ ...o, [key]: value }))
   }
+
+  // Content editing — text/highlight overrides, hiding an auto-detected
+  // word's prop, and manually adding/removing extra (non-word) objects.
+  // All go through updateTuning so `props` stays correctly resized.
+  function setText(value: string) {
+    updateTuning(t => ({ ...t, textOverride: value }))
+    if (selectedObjectId.startsWith('prop-')) setSelectedObjectId('mascot')
+  }
+  function setHighlight(words: string[]) {
+    updateTuning(t => ({ ...t, highlightOverride: words }))
+    if (selectedObjectId.startsWith('prop-')) setSelectedObjectId('mascot')
+  }
+  function hideWord(word: string) {
+    updateTuning(t => ({ ...t, hiddenWords: [...t.hiddenWords, word] }))
+    setSelectedObjectId('mascot')
+  }
+  function unhideWord(word: string) {
+    updateTuning(t => ({ ...t, hiddenWords: t.hiddenWords.filter(w => w.toLowerCase() !== word.toLowerCase()) }))
+  }
+  function addExtraObject(emoji: string) {
+    if (!emoji.trim()) return
+    updateTuning(t => ({ ...t, extraObjects: [...t.extraObjects, { id: `extra-${Math.random().toString(36).slice(2, 9)}`, emoji: emoji.trim() }] }))
+    setSelectedObjectId('mascot')
+  }
+  function removeExtraObject(extraId: string) {
+    updateTuning(t => ({ ...t, extraObjects: t.extraObjects.filter(o => o.id !== extraId) }))
+    setSelectedObjectId('mascot')
+  }
+
+  // Scenes are append/remove-from-the-end only, to avoid re-keying every
+  // subsequent page's STORY_PAGE_TUNING entry (keyed by unitId::pageIndex).
+  // Original PPT-sourced pages (index < unit.storyPages.length) can be
+  // edited but never removed, only pages this Lab added.
+  function addScene() {
+    const newIdx = pageCount
+    const key = storyPageKey(unit.id, newIdx)
+    setPageTunings(prev => ({ ...prev, [key]: { ...buildDefaultPageTuning(0), textOverride: '', highlightOverride: [] } }))
+    jumpTo(unitIdx, newIdx)
+  }
+  function removeScene() {
+    const key = storyPageKey(unit.id, pageIdx)
+    setPageTunings(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    jumpTo(unitIdx, Math.max(0, pageIdx - 1))
+  }
+
   function addStep(kind: EffectKind) {
     updateSelectedObject(o => ({ ...o, steps: [...o.steps, createStep(kind)] }))
   }
@@ -295,6 +465,14 @@ export function StoryLab() {
       steps: o.steps.map(s => s.id === stepId ? { ...s, effect: { ...s.effect, ...patch } as StepEffect } : s),
     }))
   }
+  function patchStepPath(stepId: string, patch: Partial<MotionPathShape>) {
+    updateSelectedObject(o => ({
+      ...o,
+      steps: o.steps.map(s => s.id === stepId && s.effect.kind === 'motionPath'
+        ? { ...s, effect: { ...s.effect, path: { ...s.effect.path, ...patch } as MotionPathShape } }
+        : s),
+    }))
+  }
   // Switching kind resets duration/easing/repeat to that kind's own sensible
   // defaults (createStep's) rather than keeping whatever the PREVIOUS kind
   // had — e.g. Float defaults to looping forever, which would otherwise
@@ -310,11 +488,16 @@ export function StoryLab() {
     }))
   }
 
-  // The Lab's live preview only ever shows the current page, so this always
-  // resolves to previewTuning — which already carries replayNonce so the
-  // Replay button can force a from-scratch replay of already-finished steps.
-  function lookupTuning(): StoryPageTuning {
-    return previewTuning
+  // The Lab's live preview only ever shows the current page, so `resolve`
+  // always returns previewTuning — which already carries replayNonce so the
+  // Replay button can force a from-scratch replay of already-finished
+  // steps. `hasOverride` checks BOTH this session's edits and any
+  // already-saved STORY_PAGE_TUNING entry, since useResolvedPageCount
+  // (used by <StoryReader>'s own page-count logic) needs to see pages
+  // added only in this session too.
+  const labLookup: StoryTuningLookup = {
+    resolve: () => previewTuning,
+    hasOverride: (unitId, pageIndex) => storyPageKey(unitId, pageIndex) in pageTunings || !!getStoryTuning(unitId, pageIndex),
   }
 
   // Removes this page's in-session edit, reverting it to its saved/default
@@ -336,9 +519,11 @@ export function StoryLab() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 20, fontFamily: FONT, padding: '4px 16px 24px', flexWrap: 'wrap' }}>
-      {/* Controls */}
-      <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', gap: 20, fontFamily: FONT, padding: '4px 16px 24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      {/* Controls — sticky + height-capped with its own scrollbar, so the
+          live scene beside it never scrolls out of view no matter how much
+          this panel grows (position/animations/content/object sections). */}
+      <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', paddingRight: 4 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F' }}>🧪 Phonics Story Lab</div>
         <div style={{ fontSize: 12, color: '#A98B77' }}>Click an object, give it any animation(s), then copy the values into code.</div>
 
@@ -357,8 +542,8 @@ export function StoryLab() {
 
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77', marginBottom: 4 }}>Page</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {unit.storyPages.map((_, i) => {
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {Array.from({ length: pageCount }, (_, i) => {
               const edited = storyPageKey(unit.id, i) in pageTunings
               return (
                 <button
@@ -379,31 +564,80 @@ export function StoryLab() {
                 </button>
               )
             })}
+            <button
+              onClick={addScene}
+              title="Add a new scene at the end of this unit's story"
+              style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, width: 30, height: 30, borderRadius: '50%', background: '#F0F8FF', color: '#7FB8E0', boxShadow: '0 3px 0 #DCEEFA' }}>
+              +
+            </button>
+            {pageIdx === pageCount - 1 && pageIdx >= unit.storyPages.length && (
+              <button
+                onClick={removeScene}
+                title="Remove this scene"
+                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 12, padding: '6px 10px', borderRadius: '999px', background: '#FFF0F0', color: '#D96C6C', boxShadow: '0 3px 0 #F5D9D9' }}>
+                🗑 Remove
+              </button>
+            )}
           </div>
-          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session.</div>
+          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session. Scenes beyond the original story can only be added/removed at the end.</div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77', marginBottom: 4 }}>Sentence text</div>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            rows={2}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+          />
+          <div style={{ fontSize: 11, color: '#A98B77', margin: '6px 0 2px' }}>Highlighted words (comma-separated — phonics-family words also spawn a prop)</div>
+          <input
+            type="text"
+            value={highlight.join(', ')}
+            onChange={e => setHighlight(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+            style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
+          />
+          {tuning.hiddenWords.length > 0 && (
+            <div style={{ fontSize: 11, color: '#A98B77', marginTop: 6 }}>
+              Hidden props: {tuning.hiddenWords.map(w => (
+                <button key={w} onClick={() => unhideWord(w)} title="Unhide"
+                  style={{ border: 'none', cursor: 'pointer', background: '#EDE0D4', color: '#6B4F3F', borderRadius: 6, padding: '2px 6px', marginRight: 4, fontFamily: FONT, fontSize: 11 }}>
+                  {w} ✕
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77', marginBottom: 4 }}>Object</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {objectOptions.map(o => (
-              <button
-                key={o.id}
-                onClick={() => setSelectedObjectId(o.id)}
-                style={{
-                  border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, textAlign: 'left',
-                  padding: '8px 10px', borderRadius: 10,
-                  background: o.id === selectedObjectId ? '#F2879B' : '#FFFFFF',
-                  color: o.id === selectedObjectId ? '#fff' : '#6B4F3F',
-                  boxShadow: '0 3px 0 #E7D3C0',
-                }}>
-                {o.label}
-              </button>
+              <div key={o.id} style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => setSelectedObjectId(o.id)}
+                  style={{
+                    flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, textAlign: 'left',
+                    padding: '8px 10px', borderRadius: 10,
+                    background: o.id === selectedObjectId ? '#F2879B' : '#FFFFFF',
+                    color: o.id === selectedObjectId ? '#fff' : '#6B4F3F',
+                    boxShadow: '0 3px 0 #E7D3C0',
+                  }}>
+                  {o.label}
+                </button>
+                {o.kind === 'auto' && (
+                  <button onClick={() => hideWord(o.word)} title="Hide this prop" style={miniBtnStyle}>👁</button>
+                )}
+                {o.kind === 'extra' && (
+                  <button onClick={() => removeExtraObject(o.extraId)} title="Remove this object" style={miniBtnStyle}>✕</button>
+                )}
+              </div>
             ))}
           </div>
+          <AddObjectField onAdd={addExtraObject} />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 640, overflowY: 'auto', paddingRight: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {selectedObjectId !== 'sentence' && (
             <Section title="Position">
               <RangeField label="X (%)" value={selectedObject.xPct} min={0} max={100} step={1}
@@ -428,6 +662,7 @@ export function StoryLab() {
                 onChangeKind={kind => changeStepKind(step.id, kind)}
                 onPatch={patch => patchStep(step.id, patch)}
                 onPatchEffect={patch => patchStepEffect(step.id, patch)}
+                onPatchPath={patch => patchStepPath(step.id, patch)}
                 onMove={dir => moveStep(step.id, dir)}
                 onRemove={() => removeStep(step.id)}
               />
@@ -469,8 +704,9 @@ export function StoryLab() {
         </div>
       </div>
 
-      {/* Live scene */}
-      <div style={{ flex: '1 1 480px', minWidth: 320 }}>
+      {/* Live scene — also sticky, so it stays in view beside the controls
+          panel regardless of page scroll position. */}
+      <div style={{ flex: '1 1 480px', minWidth: 320, position: 'sticky', top: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
           <button
             onClick={() => setReplayNonce(n => n + 1)}
@@ -478,12 +714,12 @@ export function StoryLab() {
             ▶ Replay
           </button>
         </div>
-        <StorySceneTuningContext.Provider value={lookupTuning}>
+        <StorySceneTuningContext.Provider value={labLookup}>
           <StoryReader
             key={`${unit.id}-${jumpNonce}`}
             unit={unit}
             initialPageIndex={pageIdx}
-            onDone={() => jumpTo(unitIdx, Math.min(pageIdx + 1, unit.storyPages.length - 1))}
+            onDone={() => jumpTo(unitIdx, Math.min(pageIdx + 1, pageCount - 1))}
           />
         </StorySceneTuningContext.Provider>
       </div>

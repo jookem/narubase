@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { PhonicsUnit } from '@/lib/phonicsContent'
 
 // Knobs for StoryReader's scene visuals/animation, PowerPoint-Animation-Pane
 // style: click any object on the page (the mascot, any ambient prop, the
@@ -93,11 +94,43 @@ export const EFFECT_GROUPS: { label: string; kinds: EffectKind[] }[] = [
 // Which kinds carry a `direction` field — shown/enabled in the Lab only for these.
 export const DIRECTIONAL_KINDS: EffectKind[] = ['wipe', 'flyIn']
 
+// A Motion Path's actual shape through the scene. 'straight'/'arc' are a
+// simple two-point move (arc adds one symmetric bulge at the midpoint,
+// via a separate transform dip in stepAnimation.ts); 'curve' is a full
+// quadratic Bezier through an arbitrary control point; 'circle' loops
+// around a center point from one angle to another (360° sweep = a full
+// loop back to the start).
+export type MotionPathShape =
+  | { type: 'straight'; startXPct: number; startYPct: number; endXPct: number; endYPct: number }
+  | { type: 'arc'; startXPct: number; startYPct: number; endXPct: number; endYPct: number; arcHeightPx: number }
+  | { type: 'curve'; startXPct: number; startYPct: number; controlXPct: number; controlYPct: number; endXPct: number; endYPct: number }
+  | { type: 'circle'; centerXPct: number; centerYPct: number; radiusPct: number; startAngleDeg: number; endAngleDeg: number }
+
+export const PATH_TYPE_LABELS: Record<MotionPathShape['type'], string> = {
+  straight: 'Straight Line',
+  arc: 'Arc',
+  curve: 'Curve',
+  circle: 'Circle / Loop',
+}
+
+export function defaultPathForType(type: MotionPathShape['type']): MotionPathShape {
+  switch (type) {
+    case 'straight':
+      return { type: 'straight', startXPct: 10, startYPct: 40, endXPct: 50, endYPct: 40 }
+    case 'arc':
+      return { type: 'arc', startXPct: 10, startYPct: 40, endXPct: 50, endYPct: 40, arcHeightPx: -40 }
+    case 'curve':
+      return { type: 'curve', startXPct: 10, startYPct: 60, controlXPct: 30, controlYPct: 10, endXPct: 50, endYPct: 40 }
+    case 'circle':
+      return { type: 'circle', centerXPct: 30, centerYPct: 40, radiusPct: 20, startAngleDeg: 0, endAngleDeg: 360 }
+  }
+}
+
 export type StepEffect =
   | { kind: 'fade' | 'pop' | 'bounceIn' }
   | { kind: 'wipe' | 'flyIn'; direction: Direction }
   | { kind: 'float' | 'wiggle' | 'spin' | 'growShrink' | 'pulse' | 'shake' }
-  | { kind: 'motionPath'; startXPct: number; startYPct: number; endXPct: number; endYPct: number; arcHeightPx: number; travelStyle: TravelStyle }
+  | { kind: 'motionPath'; path: MotionPathShape; travelStyle: TravelStyle }
   | { kind: 'swap'; content: string }   // instantly swaps what the object renders — an emoji for props/sentence, a sprite variant ('default'/'happy') for the mascot
 
 export interface AnimationStep {
@@ -122,6 +155,14 @@ export interface SceneObjectTuning {
   steps: AnimationStep[]
 }
 
+// A manually-added scene object that isn't tied to any phonics word — an
+// emoji is enough content to give it, and it gets the exact same Position +
+// Animations authoring as an auto-detected prop (see StoryLab's Object picker).
+export interface ExtraObject {
+  id: string
+  emoji: string
+}
+
 export interface StoryPageTuning {
   sceneMaxWidth: number
   sceneHeight: number
@@ -130,9 +171,17 @@ export interface StoryPageTuning {
   bgBottom: string
   groundColor: string
   mascot: SceneObjectTuning
-  props: SceneObjectTuning[]   // sized to however many matched words THIS page has
+  props: SceneObjectTuning[]   // sized to however many props THIS page effectively has: visible auto-matched words + extraObjects
   sentence: SceneObjectTuning  // position fields unused — laid out by its own card
   motionSoundEnabled: boolean
+
+  // Content overrides — null/[] means "inherit from phonicsContent.ts's
+  // static StoryPage" (untouched pages behave exactly as before). Set once
+  // the Lab's Content section is edited for this page.
+  textOverride: string | null
+  highlightOverride: string[] | null
+  hiddenWords: string[]        // auto-matched words to suppress from the prop list (case-insensitive)
+  extraObjects: ExtraObject[]  // manually added, always additive, appended after the visible auto-matches
 }
 
 export function defaultStepEffect(kind: EffectKind): StepEffect {
@@ -141,7 +190,7 @@ export function defaultStepEffect(kind: EffectKind): StepEffect {
     case 'flyIn':
       return { kind, direction: 'fromBottom' }
     case 'motionPath':
-      return { kind: 'motionPath', startXPct: 10, startYPct: 40, endXPct: 50, endYPct: 40, arcHeightPx: -40, travelStyle: 'bob' }
+      return { kind: 'motionPath', path: defaultPathForType('arc'), travelStyle: 'bob' }
     case 'swap':
       return { kind: 'swap', content: '' }
     default:
@@ -184,6 +233,20 @@ export function buildDefaultPageTuning(propCount: number): StoryPageTuning {
   return built
 }
 
+// One default prop slot's tuning, by its position in the effective prop
+// list (visible auto-matches, then extraObjects, in order). Used both to
+// build a fresh page and to pad `props` back out after resizeProps() grows it.
+function newPropSlot(index: number): SceneObjectTuning {
+  return {
+    id: `prop-${index}`,
+    xPct: 10 + index * 28, yPct: 8, zIndex: 1, fontSize: 40,
+    steps: [
+      createStep('pop', { durationSec: 0.4, delaySec: index * 0.06 }),
+      createStep('float', { durationSec: 2.6, delaySec: index * 0.25, easing: 'ease-in-out', repeat: 'loop' }),
+    ],
+  }
+}
+
 function buildFreshDefaultPageTuning(propCount: number): StoryPageTuning {
   return {
     sceneMaxWidth: 480,
@@ -197,19 +260,28 @@ function buildFreshDefaultPageTuning(propCount: number): StoryPageTuning {
       id: 'mascot', xPct: 40, yPct: 41, zIndex: 2, fontSize: 84,
       steps: [createStep('float', { durationSec: 2.4, easing: 'ease-in-out', repeat: 'loop' })],
     },
-    props: Array.from({ length: propCount }, (_, i) => ({
-      id: `prop-${i}`,
-      xPct: 10 + i * 28, yPct: 8, zIndex: 1, fontSize: 40,
-      steps: [
-        createStep('pop', { durationSec: 0.4, delaySec: i * 0.06 }),
-        createStep('float', { durationSec: 2.6, delaySec: i * 0.25, easing: 'ease-in-out', repeat: 'loop' }),
-      ],
-    })),
+    props: Array.from({ length: propCount }, (_, i) => newPropSlot(i)),
     sentence: {
       id: 'sentence', xPct: 0, yPct: 0, zIndex: 0, fontSize: 24,
       steps: [createStep('pop', { durationSec: 0.35 })],
     },
+    textOverride: null,
+    highlightOverride: null,
+    hiddenWords: [],
+    extraObjects: [],
   }
+}
+
+// Resizes `tuning.props` to exactly `count` slots — pads with fresh default
+// slots (positioned in the same auto-spaced pattern as buildDefaultPageTuning)
+// when growing, truncates from the end when shrinking. Existing slots keep
+// their tuning by position; see the "known limitation" note in StoryLab.tsx's
+// Content section about hiding a word mid-list shifting what's downstream of it.
+export function resizeProps(tuning: StoryPageTuning, count: number): StoryPageTuning {
+  if (tuning.props.length === count) return tuning
+  const props = tuning.props.slice(0, count)
+  while (props.length < count) props.push(newPropSlot(props.length))
+  return { ...tuning, props }
 }
 
 // Per-page overrides, keyed by storyPageKey(unitId, pageIndex). Populate by
@@ -225,15 +297,36 @@ export function getStoryTuning(unitId: string, pageIndex: number): StoryPageTuni
   return STORY_PAGE_TUNING[storyPageKey(unitId, pageIndex)]
 }
 
-export type StoryTuningLookup = (unitId: string, pageIndex: number, propCount: number) => StoryPageTuning
-
-function defaultLookup(unitId: string, pageIndex: number, propCount: number): StoryPageTuning {
-  return getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(propCount)
+// `resolve` returns a page's effective tuning (falling back to a fresh
+// default when untouched); `hasOverride` reports whether a REAL, saved-or-
+// in-session override exists for that exact index — no default synthesis.
+// That distinction is what page-count resolution and "is this an added
+// scene" checks need, since `resolve` alone can never report "nothing here"
+// (it always returns something to render).
+export interface StoryTuningLookup {
+  resolve(unitId: string, pageIndex: number, propCount: number): StoryPageTuning
+  hasOverride(unitId: string, pageIndex: number): boolean
 }
 
-export const StorySceneTuningContext = createContext<StoryTuningLookup>(defaultLookup)
+const defaultStoryTuningLookup: StoryTuningLookup = {
+  resolve: (unitId, pageIndex, propCount) => getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(propCount),
+  hasOverride: (unitId, pageIndex) => !!getStoryTuning(unitId, pageIndex),
+}
+
+export const StorySceneTuningContext = createContext<StoryTuningLookup>(defaultStoryTuningLookup)
 
 export function useStorySceneTuning(unitId: string, pageIndex: number, propCount: number): StoryPageTuning {
   const lookup = useContext(StorySceneTuningContext)
-  return lookup(unitId, pageIndex, propCount)
+  return lookup.resolve(unitId, pageIndex, propCount)
+}
+
+// A unit's page count isn't just its static phonicsContent.ts length —
+// pages can be appended beyond that via the Lab's "+ Add scene" (see
+// StoryLab.tsx). Counts contiguously from the base length upward while an
+// override actually exists for each next index.
+export function useResolvedPageCount(unit: PhonicsUnit): number {
+  const lookup = useContext(StorySceneTuningContext)
+  let count = unit.storyPages.length
+  while (lookup.hasOverride(unit.id, count)) count++
+  return count
 }
