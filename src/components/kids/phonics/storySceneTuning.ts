@@ -126,6 +126,19 @@ export interface EntranceEmphasisConfig extends EntranceConfig {
   emphasisDurationSec: number
 }
 
+// One ambient prop's own position + stacking order, independent of any
+// other prop on the same page. A page can mention more than one word with
+// an emoji (e.g. "The can is in the pan" -> can + pan both shown at once),
+// and each needs to be placeable on its own — a single shared
+// top/left/z-index doesn't let you separate them. Indexed by the order
+// props appear in the sentence (1st match -> slot 0, 2nd -> slot 1, ...);
+// a page with more props than configured slots reuses the last slot.
+export interface PropSlot {
+  xPct: number
+  yPct: number
+  zIndex: number
+}
+
 export interface StorySceneTuning {
   sceneMaxWidth: number
   sceneHeight: number
@@ -137,11 +150,8 @@ export interface StorySceneTuning {
   mascotFontSize: number
   targetFontSize: number
   othersFontSize: number
-  propsTop: number
-  propsLeft: number
   mascotZIndex: number
   targetZIndex: number
-  propsZIndex: number
   bgTop: string
   bgMid: string
   bgBottom: string
@@ -164,6 +174,7 @@ export interface StorySceneTuning {
   props: EntranceEmphasisConfig
   propsEntranceStaggerSec: number
   propsEmphasisStaggerSec: number
+  propSlots: PropSlot[]
 
   target: EntranceEmphasisConfig
 
@@ -181,11 +192,8 @@ export const DEFAULT_STORY_SCENE_TUNING: StorySceneTuning = {
   mascotFontSize: 84,
   targetFontSize: 56,
   othersFontSize: 40,
-  propsTop: 10,
-  propsLeft: 10,
   mascotZIndex: 2,
   targetZIndex: 1,
-  propsZIndex: 1,
   bgTop: '#FFF9F1',
   bgMid: '#FBF0E4',
   bgBottom: '#F3E3D0',
@@ -203,6 +211,11 @@ export const DEFAULT_STORY_SCENE_TUNING: StorySceneTuning = {
   props: { effect: 'pop', direction: 'fromBottom', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'float', emphasisDurationSec: 2.6 },
   propsEntranceStaggerSec: 0.06,
   propsEmphasisStaggerSec: 0.25,
+  propSlots: [
+    { xPct: 10, yPct: 8, zIndex: 1 },
+    { xPct: 38, yPct: 8, zIndex: 1 },
+    { xPct: 66, yPct: 8, zIndex: 1 },
+  ],
 
   target: { effect: 'pop', direction: 'fromBottom', durationSec: 0.4, delaySec: 0, easing: 'ease-out', emphasis: 'pulse', emphasisDurationSec: 1.8 },
 
@@ -246,4 +259,10 @@ export function travelCss(style: TravelStyle, durationSec: number): string | und
 export function combineAnimations(...parts: (string | undefined)[]): string | undefined {
   const filtered = parts.filter((p): p is string => !!p)
   return filtered.length ? filtered.join(', ') : undefined
+}
+
+// Slot for the i-th prop shown on a page — reuses the last configured
+// slot if a page mentions more props than there are slots for.
+export function propSlotFor(slots: PropSlot[], i: number): PropSlot {
+  return slots[Math.min(i, slots.length - 1)]
 }

@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
-import { useStorySceneTuning, entranceCss, entranceVars, emphasisCss, travelCss, combineAnimations } from './storySceneTuning'
+import { useStorySceneTuning, entranceCss, entranceVars, emphasisCss, travelCss, combineAnimations, propSlotFor } from './storySceneTuning'
 import { mascotSvgUrl } from './mascotAssets'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
@@ -128,8 +128,6 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageIdx, unit])
 
-  useEffect(() => { setPageIdx(0) }, [unit])
-
   useEffect(() => {
     const t = setTimeout(() => speak(page.text), 300)
     return () => clearTimeout(t)
@@ -166,23 +164,26 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         {/* ground strip so "moving toward X" reads as a mini scene, not two floating emoji */}
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: t.groundColor }} />
 
-        {/* Words this page mentions that aren't the movement destination */}
-        {others.length > 0 && (
-          <div key={`others-${pageIdx}`} style={{ position: 'absolute', top: t.propsTop, left: t.propsLeft, right: 10, display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: motionTarget ? 'flex-start' : 'center', zIndex: t.propsZIndex }}>
-            {others.map((m, i) => (
-              <span key={m.word.word} style={{
-                fontSize: t.othersFontSize, display: 'inline-block',
-                ...entranceVars(t.props.direction),
-                animation: combineAnimations(
-                  entranceCss(t.props, i * t.propsEntranceStaggerSec),
-                  emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + i * t.propsEmphasisStaggerSec),
-                ),
-              } as CSSProperties}>
-                {m.word.emoji}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Words this page mentions that aren't the movement destination —
+            each gets its own slot (position + z-index) so pages that
+            mention more than one prop at once can place/stack them
+            independently instead of sharing one auto-flow container */}
+        {others.map((m, i) => {
+          const slot = propSlotFor(t.propSlots, i)
+          return (
+            <span key={`${pageIdx}-${m.word.word}`} style={{
+              position: 'absolute', left: `${slot.xPct}%`, top: `${slot.yPct}%`, zIndex: slot.zIndex,
+              fontSize: t.othersFontSize, display: 'inline-block',
+              ...entranceVars(t.props.direction),
+              animation: combineAnimations(
+                entranceCss(t.props, i * t.propsEntranceStaggerSec),
+                emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + i * t.propsEmphasisStaggerSec),
+              ),
+            } as CSSProperties}>
+              {m.word.emoji}
+            </span>
+          )
+        })}
 
         {/* Destination prop the mascot is moving toward */}
         {motionTarget && (

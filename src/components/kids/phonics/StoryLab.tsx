@@ -3,7 +3,7 @@ import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader } from './StoryReader'
 import {
   DEFAULT_STORY_SCENE_TUNING, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
-  type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig,
+  type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig, type PropSlot,
   type EntranceEffect, type Direction, type EmphasisEffect, type TravelStyle, type Easing,
 } from './storySceneTuning'
 
@@ -34,12 +34,9 @@ const NUMBER_FIELDS: NumberField[] = [
   { key: 'mascotFontSize', label: 'Mascot size (px)', min: 30, max: 130, step: 1 },
   { key: 'targetFontSize', label: 'Target size (px)', min: 20, max: 100, step: 1 },
   { key: 'othersFontSize', label: 'Prop size (px)', min: 16, max: 70, step: 1 },
-  { key: 'propsTop', label: 'Props from top (px)', min: 0, max: 120, step: 1 },
-  { key: 'propsLeft', label: 'Props from left (px)', min: 0, max: 200, step: 1 },
 ]
 
 const Z_INDEX_FIELDS: NumberField[] = [
-  { key: 'propsZIndex', label: 'Props layer', min: 0, max: 5, step: 1 },
   { key: 'targetZIndex', label: 'Target layer', min: 0, max: 5, step: 1 },
   { key: 'mascotZIndex', label: 'Mascot layer', min: 0, max: 5, step: 1 },
 ]
@@ -144,6 +141,9 @@ export function StoryLab() {
   }
   function patchProps(patch: Partial<EntranceEmphasisConfig>) {
     setTuning(t => ({ ...t, props: { ...t.props, ...patch } }))
+  }
+  function patchPropSlot(index: number, patch: Partial<PropSlot>) {
+    setTuning(t => ({ ...t, propSlots: t.propSlots.map((s, i) => i === index ? { ...s, ...patch } : s) }))
   }
   function patchTarget(patch: Partial<EntranceEmphasisConfig>) {
     setTuning(t => ({ ...t, target: { ...t.target, ...patch } }))
@@ -261,6 +261,20 @@ export function StoryLab() {
               onChange={v => setField('propsEmphasisStaggerSec', v)} />
             <SelectField label="Easing" value={tuning.props.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
               onChange={v => patchProps({ easing: v })} />
+          </Section>
+
+          <Section title="Ambient prop positions (per prop, in sentence order)">
+            {tuning.propSlots.map((slot, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 6, borderBottom: i < tuning.propSlots.length - 1 ? '1px dashed #EDE0D4' : undefined }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Prop {i + 1}</div>
+                <RangeField label="X (%)" value={slot.xPct} min={0} max={90} step={1}
+                  onChange={v => patchPropSlot(i, { xPct: v })} />
+                <RangeField label="Y (%)" value={slot.yPct} min={0} max={90} step={1}
+                  onChange={v => patchPropSlot(i, { yPct: v })} />
+                <RangeField label="Layer (z-index)" value={slot.zIndex} min={0} max={5} step={1}
+                  onChange={v => patchPropSlot(i, { zIndex: v })} />
+              </div>
+            ))}
           </Section>
 
           <Section title="Destination prop">
