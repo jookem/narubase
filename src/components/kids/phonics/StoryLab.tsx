@@ -1,53 +1,20 @@
 import { useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
-import { StoryReader } from './StoryReader'
+import { StoryReader, findWordMatches } from './StoryReader'
 import {
-  DEFAULT_MOTION_PATH, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
-  getStoryTuning, storyPageKey,
-  type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig, type PropSlot, type MotionPath,
-  type EntranceEffect, type Direction, type EmphasisEffect, type TravelStyle, type Easing,
+  storyPageKey, getStoryTuning, buildDefaultPageTuning, createStep, StorySceneTuningContext,
+  DIRECTION_LABELS, EASING_LABELS, TRAVEL_STYLE_LABELS, EFFECT_LABELS, EFFECT_GROUPS, DIRECTIONAL_KINDS, START_TRIGGER_LABELS, REPEAT_LABELS,
+  type StoryPageTuning, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind,
+  type Direction, type Easing, type TravelStyle, type StartTrigger, type RepeatMode,
 } from './storySceneTuning'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
-const ENTRANCE_OPTIONS = Object.keys(ENTRANCE_LABELS) as EntranceEffect[]
 const DIRECTION_OPTIONS = Object.keys(DIRECTION_LABELS) as Direction[]
-const EMPHASIS_OPTIONS = Object.keys(EMPHASIS_LABELS) as EmphasisEffect[]
-const TRAVEL_OPTIONS = Object.keys(TRAVEL_STYLE_LABELS) as TravelStyle[]
 const EASING_OPTIONS = Object.keys(EASING_LABELS) as Easing[]
-
-interface NumberField {
-  key: keyof StorySceneTuning
-  label: string
-  min: number
-  max: number
-  step: number
-}
-
-const NUMBER_FIELDS: NumberField[] = [
-  { key: 'sceneMaxWidth', label: 'Scene width (px)', min: 240, max: 720, step: 4 },
-  { key: 'sceneHeight', label: 'Scene height (px)', min: 100, max: 280, step: 2 },
-  { key: 'mascotStartLeftPct', label: 'Mascot start (%)', min: 0, max: 40, step: 1 },
-  { key: 'mascotArrivedLeftPct', label: 'Mascot arrived (%)', min: 40, max: 95, step: 1 },
-  { key: 'targetRightPct', label: 'Target from right (%)', min: 0, max: 30, step: 1 },
-  { key: 'mascotBottom', label: 'Mascot bottom (px)', min: 0, max: 60, step: 1 },
-  { key: 'targetBottom', label: 'Target bottom (px)', min: 0, max: 60, step: 1 },
-  { key: 'mascotFontSize', label: 'Mascot size (px)', min: 30, max: 130, step: 1 },
-  { key: 'targetFontSize', label: 'Target size (px)', min: 20, max: 100, step: 1 },
-  { key: 'othersFontSize', label: 'Prop size (px)', min: 16, max: 70, step: 1 },
-]
-
-const Z_INDEX_FIELDS: NumberField[] = [
-  { key: 'targetZIndex', label: 'Target layer', min: 0, max: 5, step: 1 },
-  { key: 'mascotZIndex', label: 'Mascot layer', min: 0, max: 5, step: 1 },
-]
-
-const COLOR_FIELDS: { key: keyof StorySceneTuning; label: string }[] = [
-  { key: 'bgTop', label: 'Sky (top)' },
-  { key: 'bgMid', label: 'Sky (mid)' },
-  { key: 'bgBottom', label: 'Sky (bottom)' },
-  { key: 'groundColor', label: 'Ground' },
-]
+const TRAVEL_OPTIONS = Object.keys(TRAVEL_STYLE_LABELS) as TravelStyle[]
+const START_TRIGGER_OPTIONS = Object.keys(START_TRIGGER_LABELS) as StartTrigger[]
+const REPEAT_OPTIONS = Object.keys(REPEAT_LABELS) as RepeatMode[]
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -58,16 +25,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+const selectStyle: React.CSSProperties = { width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontWeight: 400 }
+
 function SelectField<T extends string>({ label, value, options, labels, onChange }: {
   label: string; value: T; options: T[]; labels: Record<T, string>; onChange: (v: T) => void
 }) {
   return (
     <Field label={label}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value as T)}
-        style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontWeight: 400 }}
-      >
+      <select value={value} onChange={e => onChange(e.target.value as T)} style={selectStyle}>
         {options.map(o => <option key={o} value={o}>{labels[o]}</option>)}
       </select>
     </Field>
@@ -87,59 +52,6 @@ function RangeField({ label, value, min, max, step, onChange }: {
   )
 }
 
-// Entrance effect + direction, PowerPoint-style: direction only means
-// something (and so is only shown) for effects in DIRECTIONAL_EFFECTS.
-function EntranceEffectFields({ value, onChange }: {
-  value: EntranceConfig; onChange: (patch: Partial<EntranceConfig>) => void
-}) {
-  return (
-    <>
-      <SelectField label="Entrance" value={value.effect} options={ENTRANCE_OPTIONS} labels={ENTRANCE_LABELS}
-        onChange={effect => onChange({ effect })} />
-      {DIRECTIONAL_EFFECTS.includes(value.effect) && (
-        <SelectField label="Direction" value={value.direction} options={DIRECTION_OPTIONS} labels={DIRECTION_LABELS}
-          onChange={direction => onChange({ direction })} />
-      )}
-    </>
-  )
-}
-
-// Full start-position -> end-position path + travel style, PowerPoint
-// "Motion Path" style: shown whenever an object's motion is enabled
-// (non-null), replacing its static resting position.
-function MotionPathFields({ value, onChange }: {
-  value: MotionPath; onChange: (patch: Partial<MotionPath>) => void
-}) {
-  return (
-    <>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Start</div>
-          <RangeField label="X (%)" value={value.startXPct} min={0} max={100} step={1}
-            onChange={v => onChange({ startXPct: v })} />
-          <RangeField label="Y (%)" value={value.startYPct} min={0} max={100} step={1}
-            onChange={v => onChange({ startYPct: v })} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>End</div>
-          <RangeField label="X (%)" value={value.endXPct} min={0} max={100} step={1}
-            onChange={v => onChange({ endXPct: v })} />
-          <RangeField label="Y (%)" value={value.endYPct} min={0} max={100} step={1}
-            onChange={v => onChange({ endYPct: v })} />
-        </div>
-      </div>
-      <SelectField label="Animation type (while moving)" value={value.travelStyle} options={TRAVEL_OPTIONS} labels={TRAVEL_STYLE_LABELS}
-        onChange={travelStyle => onChange({ travelStyle })} />
-      <RangeField label="Arc height (px, negative = up)" value={value.arcHeightPx} min={-120} max={120} step={2}
-        onChange={v => onChange({ arcHeightPx: v })} />
-      <RangeField label="Travel duration (s)" value={value.durationSec} min={0.2} max={2.5} step={0.05}
-        onChange={v => onChange({ durationSec: v })} />
-      <SelectField label="Path easing" value={value.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
-        onChange={easing => onChange({ easing })} />
-    </>
-  )
-}
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ borderTop: '1px solid #EDE0D4', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -149,86 +61,223 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+function EffectKindSelect({ value, onChange }: { value: EffectKind; onChange: (k: EffectKind) => void }) {
+  return (
+    <Field label="Effect">
+      <select value={value} onChange={e => onChange(e.target.value as EffectKind)} style={selectStyle}>
+        {EFFECT_GROUPS.map(g => (
+          <optgroup key={g.label} label={g.label}>
+            {g.kinds.map(k => <option key={k} value={k}>{EFFECT_LABELS[k]}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </Field>
+  )
+}
+
+const miniBtnStyle: React.CSSProperties = {
+  border: 'none', cursor: 'pointer', fontFamily: FONT, fontSize: 11, fontWeight: 700,
+  width: 22, height: 22, borderRadius: 6, background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 2px 0 #E7D3C0',
+}
+
+// One animation step, PowerPoint Animation-Pane style: an effect type
+// (grouped Entrance/Emphasis/Motion Path), its type-specific fields, when
+// it starts relative to the step before it, whether it repeats, and
+// duration/delay/easing — independent of what kind of object owns it.
+function StepRow({ step, index, total, onChangeKind, onPatch, onPatchEffect, onMove, onRemove }: {
+  step: AnimationStep
+  index: number
+  total: number
+  onChangeKind: (kind: EffectKind) => void
+  onPatch: (patch: Partial<AnimationStep>) => void
+  onPatchEffect: (patch: Partial<StepEffect>) => void
+  onMove: (dir: -1 | 1) => void
+  onRemove: () => void
+}) {
+  return (
+    <div style={{ border: '1px solid #EDE0D4', borderRadius: 10, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Step {index + 1}</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => onMove(-1)} disabled={index === 0} style={miniBtnStyle}>▲</button>
+          <button onClick={() => onMove(1)} disabled={index === total - 1} style={miniBtnStyle}>▼</button>
+          <button onClick={onRemove} style={miniBtnStyle}>✕</button>
+        </div>
+      </div>
+
+      <EffectKindSelect value={step.effect.kind} onChange={onChangeKind} />
+
+      {(step.effect.kind === 'wipe' || step.effect.kind === 'flyIn') && (
+        <SelectField label="Direction" value={step.effect.direction} options={DIRECTION_OPTIONS} labels={DIRECTION_LABELS}
+          onChange={direction => onPatchEffect({ direction })} />
+      )}
+
+      {step.effect.kind === 'motionPath' && (
+        <>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Start</div>
+              <RangeField label="X (%)" value={step.effect.startXPct} min={0} max={100} step={1}
+                onChange={v => onPatchEffect({ startXPct: v })} />
+              <RangeField label="Y (%)" value={step.effect.startYPct} min={0} max={100} step={1}
+                onChange={v => onPatchEffect({ startYPct: v })} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>End</div>
+              <RangeField label="X (%)" value={step.effect.endXPct} min={0} max={100} step={1}
+                onChange={v => onPatchEffect({ endXPct: v })} />
+              <RangeField label="Y (%)" value={step.effect.endYPct} min={0} max={100} step={1}
+                onChange={v => onPatchEffect({ endYPct: v })} />
+            </div>
+          </div>
+          <SelectField label="Travel style (while moving)" value={step.effect.travelStyle} options={TRAVEL_OPTIONS} labels={TRAVEL_STYLE_LABELS}
+            onChange={travelStyle => onPatchEffect({ travelStyle })} />
+          <RangeField label="Arc height (px, negative = up)" value={step.effect.arcHeightPx} min={-120} max={120} step={2}
+            onChange={v => onPatchEffect({ arcHeightPx: v })} />
+        </>
+      )}
+
+      {index > 0 && (
+        <SelectField label="Start" value={step.startTrigger} options={START_TRIGGER_OPTIONS} labels={START_TRIGGER_LABELS}
+          onChange={startTrigger => onPatch({ startTrigger })} />
+      )}
+      <SelectField label="Repeat" value={step.repeat} options={REPEAT_OPTIONS} labels={REPEAT_LABELS}
+        onChange={repeat => onPatch({ repeat })} />
+      <RangeField label="Duration (s)" value={step.durationSec} min={0.1} max={3} step={0.05}
+        onChange={v => onPatch({ durationSec: v })} />
+      <RangeField label="Delay (s)" value={step.delaySec} min={0} max={2} step={0.05}
+        onChange={v => onPatch({ delaySec: v })} />
+      <SelectField label="Easing" value={step.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
+        onChange={easing => onPatch({ easing })} />
+    </div>
+  )
+}
+
+function AddStepButton({ onAdd }: { onAdd: (kind: EffectKind) => void }) {
+  return (
+    <select
+      value=""
+      onChange={e => { if (e.target.value) onAdd(e.target.value as EffectKind) }}
+      style={{ ...selectStyle, fontWeight: 700, background: '#F0F8FF', color: '#5A4336' }}
+    >
+      <option value="">+ Add animation…</option>
+      {EFFECT_GROUPS.map(g => (
+        <optgroup key={g.label} label={g.label}>
+          {g.kinds.map(k => <option key={k} value={k}>{EFFECT_LABELS[k]}</option>)}
+        </optgroup>
+      ))}
+    </select>
+  )
+}
+
 // Teacher-facing scene tuning lab (Materials page, "Phonics Story Lab" tab):
-// jump straight to any unit/page of Phonics Quest's StoryReader and
-// live-tweak its scene knobs — layout, colors, and full PowerPoint-style
-// entrance/emphasis/travel effects per element — with instant visual
-// feedback, then copy the resulting values back into storySceneTuning.ts's
-// STORY_PAGE_TUNING.
+// PowerPoint Animation-Pane style — pick any object on the current page
+// (the mascot, any ambient prop, the sentence text) and give it its own
+// ordered list of animation steps, live-previewed instantly, then copy the
+// result into storySceneTuning.ts's STORY_PAGE_TUNING.
 //
-// Every page gets its own fully independent StorySceneTuning (edits made on
-// page 3 must never leak onto page 1). `pageTunings` holds this session's
+// Every page gets its own fully independent StoryPageTuning — edits on
+// page 3 never touch page 1. `pageTunings` holds this session's
 // in-progress edits, keyed by storyPageKey(unit.id, pageIndex); a page not
-// yet touched falls back to getStoryTuning() (any already-saved override,
-// else the shared default) so untouched pages all start out looking
-// identical until specifically customized.
+// yet touched falls back to getStoryTuning() (any already-saved override)
+// or buildDefaultPageTuning() (mascot idles, nothing auto-walks).
 export function StoryLab() {
   const [unitIdx, setUnitIdx] = useState(0)
   const [pageIdx, setPageIdx] = useState(0)
   const [jumpNonce, setJumpNonce] = useState(0)
-  const [pageTunings, setPageTunings] = useState<Record<string, StorySceneTuning>>({})
+  const [pageTunings, setPageTunings] = useState<Record<string, StoryPageTuning>>({})
+  const [selectedObjectId, setSelectedObjectId] = useState('mascot')
   const [copied, setCopied] = useState(false)
 
   const unit = PHONICS_UNITS[unitIdx]
+  const page = unit.storyPages[pageIdx]
+  const propMatches = findWordMatches(page.text, page.highlight, unit.words)
   const currentKey = storyPageKey(unit.id, pageIdx)
-  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx)
+  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(propMatches.length)
+
+  const objectOptions = [
+    { id: 'mascot', label: `🏃 Mascot` },
+    ...propMatches.map((m, i) => ({ id: `prop-${i}`, label: `${m.word.emoji} Prop ${i + 1} (${m.word.word})` })),
+    { id: 'sentence', label: '💬 Sentence text' },
+  ]
+  const selectedObject: SceneObjectTuning =
+    selectedObjectId === 'mascot' ? tuning.mascot
+    : selectedObjectId === 'sentence' ? tuning.sentence
+    : tuning.props.find(p => p.id === selectedObjectId) ?? tuning.mascot
 
   function jumpTo(nextUnitIdx: number, nextPageIdx: number) {
     setUnitIdx(nextUnitIdx)
     setPageIdx(nextPageIdx)
     setJumpNonce(n => n + 1)
+    setSelectedObjectId('mascot')
   }
 
-  function lookupTuning(unitId: string, pageIndex: number): StorySceneTuning {
-    const key = storyPageKey(unitId, pageIndex)
-    return pageTunings[key] ?? getStoryTuning(unitId, pageIndex)
-  }
-
-  // Every field editor routes through here: reads the CURRENT page's
-  // effective tuning (edited-this-session or base) and writes the updated
-  // version back only under this page's key — the mechanism that keeps
-  // pages independent.
-  function updateTuning(updater: (t: StorySceneTuning) => StorySceneTuning) {
-    setPageTunings(prev => ({ ...prev, [currentKey]: updater(prev[currentKey] ?? getStoryTuning(unit.id, pageIdx)) }))
-  }
-
-  function setField<K extends keyof StorySceneTuning>(key: K, value: StorySceneTuning[K]) {
-    updateTuning(t => ({ ...t, [key]: value }))
-  }
-  function patchMascotIdle(patch: Partial<EmphasisConfig>) {
-    updateTuning(t => ({ ...t, mascotIdle: { ...t.mascotIdle, ...patch } }))
-  }
-  function patchProps(patch: Partial<EntranceEmphasisConfig>) {
-    updateTuning(t => ({ ...t, props: { ...t.props, ...patch } }))
-  }
-  function patchPropSlot(index: number, patch: Partial<PropSlot>) {
-    updateTuning(t => ({ ...t, propSlots: t.propSlots.map((s, i) => i === index ? { ...s, ...patch } : s) }))
-  }
-  function patchPropSlotMotion(index: number, patch: Partial<MotionPath>) {
-    updateTuning(t => ({
-      ...t,
-      propSlots: t.propSlots.map((s, i) => i === index && s.motion ? { ...s, motion: { ...s.motion, ...patch } } : s),
+  function updateTuning(updater: (t: StoryPageTuning) => StoryPageTuning) {
+    setPageTunings(prev => ({
+      ...prev,
+      [currentKey]: updater(prev[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(propMatches.length)),
     }))
   }
-  function togglePropSlotMotion(index: number, enabled: boolean) {
-    updateTuning(t => ({
-      ...t,
-      propSlots: t.propSlots.map((s, i) => i === index
-        ? { ...s, motion: enabled ? { ...DEFAULT_MOTION_PATH, endXPct: s.xPct, endYPct: s.yPct } : null }
+
+  function updateSelectedObject(updater: (o: SceneObjectTuning) => SceneObjectTuning) {
+    updateTuning(t => {
+      if (selectedObjectId === 'mascot') return { ...t, mascot: updater(t.mascot) }
+      if (selectedObjectId === 'sentence') return { ...t, sentence: updater(t.sentence) }
+      return { ...t, props: t.props.map(p => p.id === selectedObjectId ? updater(p) : p) }
+    })
+  }
+
+  function setField<K extends keyof StoryPageTuning>(key: K, value: StoryPageTuning[K]) {
+    updateTuning(t => ({ ...t, [key]: value }))
+  }
+  function setObjectField<K extends keyof SceneObjectTuning>(key: K, value: SceneObjectTuning[K]) {
+    updateSelectedObject(o => ({ ...o, [key]: value }))
+  }
+  function addStep(kind: EffectKind) {
+    updateSelectedObject(o => ({ ...o, steps: [...o.steps, createStep(kind)] }))
+  }
+  function removeStep(stepId: string) {
+    updateSelectedObject(o => ({ ...o, steps: o.steps.filter(s => s.id !== stepId) }))
+  }
+  function moveStep(stepId: string, dir: -1 | 1) {
+    updateSelectedObject(o => {
+      const idx = o.steps.findIndex(s => s.id === stepId)
+      const swapWith = idx + dir
+      if (idx === -1 || swapWith < 0 || swapWith >= o.steps.length) return o
+      const steps = [...o.steps]
+      const tmp = steps[idx]
+      steps[idx] = steps[swapWith]
+      steps[swapWith] = tmp
+      return { ...o, steps }
+    })
+  }
+  function patchStep(stepId: string, patch: Partial<AnimationStep>) {
+    updateSelectedObject(o => ({ ...o, steps: o.steps.map(s => s.id === stepId ? { ...s, ...patch } : s) }))
+  }
+  function patchStepEffect(stepId: string, patch: Partial<StepEffect>) {
+    updateSelectedObject(o => ({
+      ...o,
+      steps: o.steps.map(s => s.id === stepId ? { ...s, effect: { ...s.effect, ...patch } as StepEffect } : s),
+    }))
+  }
+  // Switching kind resets duration/easing/repeat to that kind's own sensible
+  // defaults (createStep's) rather than keeping whatever the PREVIOUS kind
+  // had — e.g. Float defaults to looping forever, which would otherwise
+  // leak onto a freshly-chosen Motion Path and make it loop forever too,
+  // so it would never actually finish arriving. Chain position
+  // (startTrigger/delay) is kept since that's about ordering, not the effect.
+  function changeStepKind(stepId: string, kind: EffectKind) {
+    updateSelectedObject(o => ({
+      ...o,
+      steps: o.steps.map(s => s.id === stepId
+        ? { ...createStep(kind), id: s.id, startTrigger: s.startTrigger, delaySec: s.delaySec }
         : s),
     }))
   }
-  function patchTarget(patch: Partial<EntranceEmphasisConfig>) {
-    updateTuning(t => ({ ...t, target: { ...t.target, ...patch } }))
-  }
-  function patchTargetMotion(patch: Partial<MotionPath>) {
-    updateTuning(t => (t.targetMotion ? { ...t, targetMotion: { ...t.targetMotion, ...patch } } : t))
-  }
-  function toggleTargetMotion(enabled: boolean) {
-    updateTuning(t => ({ ...t, targetMotion: enabled ? { ...DEFAULT_MOTION_PATH } : null }))
-  }
-  function patchSentence(patch: Partial<EntranceConfig>) {
-    updateTuning(t => ({ ...t, sentence: { ...t.sentence, ...patch } }))
+
+  function lookupTuning(unitId: string, pageIndex: number, propCount: number): StoryPageTuning {
+    const key = storyPageKey(unitId, pageIndex)
+    return pageTunings[key] ?? getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(propCount)
   }
 
   // Removes this page's in-session edit, reverting it to its saved/default
@@ -252,9 +301,9 @@ export function StoryLab() {
   return (
     <div style={{ display: 'flex', gap: 20, fontFamily: FONT, padding: '4px 16px 24px', flexWrap: 'wrap' }}>
       {/* Controls */}
-      <div style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F' }}>🧪 Phonics Story Lab</div>
-        <div style={{ fontSize: 12, color: '#A98B77' }}>Preview and tune every story scene's animation, then copy the values into code.</div>
+        <div style={{ fontSize: 12, color: '#A98B77' }}>Click an object, give it any animation(s), then copy the values into code.</div>
 
         <label style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>
           Unit
@@ -297,123 +346,74 @@ export function StoryLab() {
           <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session.</div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 640, overflowY: 'auto', paddingRight: 4 }}>
-          <Section title="Layout & Colors">
-            {NUMBER_FIELDS.map(f => (
-              <RangeField key={f.key} label={f.label} value={tuning[f.key] as number} min={f.min} max={f.max} step={f.step}
-                onChange={v => setField(f.key, v as StorySceneTuning[typeof f.key])} />
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77', marginBottom: 4 }}>Object</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {objectOptions.map(o => (
+              <button
+                key={o.id}
+                onClick={() => setSelectedObjectId(o.id)}
+                style={{
+                  border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, textAlign: 'left',
+                  padding: '8px 10px', borderRadius: 10,
+                  background: o.id === selectedObjectId ? '#F2879B' : '#FFFFFF',
+                  color: o.id === selectedObjectId ? '#fff' : '#6B4F3F',
+                  boxShadow: '0 3px 0 #E7D3C0',
+                }}>
+                {o.label}
+              </button>
             ))}
-            {COLOR_FIELDS.map(f => (
-              <label key={f.key} style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>{f.label}</span>
-                <input type="color" value={tuning[f.key] as string}
-                  onChange={e => setField(f.key, e.target.value as StorySceneTuning[typeof f.key])}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 640, overflowY: 'auto', paddingRight: 4 }}>
+          {selectedObjectId !== 'sentence' && (
+            <Section title="Position">
+              <RangeField label="X (%)" value={selectedObject.xPct} min={0} max={100} step={1}
+                onChange={v => setObjectField('xPct', v)} />
+              <RangeField label="Y (%)" value={selectedObject.yPct} min={0} max={100} step={1}
+                onChange={v => setObjectField('yPct', v)} />
+              <RangeField label="Size (px)" value={selectedObject.fontSize} min={16} max={130} step={1}
+                onChange={v => setObjectField('fontSize', v)} />
+              <RangeField label="Layer (z-index)" value={selectedObject.zIndex} min={0} max={5} step={1}
+                onChange={v => setObjectField('zIndex', v)} />
+            </Section>
+          )}
+
+          <Section title="Animations (in order)">
+            {selectedObject.steps.map((step, i) => (
+              <StepRow
+                key={step.id}
+                step={step}
+                index={i}
+                total={selectedObject.steps.length}
+                onChangeKind={kind => changeStepKind(step.id, kind)}
+                onPatch={patch => patchStep(step.id, patch)}
+                onPatchEffect={patch => patchStepEffect(step.id, patch)}
+                onMove={dir => moveStep(step.id, dir)}
+                onRemove={() => removeStep(step.id)}
+              />
+            ))}
+            <AddStepButton onAdd={addStep} />
+          </Section>
+
+          <Section title="Scene">
+            <RangeField label="Scene width (px)" value={tuning.sceneMaxWidth} min={240} max={720} step={4}
+              onChange={v => setField('sceneMaxWidth', v)} />
+            <RangeField label="Scene height (px)" value={tuning.sceneHeight} min={100} max={280} step={2}
+              onChange={v => setField('sceneHeight', v)} />
+            {([['bgTop', 'Sky (top)'], ['bgMid', 'Sky (mid)'], ['bgBottom', 'Sky (bottom)'], ['groundColor', 'Ground']] as const).map(([key, label]) => (
+              <label key={key} style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{label}</span>
+                <input type="color" value={tuning[key]}
+                  onChange={e => setField(key, e.target.value)}
                   style={{ width: 40, height: 24, border: 'none', background: 'none', cursor: 'pointer' }} />
               </label>
             ))}
-          </Section>
-
-          <Section title="Layer order (higher = drawn on top)">
-            {Z_INDEX_FIELDS.map(f => (
-              <RangeField key={f.key} label={f.label} value={tuning[f.key] as number} min={f.min} max={f.max} step={f.step}
-                onChange={v => setField(f.key, v as StorySceneTuning[typeof f.key])} />
-            ))}
-          </Section>
-
-          <Section title="Mascot travel (curved motion path)">
-            <RangeField label="Slide duration (s)" value={tuning.transitionDurationSec} min={0.3} max={2.5} step={0.05}
-              onChange={v => setField('transitionDurationSec', v)} />
-            <RangeField label="Arc height (px, negative = up)" value={tuning.arcHeightPx} min={-120} max={120} step={2}
-              onChange={v => setField('arcHeightPx', v)} />
-            <SelectField label="Path easing" value={tuning.motionEasing} options={EASING_OPTIONS} labels={EASING_LABELS}
-              onChange={v => setField('motionEasing', v)} />
-            <SelectField label="Travel style (while moving)" value={tuning.travelStyle} options={TRAVEL_OPTIONS} labels={TRAVEL_STYLE_LABELS}
-              onChange={v => setField('travelStyle', v)} />
-            <RangeField label="Travel wobble cycle (s)" value={tuning.travelDurationSec} min={0.15} max={0.8} step={0.05}
-              onChange={v => setField('travelDurationSec', v)} />
             <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={tuning.motionSoundEnabled} onChange={e => setField('motionSoundEnabled', e.target.checked)} />
-              🔊 Sound cues (boing on set-off, pop on arrival)
+              🔊 Sound cues while the mascot has a Motion Path playing
             </label>
-          </Section>
-
-          <Section title="Mascot idle">
-            <SelectField label="Idle style" value={tuning.mascotIdle.effect} options={EMPHASIS_OPTIONS} labels={EMPHASIS_LABELS}
-              onChange={v => patchMascotIdle({ effect: v })} />
-            <RangeField label="Idle duration (s)" value={tuning.mascotIdle.durationSec} min={1} max={4} step={0.1}
-              onChange={v => patchMascotIdle({ durationSec: v })} />
-            <SelectField label="Idle easing" value={tuning.mascotIdle.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
-              onChange={v => patchMascotIdle({ easing: v })} />
-          </Section>
-
-          <Section title="Ambient props">
-            <EntranceEffectFields value={tuning.props} onChange={patchProps} />
-            <RangeField label="Entrance duration (s)" value={tuning.props.durationSec} min={0.1} max={1.2} step={0.05}
-              onChange={v => patchProps({ durationSec: v })} />
-            <RangeField label="Entrance stagger (s)" value={tuning.propsEntranceStaggerSec} min={0} max={0.3} step={0.01}
-              onChange={v => setField('propsEntranceStaggerSec', v)} />
-            <SelectField label="Idle loop" value={tuning.props.emphasis} options={EMPHASIS_OPTIONS} labels={EMPHASIS_LABELS}
-              onChange={v => patchProps({ emphasis: v })} />
-            <RangeField label="Idle loop duration (s)" value={tuning.props.emphasisDurationSec} min={0.8} max={4} step={0.1}
-              onChange={v => patchProps({ emphasisDurationSec: v })} />
-            <RangeField label="Idle loop stagger (s)" value={tuning.propsEmphasisStaggerSec} min={0} max={0.6} step={0.05}
-              onChange={v => setField('propsEmphasisStaggerSec', v)} />
-            <SelectField label="Easing" value={tuning.props.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
-              onChange={v => patchProps({ easing: v })} />
-          </Section>
-
-          <Section title="Ambient prop positions (per prop, in sentence order)">
-            {tuning.propSlots.map((slot, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 6, borderBottom: i < tuning.propSlots.length - 1 ? '1px dashed #EDE0D4' : undefined }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#A98B77' }}>Prop {i + 1}</div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input type="checkbox" checked={!!slot.motion} onChange={e => togglePropSlotMotion(i, e.target.checked)} />
-                  Motion path (start → end)
-                </label>
-                {slot.motion ? (
-                  <MotionPathFields value={slot.motion} onChange={patch => patchPropSlotMotion(i, patch)} />
-                ) : (
-                  <>
-                    <RangeField label="X (%)" value={slot.xPct} min={0} max={90} step={1}
-                      onChange={v => patchPropSlot(i, { xPct: v })} />
-                    <RangeField label="Y (%)" value={slot.yPct} min={0} max={90} step={1}
-                      onChange={v => patchPropSlot(i, { yPct: v })} />
-                  </>
-                )}
-                <RangeField label="Layer (z-index)" value={slot.zIndex} min={0} max={5} step={1}
-                  onChange={v => patchPropSlot(i, { zIndex: v })} />
-              </div>
-            ))}
-          </Section>
-
-          <Section title="Destination prop">
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input type="checkbox" checked={!!tuning.targetMotion} onChange={e => toggleTargetMotion(e.target.checked)} />
-              Motion path (start → end)
-            </label>
-            {tuning.targetMotion ? (
-              <MotionPathFields value={tuning.targetMotion} onChange={patchTargetMotion} />
-            ) : (
-              <EntranceEffectFields value={tuning.target} onChange={patchTarget} />
-            )}
-            {!tuning.targetMotion && (
-              <RangeField label="Entrance duration (s)" value={tuning.target.durationSec} min={0.1} max={1.2} step={0.05}
-                onChange={v => patchTarget({ durationSec: v })} />
-            )}
-            <SelectField label="Idle loop" value={tuning.target.emphasis} options={EMPHASIS_OPTIONS} labels={EMPHASIS_LABELS}
-              onChange={v => patchTarget({ emphasis: v })} />
-            <RangeField label="Idle loop duration (s)" value={tuning.target.emphasisDurationSec} min={0.5} max={3} step={0.1}
-              onChange={v => patchTarget({ emphasisDurationSec: v })} />
-            <SelectField label="Easing" value={tuning.target.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
-              onChange={v => patchTarget({ easing: v })} />
-          </Section>
-
-          <Section title="Sentence text">
-            <EntranceEffectFields value={tuning.sentence} onChange={patchSentence} />
-            <RangeField label="Entrance duration (s)" value={tuning.sentence.durationSec} min={0.1} max={1.2} step={0.05}
-              onChange={v => patchSentence({ durationSec: v })} />
-            <SelectField label="Easing" value={tuning.sentence.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
-              onChange={v => patchSentence({ easing: v })} />
           </Section>
         </div>
 

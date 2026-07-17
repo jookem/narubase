@@ -1,10 +1,10 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
-import type { PhonicsUnit, PhonicsWord, StoryPage } from '@/lib/phonicsContent'
-import { useStorySceneTuning, entranceCss, entranceVars, emphasisCss, travelCss, travelCssBounded, motionVars, motionCss, combineAnimations, propSlotFor } from './storySceneTuning'
+import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
+import { useStorySceneTuning, type SceneObjectTuning } from './storySceneTuning'
+import { useStepTimeline } from './stepAnimation'
 import { mascotSvgUrl } from './mascotAssets'
-import { ensureKidsGameAnimStyles } from '../kidsGameAnimStyles'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const ACCENT = '#F2879B'
@@ -27,49 +27,16 @@ function renderHighlighted(text: string, highlights: string[]) {
   })
 }
 
-// ── Story scene: illustrate the sentence, don't just float the mascot ──
-//
-// Every page cross-references `page.highlight` against `unit.words` (case
-// -insensitively — highlight entries are sometimes capitalized, e.g. 'Why'
-// vs word 'why') so any mentioned word that has an emoji actually shows up
-// as a little prop in the scene, not just the mascot alone.
-//
-// On top of that, a small keyword list detects movement verbs actually used
-// across phonicsContent.ts's storyPages (ran, walks, swims, drives, flies,
-// sails, rides, dashes, sits/naps "on", digs, hugs, gets "in", etc). When a
-// sentence has the unit's mascot as its subject and one of these verbs is
-// followed by a word that resolves to a prop emoji, the mascot slides across
-// the scene toward that prop instead of idling in place.
-interface WordMatch { word: PhonicsWord; index: number }
+// Every highlighted word that resolves to a PhonicsWord in this unit
+// (highlight entries are sometimes capitalized, e.g. 'Why' vs word 'why',
+// hence case-insensitive), in the order it appears in the sentence — each
+// becomes one ambient prop. Unlike before, none of them is special-cased
+// out as a "destination" the mascot must walk to: the mascot's own
+// animation timeline is independently authored (see StoryLab), not derived
+// from guessing which word the sentence's verb points at.
+export interface WordMatch { word: PhonicsWord; index: number }
 
-const MOTION_VERBS = [
-  'ran', 'run', 'runs', 'running',
-  'walk', 'walks', 'walked',
-  'swim', 'swims', 'swam',
-  'drive', 'drives', 'drove',
-  'fly', 'flies', 'flew',
-  'sail', 'sails', 'sailed',
-  'ride', 'rides', 'rode',
-  'dash', 'dashes', 'dashed',
-  'sit', 'sits', 'sat',
-  'tap', 'taps', 'tapped',
-  'nap', 'naps', 'napped',
-  'dig', 'digs', 'dug',
-  'dip', 'dips', 'dipped',
-  'hug', 'hugs', 'hugged',
-  'get', 'gets', 'got',
-  'march', 'marches', 'marched',
-  'hop', 'hops', 'hopped',
-  'jump', 'jumps', 'jumped',
-  'skate', 'skates', 'skated',
-  'glide', 'glides', 'glided',
-  'roll', 'rolls', 'rolled',
-]
-const MOTION_VERB_RE = new RegExp(`\\b(${MOTION_VERBS.join('|')})\\b`, 'i')
-
-// Every highlighted word that resolves to a PhonicsWord in this unit,
-// in the order it appears in the sentence.
-function findWordMatches(text: string, highlight: string[], words: PhonicsWord[]): WordMatch[] {
+export function findWordMatches(text: string, highlight: string[], words: PhonicsWord[]): WordMatch[] {
   const lower = text.toLowerCase()
   const seen = new Set<string>()
   const matches: WordMatch[] = []
@@ -84,22 +51,55 @@ function findWordMatches(text: string, highlight: string[], words: PhonicsWord[]
   return matches.sort((a, b) => a.index - b.index)
 }
 
-// If the mascot is this sentence's subject and a movement verb appears
-// before one of the matched words, that word is the mascot's destination.
-function findMotionTarget(text: string, mascotName: string, wordMatches: WordMatch[]): WordMatch | null {
-  const mascotIdx = text.toLowerCase().indexOf(mascotName.toLowerCase())
-  if (mascotIdx === -1) return null
-  const m = MOTION_VERB_RE.exec(text.slice(mascotIdx))
-  if (!m) return null
-  const verbIdx = mascotIdx + m.index
-  return wordMatches.find(w => w.index > verbIdx) ?? null
+function PropObject({ tuning, emoji }: { tuning: SceneObjectTuning; emoji: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useStepTimeline(ref, tuning.steps)
+  return (
+    <span ref={ref} style={{
+      position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex,
+      fontSize: tuning.fontSize, display: 'inline-block',
+    }}>
+      {emoji}
+    </span>
+  )
 }
 
-function sceneForPage(page: StoryPage, unit: PhonicsUnit) {
-  const wordMatches = findWordMatches(page.text, page.highlight, unit.words)
-  const motionTarget = findMotionTarget(page.text, unit.mascotName, wordMatches)
-  const others = motionTarget ? wordMatches.filter(w => w !== motionTarget) : wordMatches
-  return { motionTarget, others }
+// `happy` mirrors mascotSvgUrl's celebratory sprite variant: it flips true
+// exactly when a motionPath step finishes (see useStepTimeline's
+// onMotionActiveChange) and stays true afterward — it never flips true on
+// its own just from idling, matching the original "only happy right after
+// arriving somewhere" feel.
+function MascotObject({ tuning, unit, motionSoundEnabled }: { tuning: SceneObjectTuning; unit: PhonicsUnit; motionSoundEnabled: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [happy, setHappy] = useState(false)
+  useStepTimeline(ref, tuning.steps, {
+    onMotionActiveChange: active => {
+      setHappy(!active)
+      if (!motionSoundEnabled) return
+      if (active) sfxMotionStart()
+      else sfxArrive()
+    },
+  })
+  return (
+    <div ref={ref} style={{ position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex, fontSize: tuning.fontSize }}>
+      <img
+        src={mascotSvgUrl(unit.mascotName, happy)}
+        alt={unit.mascotName}
+        draggable={false}
+        style={{ display: 'block', width: tuning.fontSize, height: tuning.fontSize, objectFit: 'contain' }}
+      />
+    </div>
+  )
+}
+
+function SentenceObject({ tuning, text, highlight }: { tuning: SceneObjectTuning; text: string; highlight: string[] }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useStepTimeline(ref, tuning.steps)
+  return (
+    <div ref={ref} style={{ fontSize: tuning.fontSize, fontWeight: 800, color: '#5A4336', lineHeight: 1.4 }}>
+      {renderHighlighted(text, highlight)}
+    </div>
+  )
 }
 
 // Page-by-page decodable mini-story starring the unit's recurring mascot.
@@ -108,31 +108,16 @@ function sceneForPage(page: StoryPage, unit: PhonicsUnit) {
 // Family Match just taught, not a disconnected reward reel. No mic/
 // pronunciation-check here — the teacher supervises reading aloud in person.
 export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
-  useEffect(() => { ensureKidsGameAnimStyles() }, [])
   const [pageIdx, setPageIdx] = useState(initialPageIndex)
-  const t = useStorySceneTuning(unit.id, pageIdx)
   const pages = unit.storyPages
   const page = pages[pageIdx]
   const isLast = pageIdx === pages.length - 1
-  const { motionTarget, others } = sceneForPage(page, unit)
-
-  // 'moving' -> mascot travels the kg-arcMove curved path toward the target
-  // prop, with a travel-style wobble layered on top; 'arrived' -> settles
-  // into a gentle idle. Unlike a CSS `transition`, a CSS `animation` always
-  // plays its full keyframe sequence once applied, so no reflow-timing hack
-  // is needed to kick it off — just set the phase straight from the current
-  // scene on page/unit change.
-  const [phase, setPhase] = useState<'idle' | 'moving' | 'arrived'>(() => motionTarget ? 'moving' : 'idle')
-  useEffect(() => {
-    const moving = !!motionTarget
-    setPhase(moving ? 'moving' : 'idle')
-    if (moving && t.motionSoundEnabled) sfxMotionStart()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIdx, unit])
+  const propMatches = findWordMatches(page.text, page.highlight, unit.words)
+  const t = useStorySceneTuning(unit.id, pageIdx, propMatches.length)
 
   useEffect(() => {
-    const t = setTimeout(() => speak(page.text), 300)
-    return () => clearTimeout(t)
+    const timeout = setTimeout(() => speak(page.text), 300)
+    return () => clearTimeout(timeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageIdx, unit])
 
@@ -157,128 +142,26 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         </div>
       </div>
 
-      {/* Scene: mascot + the props this sentence actually mentions */}
+      {/* Scene: mascot + the props this sentence actually mentions, each
+          with its own independently authored animation timeline */}
       <div style={{
         position: 'relative', width: '100%', maxWidth: t.sceneMaxWidth, margin: '0 auto', height: t.sceneHeight,
         background: `linear-gradient(180deg, ${t.bgTop} 0%, ${t.bgMid} 65%, ${t.bgBottom} 100%)`,
         borderRadius: 24, overflow: 'hidden', boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.04)',
       }}>
-        {/* ground strip so "moving toward X" reads as a mini scene, not two floating emoji */}
+        {/* ground strip so the scene reads as a mini stage, not floating emoji */}
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: t.groundColor }} />
 
-        {/* Words this page mentions that aren't the movement destination —
-            each gets its own slot (position + z-index) so pages that
-            mention more than one prop at once can place/stack them
-            independently instead of sharing one auto-flow container. A
-            slot with a motion path slides in from its own start point
-            instead of appearing in place. */}
-        {others.map((m, i) => {
-          const slot = propSlotFor(t.propSlots, i)
-          const staggerDelay = i * t.propsEntranceStaggerSec
-          if (slot.motion) {
-            const mo = slot.motion
-            return (
-              <span key={`${pageIdx}-${m.word.word}`} style={{
-                position: 'absolute', zIndex: slot.zIndex, fontSize: t.othersFontSize, display: 'inline-block',
-                ...motionVars(mo),
-                animation: combineAnimations(
-                  motionCss(mo, staggerDelay),
-                  emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, mo.durationSec + mo.delaySec + staggerDelay),
-                ),
-              } as CSSProperties}>
-                <span style={{ display: 'inline-block', animation: travelCssBounded(mo.travelStyle, mo.travelDurationSec, mo.durationSec, staggerDelay) }}>
-                  {m.word.emoji}
-                </span>
-              </span>
-            )
-          }
-          return (
-            <span key={`${pageIdx}-${m.word.word}`} style={{
-              position: 'absolute', left: `${slot.xPct}%`, top: `${slot.yPct}%`, zIndex: slot.zIndex,
-              fontSize: t.othersFontSize, display: 'inline-block',
-              ...entranceVars(t.props.direction),
-              animation: combineAnimations(
-                entranceCss(t.props, staggerDelay),
-                emphasisCss(t.props.emphasis, t.props.emphasisDurationSec, t.props.easing, t.props.durationSec + t.props.delaySec + staggerDelay),
-              ),
-            } as CSSProperties}>
-              {m.word.emoji}
-            </span>
-          )
-        })}
-
-        {/* Destination prop the mascot is moving toward — same
-            static-vs-motion-path choice as the ambient props above */}
-        {motionTarget && (t.targetMotion ? (
-          <div key={`target-${pageIdx}`} style={{
-            position: 'absolute', zIndex: t.targetZIndex, fontSize: t.targetFontSize,
-            ...motionVars(t.targetMotion),
-            animation: combineAnimations(
-              motionCss(t.targetMotion),
-              emphasisCss(t.target.emphasis, t.target.emphasisDurationSec, t.target.easing, t.targetMotion.durationSec + t.targetMotion.delaySec),
-            ),
-          } as CSSProperties}>
-            <span style={{ display: 'inline-block', animation: travelCssBounded(t.targetMotion.travelStyle, t.targetMotion.travelDurationSec, t.targetMotion.durationSec) }}>
-              {motionTarget.word.emoji}
-            </span>
-          </div>
-        ) : (
-          <div key={`target-${pageIdx}`} style={{
-            position: 'absolute', bottom: t.targetBottom, right: `${t.targetRightPct}%`, fontSize: t.targetFontSize, zIndex: t.targetZIndex,
-            ...entranceVars(t.target.direction),
-            animation: combineAnimations(
-              entranceCss(t.target),
-              emphasisCss(t.target.emphasis, t.target.emphasisDurationSec, t.target.easing, t.target.durationSec + t.target.delaySec),
-            ),
-          } as CSSProperties}>
-            {motionTarget.word.emoji}
-          </div>
+        {propMatches.map((m, i) => t.props[i] && (
+          <PropObject key={`${pageIdx}-${i}`} tuning={t.props[i]} emoji={m.word.emoji} />
         ))}
 
-        {/* Mascot: idles in place normally, or travels a curved kg-arcMove
-            path toward the destination prop (mirrors the source deck's
-            hand-drawn bezier motion paths instead of a straight slide) */}
-        <div
-          onAnimationEnd={e => {
-            if (e.animationName === 'kg-arcMove' && phase === 'moving') {
-              setPhase('arrived')
-              if (t.motionSoundEnabled) sfxArrive()
-            }
-          }}
-          style={{
-            position: 'absolute',
-            bottom: t.mascotBottom,
-            left: motionTarget ? `${phase === 'arrived' ? t.mascotArrivedLeftPct : t.mascotStartLeftPct}%` : 'calc(50% - 33px)',
-            fontSize: t.mascotFontSize,
-            zIndex: t.mascotZIndex,
-            '--arc-start': `${t.mascotStartLeftPct}%`,
-            '--arc-mid': `${(t.mascotStartLeftPct + t.mascotArrivedLeftPct) / 2}%`,
-            '--arc-end': `${t.mascotArrivedLeftPct}%`,
-            '--arc-height': `${t.arcHeightPx}px`,
-            animation: motionTarget && phase === 'moving'
-              ? `kg-arcMove ${t.transitionDurationSec}s ${t.motionEasing} forwards`
-              : emphasisCss(
-                  t.mascotIdle.effect, t.mascotIdle.durationSec, t.mascotIdle.easing, 0,
-                  t.mascotIdle.effect === 'float' && motionTarget && phase === 'arrived' ? 'kg-floaty-land' : undefined,
-                ),
-          } as CSSProperties}
-        >
-          <span style={{ display: 'inline-block', animation: phase === 'moving' ? travelCss(t.travelStyle, t.travelDurationSec) : undefined }}>
-            <img
-              src={mascotSvgUrl(unit.mascotName, phase === 'arrived')}
-              alt={unit.mascotName}
-              draggable={false}
-              style={{ display: 'block', width: t.mascotFontSize, height: t.mascotFontSize, objectFit: 'contain' }}
-            />
-          </span>
-        </div>
+        <MascotObject key={`mascot-${pageIdx}`} tuning={t.mascot} unit={unit} motionSoundEnabled={t.motionSoundEnabled} />
       </div>
 
       {/* Sentence card */}
       <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '28px 24px', boxShadow: '0 8px 0 #EEDAC6', textAlign: 'center', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div key={pageIdx} style={{ fontSize: 24, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, ...entranceVars(t.sentence.direction), animation: entranceCss(t.sentence) } as CSSProperties}>
-          {renderHighlighted(page.text, page.highlight)}
-        </div>
+        <SentenceObject key={`sentence-${pageIdx}`} tuning={t.sentence} text={page.text} highlight={page.highlight} />
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center' }}>
