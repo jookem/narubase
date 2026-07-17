@@ -155,12 +155,20 @@ export interface SceneObjectTuning {
   steps: AnimationStep[]
 }
 
-// A manually-added scene object that isn't tied to any phonics word — an
-// emoji is enough content to give it, and it gets the exact same Position +
-// Animations authoring as an auto-detected prop (see StoryLab's Object picker).
+// A scene object placed by hand — an emoji is enough content to give it,
+// and it gets the exact same Position + Animations authoring as anything
+// else (see StoryLab's Object picker). Objects are no longer auto-spawned
+// from highlighted/phonics words: that coupling made editing the
+// highlighted-words text field spawn or delete objects mid-keystroke
+// (every time typing happened to complete a real word match), which was
+// both surprising and impossible to type through cleanly. `highlight`
+// still colors matched substrings in the sentence card — it just no
+// longer has any effect on what objects exist. `hidden` toggles visibility
+// without losing the object's tuning/animation, separate from deleting it.
 export interface ExtraObject {
   id: string
   emoji: string
+  hidden: boolean
 }
 
 export interface StoryPageTuning {
@@ -171,17 +179,17 @@ export interface StoryPageTuning {
   bgBottom: string
   groundColor: string
   mascot: SceneObjectTuning
-  props: SceneObjectTuning[]   // sized to however many props THIS page effectively has: visible auto-matched words + extraObjects
+  props: SceneObjectTuning[]   // sized 1:1 to extraObjects (same index), regardless of hidden state
   sentence: SceneObjectTuning  // position fields unused — laid out by its own card
   motionSoundEnabled: boolean
 
-  // Content overrides — null/[] means "inherit from phonicsContent.ts's
-  // static StoryPage" (untouched pages behave exactly as before). Set once
-  // the Lab's Content section is edited for this page.
+  // Content overrides — null means "inherit from phonicsContent.ts's static
+  // StoryPage" (untouched pages behave exactly as before). Set once the
+  // Lab's Content section is edited for this page. highlightOverride only
+  // affects sentence-text coloring now, not what objects appear.
   textOverride: string | null
   highlightOverride: string[] | null
-  hiddenWords: string[]        // auto-matched words to suppress from the prop list (case-insensitive)
-  extraObjects: ExtraObject[]  // manually added, always additive, appended after the visible auto-matches
+  extraObjects: ExtraObject[]
 }
 
 export function defaultStepEffect(kind: EffectKind): StepEffect {
@@ -217,25 +225,8 @@ export function createStep(kind: EffectKind, overrides: Partial<AnimationStep> =
   }
 }
 
-// The starting point for a page nobody has customized yet: mascot idles in
-// place (no motion path — it only ever moves once someone gives it one),
-// props pop in and float gently, sentence just pops in. Sized to however
-// many props this specific page actually has. Memoized by propCount so
-// repeated calls return the SAME object/array references — StoryReader's
-// WAAPI effect depends on step-list identity to know when to restart, and
-// without this every render of an unedited page would look like a change.
-const defaultPageTuningCache = new Map<number, StoryPageTuning>()
-export function buildDefaultPageTuning(propCount: number): StoryPageTuning {
-  const cached = defaultPageTuningCache.get(propCount)
-  if (cached) return cached
-  const built = buildFreshDefaultPageTuning(propCount)
-  defaultPageTuningCache.set(propCount, built)
-  return built
-}
-
-// One default prop slot's tuning, by its position in the effective prop
-// list (visible auto-matches, then extraObjects, in order). Used both to
-// build a fresh page and to pad `props` back out after resizeProps() grows it.
+// One default prop slot's tuning, by its position in extraObjects. Used to
+// pad `props` back out after resizeProps() grows it.
 function newPropSlot(index: number): SceneObjectTuning {
   return {
     id: `prop-${index}`,
@@ -247,36 +238,44 @@ function newPropSlot(index: number): SceneObjectTuning {
   }
 }
 
-function buildFreshDefaultPageTuning(propCount: number): StoryPageTuning {
-  return {
-    sceneMaxWidth: 480,
-    sceneHeight: 170,
-    bgTop: '#FFF9F1',
-    bgMid: '#FBF0E4',
-    bgBottom: '#F3E3D0',
-    groundColor: '#EAD9C4',
-    motionSoundEnabled: true,
-    mascot: {
-      id: 'mascot', xPct: 40, yPct: 41, zIndex: 2, fontSize: 84,
-      steps: [createStep('float', { durationSec: 2.4, easing: 'ease-in-out', repeat: 'loop' })],
-    },
-    props: Array.from({ length: propCount }, (_, i) => newPropSlot(i)),
-    sentence: {
-      id: 'sentence', xPct: 0, yPct: 0, zIndex: 0, fontSize: 24,
-      steps: [createStep('pop', { durationSec: 0.35 })],
-    },
-    textOverride: null,
-    highlightOverride: null,
-    hiddenWords: [],
-    extraObjects: [],
+// The starting point for a page nobody has customized yet: mascot idles in
+// place (no motion path — it only ever moves once someone gives it one),
+// no objects (extraObjects always starts empty), sentence just pops in.
+// Memoized (a single shared instance) so repeated calls return the SAME
+// object/array references — StoryReader's WAAPI effect depends on
+// step-list identity to know when to restart, and without this every
+// render of an unedited page would look like a change.
+let defaultPageTuning: StoryPageTuning | null = null
+export function buildDefaultPageTuning(): StoryPageTuning {
+  if (!defaultPageTuning) {
+    defaultPageTuning = {
+      sceneMaxWidth: 480,
+      sceneHeight: 170,
+      bgTop: '#FFF9F1',
+      bgMid: '#FBF0E4',
+      bgBottom: '#F3E3D0',
+      groundColor: '#EAD9C4',
+      motionSoundEnabled: true,
+      mascot: {
+        id: 'mascot', xPct: 40, yPct: 41, zIndex: 2, fontSize: 84,
+        steps: [createStep('float', { durationSec: 2.4, easing: 'ease-in-out', repeat: 'loop' })],
+      },
+      props: [],
+      sentence: {
+        id: 'sentence', xPct: 0, yPct: 0, zIndex: 0, fontSize: 24,
+        steps: [createStep('pop', { durationSec: 0.35 })],
+      },
+      textOverride: null,
+      highlightOverride: null,
+      extraObjects: [],
+    }
   }
+  return defaultPageTuning
 }
 
 // Resizes `tuning.props` to exactly `count` slots — pads with fresh default
-// slots (positioned in the same auto-spaced pattern as buildDefaultPageTuning)
-// when growing, truncates from the end when shrinking. Existing slots keep
-// their tuning by position; see the "known limitation" note in StoryLab.tsx's
-// Content section about hiding a word mid-list shifting what's downstream of it.
+// slots when growing (e.g. a new extra object was added), truncates from
+// the end when shrinking (an extra object was deleted, not just hidden).
 export function resizeProps(tuning: StoryPageTuning, count: number): StoryPageTuning {
   if (tuning.props.length === count) return tuning
   const props = tuning.props.slice(0, count)
@@ -304,20 +303,20 @@ export function getStoryTuning(unitId: string, pageIndex: number): StoryPageTuni
 // scene" checks need, since `resolve` alone can never report "nothing here"
 // (it always returns something to render).
 export interface StoryTuningLookup {
-  resolve(unitId: string, pageIndex: number, propCount: number): StoryPageTuning
+  resolve(unitId: string, pageIndex: number): StoryPageTuning
   hasOverride(unitId: string, pageIndex: number): boolean
 }
 
 const defaultStoryTuningLookup: StoryTuningLookup = {
-  resolve: (unitId, pageIndex, propCount) => getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(propCount),
+  resolve: (unitId, pageIndex) => getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(),
   hasOverride: (unitId, pageIndex) => !!getStoryTuning(unitId, pageIndex),
 }
 
 export const StorySceneTuningContext = createContext<StoryTuningLookup>(defaultStoryTuningLookup)
 
-export function useStorySceneTuning(unitId: string, pageIndex: number, propCount: number): StoryPageTuning {
+export function useStorySceneTuning(unitId: string, pageIndex: number): StoryPageTuning {
   const lookup = useContext(StorySceneTuningContext)
-  return lookup.resolve(unitId, pageIndex, propCount)
+  return lookup.resolve(unitId, pageIndex)
 }
 
 // A unit's page count isn't just its static phonicsContent.ts length —

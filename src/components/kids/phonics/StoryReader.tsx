@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
-import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
+import type { PhonicsUnit } from '@/lib/phonicsContent'
 import { useStorySceneTuning, useResolvedPageCount, type SceneObjectTuning } from './storySceneTuning'
 import { useStepTimeline } from './stepAnimation'
 import { mascotSvgUrl } from './mascotAssets'
@@ -15,6 +15,9 @@ interface Props {
   initialPageIndex?: number
 }
 
+// `highlight` only colors matching substrings in the sentence text — it has
+// no effect on which objects appear in the scene (objects are placed by
+// hand via the Lab's "+ Add object", not auto-spawned from phonics words).
 function renderHighlighted(text: string, highlights: string[]) {
   if (!highlights.length) return text
   const escaped = highlights.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -25,30 +28,6 @@ function renderHighlighted(text: string, highlights: string[]) {
       ? <span key={i} style={{ color: ACCENT, fontWeight: 900 }}>{part}</span>
       : <span key={i}>{part}</span>
   })
-}
-
-// Every highlighted word that resolves to a PhonicsWord in this unit
-// (highlight entries are sometimes capitalized, e.g. 'Why' vs word 'why',
-// hence case-insensitive), in the order it appears in the sentence — each
-// becomes one ambient prop. Unlike before, none of them is special-cased
-// out as a "destination" the mascot must walk to: the mascot's own
-// animation timeline is independently authored (see StoryLab), not derived
-// from guessing which word the sentence's verb points at.
-export interface WordMatch { word: PhonicsWord; index: number }
-
-export function findWordMatches(text: string, highlight: string[], words: PhonicsWord[]): WordMatch[] {
-  const lower = text.toLowerCase()
-  const seen = new Set<string>()
-  const matches: WordMatch[] = []
-  for (const h of highlight) {
-    const w = words.find(w => w.word.toLowerCase() === h.toLowerCase())
-    if (!w || seen.has(w.word)) continue
-    const index = lower.indexOf(w.word.toLowerCase())
-    if (index === -1) continue
-    seen.add(w.word)
-    matches.push({ word: w, index })
-  }
-  return matches.sort((a, b) => a.index - b.index)
 }
 
 // A 'swap' step (Change Appearance) lets a page explicitly replace what an
@@ -112,21 +91,14 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
   const [pageIdx, setPageIdx] = useState(initialPageIndex)
   const pageCount = useResolvedPageCount(unit)
   const isLast = pageIdx === pageCount - 1
-  // `basePage` is undefined for a page added purely via the Lab (beyond
+  // basePage is undefined for a page added purely via the Lab (beyond
   // phonicsContent.ts's static array) — its text/highlight then come
-  // entirely from the tuning override. propCount here is only a starting
-  // guess for buildDefaultPageTuning's fallback; the actual rendered list
-  // below is recomputed from the resolved tuning `t` itself, so a mismatch
-  // between this guess and the real (post-override) content is harmless.
+  // entirely from the tuning override.
   const basePage = unit.storyPages[pageIdx]
-  const baseMatchGuess = findWordMatches(basePage?.text ?? '', basePage?.highlight ?? [], unit.words)
-  const t = useStorySceneTuning(unit.id, pageIdx, baseMatchGuess.length)
+  const t = useStorySceneTuning(unit.id, pageIdx)
 
   const text = t.textOverride ?? basePage?.text ?? ''
   const highlight = t.highlightOverride ?? basePage?.highlight ?? []
-  const hidden = new Set(t.hiddenWords.map(w => w.toLowerCase()))
-  const visibleMatches = findWordMatches(text, highlight, unit.words).filter(m => !hidden.has(m.word.word.toLowerCase()))
-  const propEmojis = [...visibleMatches.map(m => m.word.emoji), ...t.extraObjects.map(o => o.emoji)]
 
   useEffect(() => {
     const timeout = setTimeout(() => speak(text), 300)
@@ -155,9 +127,8 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         </div>
       </div>
 
-      {/* Scene: mascot + the props this sentence actually mentions plus any
-          manually-added extras, each with its own independently authored
-          animation timeline */}
+      {/* Scene: mascot + any manually-placed objects, each with its own
+          independently authored animation timeline */}
       <div style={{
         position: 'relative', width: '100%', maxWidth: t.sceneMaxWidth, margin: '0 auto', height: t.sceneHeight,
         background: `linear-gradient(180deg, ${t.bgTop} 0%, ${t.bgMid} 65%, ${t.bgBottom} 100%)`,
@@ -166,8 +137,8 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         {/* ground strip so the scene reads as a mini stage, not floating emoji */}
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: t.groundColor }} />
 
-        {propEmojis.map((emoji, i) => t.props[i] && (
-          <PropObject key={`${pageIdx}-${i}`} tuning={t.props[i]} emoji={emoji} />
+        {t.extraObjects.map((o, i) => !o.hidden && t.props[i] && (
+          <PropObject key={`${pageIdx}-${i}`} tuning={t.props[i]} emoji={o.emoji} />
         ))}
 
         <MascotObject key={`mascot-${pageIdx}`} tuning={t.mascot} unit={unit} motionSoundEnabled={t.motionSoundEnabled} />

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
-import { StoryReader, findWordMatches } from './StoryReader'
+import { StoryReader } from './StoryReader'
 import {
   storyPageKey, getStoryTuning, buildDefaultPageTuning, resizeProps, createStep, defaultPathForType, StorySceneTuningContext,
   DIRECTION_LABELS, EASING_LABELS, TRAVEL_STYLE_LABELS, EFFECT_LABELS, EFFECT_GROUPS, DIRECTIONAL_KINDS, START_TRIGGER_LABELS, REPEAT_LABELS, PATH_TYPE_LABELS,
@@ -9,6 +9,21 @@ import {
 } from './storySceneTuning'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
+
+// Drafts (this Lab's in-progress, not-yet-copied-into-code edits) are
+// auto-saved to localStorage so a reload/closed tab doesn't lose work —
+// "Copy this page" is still what makes something permanent in the
+// codebase, but a browser refresh in between no longer wipes everything.
+const DRAFTS_STORAGE_KEY = 'phonics-story-lab-drafts'
+
+function loadDrafts(): Record<string, StoryPageTuning> {
+  try {
+    const raw = localStorage.getItem(DRAFTS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
 
 const DIRECTION_OPTIONS = Object.keys(DIRECTION_LABELS) as Direction[]
 const EASING_OPTIONS = Object.keys(EASING_LABELS) as Easing[]
@@ -294,21 +309,21 @@ export function StoryLab() {
   const [unitIdx, setUnitIdx] = useState(0)
   const [pageIdx, setPageIdx] = useState(0)
   const [jumpNonce, setJumpNonce] = useState(0)
-  const [pageTunings, setPageTunings] = useState<Record<string, StoryPageTuning>>({})
+  const [pageTunings, setPageTunings] = useState<Record<string, StoryPageTuning>>(loadDrafts)
   const [selectedObjectId, setSelectedObjectId] = useState('mascot')
   const [copied, setCopied] = useState(false)
   const [replayNonce, setReplayNonce] = useState(0)
 
+  useEffect(() => {
+    try { localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(pageTunings)) } catch { /* storage unavailable/full — edits still work this session */ }
+  }, [pageTunings])
+
   const unit = PHONICS_UNITS[unitIdx]
   // basePage is undefined for a page that only exists because "+ Add scene"
-  // created it — its content then comes entirely from the tuning override
-  // below, never from phonicsContent.ts. baseMatchGuess only seeds
-  // buildDefaultPageTuning's fallback; the real prop list is recomputed
-  // from the resolved tuning's own overrides right after.
+  // created it — its content then comes entirely from the tuning override below.
   const basePage = unit.storyPages[pageIdx]
-  const baseMatchGuess = findWordMatches(basePage?.text ?? '', basePage?.highlight ?? [], unit.words)
   const currentKey = storyPageKey(unit.id, pageIdx)
-  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(baseMatchGuess.length)
+  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning()
 
   // A unit's page count isn't just unit.storyPages.length — pages appended
   // via "+ Add scene" only exist as overrides, possibly still only in this
@@ -322,8 +337,6 @@ export function StoryLab() {
 
   const text = tuning.textOverride ?? basePage?.text ?? ''
   const highlight = tuning.highlightOverride ?? basePage?.highlight ?? []
-  const hiddenSet = new Set(tuning.hiddenWords.map(w => w.toLowerCase()))
-  const visibleMatches = findWordMatches(text, highlight, unit.words).filter(m => !hiddenSet.has(m.word.word.toLowerCase()))
 
   // useStepTimeline only restarts an object's animations when its `steps`
   // array reference changes — which normally only happens on a real edit.
@@ -339,10 +352,11 @@ export function StoryLab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [tuning, replayNonce])
 
+  // Every object is manually placed (see "+ Add object" below) — nothing
+  // spawns automatically from highlighted/phonics words anymore.
   const objectOptions = [
     { id: 'mascot', label: `🏃 Mascot`, kind: 'mascot' as const },
-    ...visibleMatches.map((m, i) => ({ id: `prop-${i}`, label: `${m.word.emoji} Prop ${i + 1} (${m.word.word})`, kind: 'auto' as const, word: m.word.word })),
-    ...tuning.extraObjects.map((o, j) => ({ id: `prop-${visibleMatches.length + j}`, label: `${o.emoji} Prop ${visibleMatches.length + j + 1} (custom)`, kind: 'extra' as const, extraId: o.id })),
+    ...tuning.extraObjects.map((o, i) => ({ id: `prop-${i}`, label: `${o.emoji} Prop ${i + 1}`, kind: 'object' as const, extraId: o.id, hidden: o.hidden })),
     { id: 'sentence', label: '💬 Sentence text', kind: 'sentence' as const },
   ]
   const selectedObject: SceneObjectTuning =
@@ -357,21 +371,16 @@ export function StoryLab() {
     setSelectedObjectId('mascot')
   }
 
-  // Every edit funnels through here, which — after applying the change —
-  // re-derives the effective prop count (visible auto-matches + extra
-  // objects) from the UPDATED content and resizes `props` to match via
-  // resizeProps(). This is the one place that keeps `props` correctly
-  // sized no matter which specific field changed (text, a hidden word, an
-  // added/removed extra object, ...).
+  // Every object edit funnels through here, which — after applying the
+  // change — resizes `props` 1:1 to extraObjects via resizeProps(). Text/
+  // highlight edits don't touch object count at all anymore (see the
+  // ExtraObject comment above), so this is now a simple, cheap no-op check
+  // for those, not a live re-derivation.
   function updateTuning(updater: (t: StoryPageTuning) => StoryPageTuning) {
     setPageTunings(prev => {
-      const current = prev[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(baseMatchGuess.length)
+      const current = prev[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning()
       const updated = updater(current)
-      const effectiveText = updated.textOverride ?? basePage?.text ?? ''
-      const effectiveHighlight = updated.highlightOverride ?? basePage?.highlight ?? []
-      const hidden = new Set(updated.hiddenWords.map(w => w.toLowerCase()))
-      const visibleCount = findWordMatches(effectiveText, effectiveHighlight, unit.words).filter(m => !hidden.has(m.word.word.toLowerCase())).length
-      return { ...prev, [currentKey]: resizeProps(updated, visibleCount + updated.extraObjects.length) }
+      return { ...prev, [currentKey]: resizeProps(updated, updated.extraObjects.length) }
     })
   }
 
@@ -390,28 +399,27 @@ export function StoryLab() {
     updateSelectedObject(o => ({ ...o, [key]: value }))
   }
 
-  // Content editing — text/highlight overrides, hiding an auto-detected
-  // word's prop, and manually adding/removing extra (non-word) objects.
-  // All go through updateTuning so `props` stays correctly resized.
+  // Content editing — text/highlight only affect sentence-card coloring now,
+  // not what objects exist, so editing them never touches the object list
+  // or the current selection.
   function setText(value: string) {
     updateTuning(t => ({ ...t, textOverride: value }))
-    if (selectedObjectId.startsWith('prop-')) setSelectedObjectId('mascot')
   }
   function setHighlight(words: string[]) {
     updateTuning(t => ({ ...t, highlightOverride: words }))
-    if (selectedObjectId.startsWith('prop-')) setSelectedObjectId('mascot')
   }
-  function hideWord(word: string) {
-    updateTuning(t => ({ ...t, hiddenWords: [...t.hiddenWords, word] }))
-    setSelectedObjectId('mascot')
-  }
-  function unhideWord(word: string) {
-    updateTuning(t => ({ ...t, hiddenWords: t.hiddenWords.filter(w => w.toLowerCase() !== word.toLowerCase()) }))
-  }
+
+  // Objects are placed entirely by hand. `toggleObjectVisibility` hides/
+  // shows one without losing its tuning; `removeExtraObject` deletes it
+  // (and its tuning) outright — both always available, unlike the old
+  // auto-vs-manual split.
   function addExtraObject(emoji: string) {
     if (!emoji.trim()) return
-    updateTuning(t => ({ ...t, extraObjects: [...t.extraObjects, { id: `extra-${Math.random().toString(36).slice(2, 9)}`, emoji: emoji.trim() }] }))
+    updateTuning(t => ({ ...t, extraObjects: [...t.extraObjects, { id: `extra-${Math.random().toString(36).slice(2, 9)}`, emoji: emoji.trim(), hidden: false }] }))
     setSelectedObjectId('mascot')
+  }
+  function toggleObjectVisibility(extraId: string) {
+    updateTuning(t => ({ ...t, extraObjects: t.extraObjects.map(o => o.id === extraId ? { ...o, hidden: !o.hidden } : o) }))
   }
   function removeExtraObject(extraId: string) {
     updateTuning(t => ({ ...t, extraObjects: t.extraObjects.filter(o => o.id !== extraId) }))
@@ -425,7 +433,7 @@ export function StoryLab() {
   function addScene() {
     const newIdx = pageCount
     const key = storyPageKey(unit.id, newIdx)
-    setPageTunings(prev => ({ ...prev, [key]: { ...buildDefaultPageTuning(0), textOverride: '', highlightOverride: [] } }))
+    setPageTunings(prev => ({ ...prev, [key]: { ...buildDefaultPageTuning(), textOverride: '', highlightOverride: [] } }))
     jumpTo(unitIdx, newIdx)
   }
   function removeScene() {
@@ -452,7 +460,7 @@ export function StoryLab() {
     function materialize(idx: number): StoryPageTuning {
       const base = unit.storyPages[idx]
       const key = storyPageKey(unit.id, idx)
-      const t = pageTunings[key] ?? getStoryTuning(unit.id, idx) ?? buildDefaultPageTuning(findWordMatches(base?.text ?? '', base?.highlight ?? [], unit.words).length)
+      const t = pageTunings[key] ?? getStoryTuning(unit.id, idx) ?? buildDefaultPageTuning()
       return { ...t, textOverride: t.textOverride ?? base?.text ?? '', highlightOverride: t.highlightOverride ?? base?.highlight ?? [] }
     }
     const here = materialize(pageIdx)
@@ -627,23 +635,13 @@ export function StoryLab() {
             rows={2}
             style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
           />
-          <div style={{ fontSize: 11, color: '#A98B77', margin: '6px 0 2px' }}>Highlighted words (comma-separated — phonics-family words also spawn a prop)</div>
+          <div style={{ fontSize: 11, color: '#A98B77', margin: '6px 0 2px' }}>Highlighted words (comma-separated — just colors them in the sentence, doesn't add objects)</div>
           <input
             type="text"
             value={highlight.join(', ')}
             onChange={e => setHighlight(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
             style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
           />
-          {tuning.hiddenWords.length > 0 && (
-            <div style={{ fontSize: 11, color: '#A98B77', marginTop: 6 }}>
-              Hidden props: {tuning.hiddenWords.map(w => (
-                <button key={w} onClick={() => unhideWord(w)} title="Unhide"
-                  style={{ border: 'none', cursor: 'pointer', background: '#EDE0D4', color: '#6B4F3F', borderRadius: 6, padding: '2px 6px', marginRight: 4, fontFamily: FONT, fontSize: 11 }}>
-                  {w} ✕
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div>
@@ -657,16 +655,16 @@ export function StoryLab() {
                     flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, textAlign: 'left',
                     padding: '8px 10px', borderRadius: 10,
                     background: o.id === selectedObjectId ? '#F2879B' : '#FFFFFF',
-                    color: o.id === selectedObjectId ? '#fff' : '#6B4F3F',
+                    color: o.id === selectedObjectId ? '#fff' : o.kind === 'object' && o.hidden ? '#CBB9A8' : '#6B4F3F',
                     boxShadow: '0 3px 0 #E7D3C0',
                   }}>
-                  {o.label}
+                  {o.label}{o.kind === 'object' && o.hidden ? ' (hidden)' : ''}
                 </button>
-                {o.kind === 'auto' && (
-                  <button onClick={() => hideWord(o.word)} title="Hide this prop" style={miniBtnStyle}>👁</button>
-                )}
-                {o.kind === 'extra' && (
-                  <button onClick={() => removeExtraObject(o.extraId)} title="Remove this object" style={miniBtnStyle}>✕</button>
+                {o.kind === 'object' && (
+                  <>
+                    <button onClick={() => toggleObjectVisibility(o.extraId)} title={o.hidden ? 'Show this object' : 'Hide this object'} style={miniBtnStyle}>{o.hidden ? '🙈' : '👁'}</button>
+                    <button onClick={() => removeExtraObject(o.extraId)} title="Delete this object" style={miniBtnStyle}>✕</button>
+                  </>
                 )}
               </div>
             ))}
