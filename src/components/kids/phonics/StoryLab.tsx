@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader } from './StoryReader'
 import {
-  DEFAULT_STORY_SCENE_TUNING, DEFAULT_MOTION_PATH, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
+  DEFAULT_MOTION_PATH, StorySceneTuningContext, ENTRANCE_LABELS, DIRECTION_LABELS, DIRECTIONAL_EFFECTS, EMPHASIS_LABELS, TRAVEL_STYLE_LABELS, EASING_LABELS,
+  getStoryTuning, storyPageKey,
   type StorySceneTuning, type EntranceConfig, type EmphasisConfig, type EntranceEmphasisConfig, type PropSlot, type MotionPath,
   type EntranceEffect, type Direction, type EmphasisEffect, type TravelStyle, type Easing,
 } from './storySceneTuning'
@@ -152,16 +153,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // jump straight to any unit/page of Phonics Quest's StoryReader and
 // live-tweak its scene knobs — layout, colors, and full PowerPoint-style
 // entrance/emphasis/travel effects per element — with instant visual
-// feedback, then copy the resulting values back into
-// storySceneTuning.ts's defaults.
+// feedback, then copy the resulting values back into storySceneTuning.ts's
+// STORY_PAGE_TUNING.
+//
+// Every page gets its own fully independent StorySceneTuning (edits made on
+// page 3 must never leak onto page 1). `pageTunings` holds this session's
+// in-progress edits, keyed by storyPageKey(unit.id, pageIndex); a page not
+// yet touched falls back to getStoryTuning() (any already-saved override,
+// else the shared default) so untouched pages all start out looking
+// identical until specifically customized.
 export function StoryLab() {
   const [unitIdx, setUnitIdx] = useState(0)
   const [pageIdx, setPageIdx] = useState(0)
   const [jumpNonce, setJumpNonce] = useState(0)
-  const [tuning, setTuning] = useState<StorySceneTuning>(DEFAULT_STORY_SCENE_TUNING)
+  const [pageTunings, setPageTunings] = useState<Record<string, StorySceneTuning>>({})
   const [copied, setCopied] = useState(false)
 
   const unit = PHONICS_UNITS[unitIdx]
+  const currentKey = storyPageKey(unit.id, pageIdx)
+  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx)
 
   function jumpTo(nextUnitIdx: number, nextPageIdx: number) {
     setUnitIdx(nextUnitIdx)
@@ -169,26 +179,39 @@ export function StoryLab() {
     setJumpNonce(n => n + 1)
   }
 
+  function lookupTuning(unitId: string, pageIndex: number): StorySceneTuning {
+    const key = storyPageKey(unitId, pageIndex)
+    return pageTunings[key] ?? getStoryTuning(unitId, pageIndex)
+  }
+
+  // Every field editor routes through here: reads the CURRENT page's
+  // effective tuning (edited-this-session or base) and writes the updated
+  // version back only under this page's key — the mechanism that keeps
+  // pages independent.
+  function updateTuning(updater: (t: StorySceneTuning) => StorySceneTuning) {
+    setPageTunings(prev => ({ ...prev, [currentKey]: updater(prev[currentKey] ?? getStoryTuning(unit.id, pageIdx)) }))
+  }
+
   function setField<K extends keyof StorySceneTuning>(key: K, value: StorySceneTuning[K]) {
-    setTuning(t => ({ ...t, [key]: value }))
+    updateTuning(t => ({ ...t, [key]: value }))
   }
   function patchMascotIdle(patch: Partial<EmphasisConfig>) {
-    setTuning(t => ({ ...t, mascotIdle: { ...t.mascotIdle, ...patch } }))
+    updateTuning(t => ({ ...t, mascotIdle: { ...t.mascotIdle, ...patch } }))
   }
   function patchProps(patch: Partial<EntranceEmphasisConfig>) {
-    setTuning(t => ({ ...t, props: { ...t.props, ...patch } }))
+    updateTuning(t => ({ ...t, props: { ...t.props, ...patch } }))
   }
   function patchPropSlot(index: number, patch: Partial<PropSlot>) {
-    setTuning(t => ({ ...t, propSlots: t.propSlots.map((s, i) => i === index ? { ...s, ...patch } : s) }))
+    updateTuning(t => ({ ...t, propSlots: t.propSlots.map((s, i) => i === index ? { ...s, ...patch } : s) }))
   }
   function patchPropSlotMotion(index: number, patch: Partial<MotionPath>) {
-    setTuning(t => ({
+    updateTuning(t => ({
       ...t,
       propSlots: t.propSlots.map((s, i) => i === index && s.motion ? { ...s, motion: { ...s.motion, ...patch } } : s),
     }))
   }
   function togglePropSlotMotion(index: number, enabled: boolean) {
-    setTuning(t => ({
+    updateTuning(t => ({
       ...t,
       propSlots: t.propSlots.map((s, i) => i === index
         ? { ...s, motion: enabled ? { ...DEFAULT_MOTION_PATH, endXPct: s.xPct, endYPct: s.yPct } : null }
@@ -196,20 +219,32 @@ export function StoryLab() {
     }))
   }
   function patchTarget(patch: Partial<EntranceEmphasisConfig>) {
-    setTuning(t => ({ ...t, target: { ...t.target, ...patch } }))
+    updateTuning(t => ({ ...t, target: { ...t.target, ...patch } }))
   }
   function patchTargetMotion(patch: Partial<MotionPath>) {
-    setTuning(t => (t.targetMotion ? { ...t, targetMotion: { ...t.targetMotion, ...patch } } : t))
+    updateTuning(t => (t.targetMotion ? { ...t, targetMotion: { ...t.targetMotion, ...patch } } : t))
   }
   function toggleTargetMotion(enabled: boolean) {
-    setTuning(t => ({ ...t, targetMotion: enabled ? { ...DEFAULT_MOTION_PATH } : null }))
+    updateTuning(t => ({ ...t, targetMotion: enabled ? { ...DEFAULT_MOTION_PATH } : null }))
   }
   function patchSentence(patch: Partial<EntranceConfig>) {
-    setTuning(t => ({ ...t, sentence: { ...t.sentence, ...patch } }))
+    updateTuning(t => ({ ...t, sentence: { ...t.sentence, ...patch } }))
   }
 
+  // Removes this page's in-session edit, reverting it to its saved/default
+  // tuning — NOT a reset of every page, only the one currently shown.
+  function resetCurrentPage() {
+    setPageTunings(prev => {
+      const next = { ...prev }
+      delete next[currentKey]
+      return next
+    })
+  }
+
+  // Copies a ready-to-paste `'unitId::pageIndex': { ... },` entry for
+  // STORY_PAGE_TUNING — just this page, not the whole session's edits.
   async function copyTuning() {
-    await navigator.clipboard.writeText(JSON.stringify(tuning, null, 2))
+    await navigator.clipboard.writeText(`'${currentKey}': ${JSON.stringify(tuning, null, 2)},`)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
@@ -237,21 +272,29 @@ export function StoryLab() {
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77', marginBottom: 4 }}>Page</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {unit.storyPages.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => jumpTo(unitIdx, i)}
-                style={{
-                  border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13,
-                  width: 30, height: 30, borderRadius: '50%',
-                  background: i === pageIdx ? '#F2879B' : '#FFFFFF',
-                  color: i === pageIdx ? '#fff' : '#6B4F3F',
-                  boxShadow: '0 3px 0 #E7D3C0',
-                }}>
-                {i + 1}
-              </button>
-            ))}
+            {unit.storyPages.map((_, i) => {
+              const edited = storyPageKey(unit.id, i) in pageTunings
+              return (
+                <button
+                  key={i}
+                  onClick={() => jumpTo(unitIdx, i)}
+                  title={edited ? 'This page has unsaved edits' : undefined}
+                  style={{
+                    position: 'relative', border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13,
+                    width: 30, height: 30, borderRadius: '50%',
+                    background: i === pageIdx ? '#F2879B' : '#FFFFFF',
+                    color: i === pageIdx ? '#fff' : '#6B4F3F',
+                    boxShadow: '0 3px 0 #E7D3C0',
+                  }}>
+                  {i + 1}
+                  {edited && (
+                    <span style={{ position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: '50%', background: '#8BC273', border: '1.5px solid #fff' }} />
+                  )}
+                </button>
+              )
+            })}
           </div>
+          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session.</div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 640, overflowY: 'auto', paddingRight: 4 }}>
@@ -376,21 +419,21 @@ export function StoryLab() {
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={() => setTuning(DEFAULT_STORY_SCENE_TUNING)}
+            onClick={resetCurrentPage}
             style={{ flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '8px 0', borderRadius: 12, background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 3px 0 #E7D3C0' }}>
-            Reset
+            Reset this page
           </button>
           <button
             onClick={copyTuning}
             style={{ flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 13, padding: '8px 0', borderRadius: 12, background: '#8BC273', color: '#fff', boxShadow: '0 3px 0 #6FA05A' }}>
-            {copied ? 'Copied ✓' : 'Copy values'}
+            {copied ? 'Copied ✓' : 'Copy this page'}
           </button>
         </div>
       </div>
 
       {/* Live scene */}
       <div style={{ flex: '1 1 480px', minWidth: 320 }}>
-        <StorySceneTuningContext.Provider value={tuning}>
+        <StorySceneTuningContext.Provider value={lookupTuning}>
           <StoryReader
             key={`${unit.id}-${jumpNonce}`}
             unit={unit}

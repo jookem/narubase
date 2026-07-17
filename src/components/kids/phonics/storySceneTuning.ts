@@ -5,10 +5,17 @@ import { createContext, useContext } from 'react'
 // its story slides almost never use elaborate entrances (142/194 animated
 // slides use plain instant "Appear"), fade out between beats, and move
 // characters along hand-drawn curved motion paths rather than straight
-// lines. Production always gets DEFAULT_STORY_SCENE_TUNING (the context's
-// default value, no Provider needed) — only StoryLab.tsx (Materials page,
-// "Phonics Story Lab" tab) mounts a Provider with live values so every scene
-// can be tweaked and previewed without editing code.
+// lines.
+//
+// Every page of every unit gets its OWN independent StorySceneTuning —
+// editing page 3 never touches page 1. A page only takes up space in
+// STORY_PAGE_TUNING once it's been specifically customized; anything not
+// in there falls back to DEFAULT_STORY_SCENE_TUNING untouched, which is
+// why brand-new units/pages all look identical until someone tunes them.
+// Production reads through getStoryTuning() (the context's default lookup,
+// no Provider needed) — only StoryLab.tsx (Materials page, "Phonics Story
+// Lab" tab) mounts a Provider backed by its own in-session edits so every
+// scene can be tweaked and previewed live without touching code.
 
 // Mirrors PowerPoint's animation pane: an effect (Fade, Wipe, Fly In, ...)
 // plus, for the effects where it means anything, an independent Direction
@@ -251,10 +258,26 @@ export const DEFAULT_STORY_SCENE_TUNING: StorySceneTuning = {
   sentence: { effect: 'pop', direction: 'fromBottom', durationSec: 0.35, delaySec: 0, easing: 'ease-out' },
 }
 
-export const StorySceneTuningContext = createContext<StorySceneTuning>(DEFAULT_STORY_SCENE_TUNING)
+// Per-page overrides, keyed by storyPageKey(unitId, pageIndex). Populate by
+// pasting the Story Lab's "Copy values" output in here. A page absent from
+// this map renders with DEFAULT_STORY_SCENE_TUNING exactly as before.
+export const STORY_PAGE_TUNING: Record<string, StorySceneTuning> = {}
 
-export function useStorySceneTuning(): StorySceneTuning {
-  return useContext(StorySceneTuningContext)
+export function storyPageKey(unitId: string, pageIndex: number): string {
+  return `${unitId}::${pageIndex}`
+}
+
+export function getStoryTuning(unitId: string, pageIndex: number): StorySceneTuning {
+  return STORY_PAGE_TUNING[storyPageKey(unitId, pageIndex)] ?? DEFAULT_STORY_SCENE_TUNING
+}
+
+export type StoryTuningLookup = (unitId: string, pageIndex: number) => StorySceneTuning
+
+export const StorySceneTuningContext = createContext<StoryTuningLookup>(getStoryTuning)
+
+export function useStorySceneTuning(unitId: string, pageIndex: number): StorySceneTuning {
+  const lookup = useContext(StorySceneTuningContext)
+  return lookup(unitId, pageIndex)
 }
 
 export function entranceCss(cfg: EntranceConfig, extraDelaySec = 0): string | undefined {

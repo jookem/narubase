@@ -108,9 +108,9 @@ function sceneForPage(page: StoryPage, unit: PhonicsUnit) {
 // Family Match just taught, not a disconnected reward reel. No mic/
 // pronunciation-check here — the teacher supervises reading aloud in person.
 export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
-  const t = useStorySceneTuning()
   useEffect(() => { ensureKidsGameAnimStyles() }, [])
   const [pageIdx, setPageIdx] = useState(initialPageIndex)
+  const t = useStorySceneTuning(unit.id, pageIdx)
   const pages = unit.storyPages
   const page = pages[pageIdx]
   const isLast = pageIdx === pages.length - 1
