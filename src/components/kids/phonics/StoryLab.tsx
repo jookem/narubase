@@ -438,6 +438,33 @@ export function StoryLab() {
     jumpTo(unitIdx, Math.max(0, pageIdx - 1))
   }
 
+  // Swaps this page with its neighbor — same adjacent-swap pattern as
+  // reordering animation steps. A page whose content still falls back to
+  // phonicsContent.ts (textOverride: null) has to be "materialized" (its
+  // current effective text/highlight baked into an explicit override)
+  // before the swap: otherwise moving it to another index would silently
+  // pick up THAT index's base sentence instead of the one being moved.
+  // Content-wise this is invisible (same resolved text before and after);
+  // it just now lives in an override instead of the static array.
+  function moveScene(dir: -1 | 1) {
+    const otherIdx = pageIdx + dir
+    if (otherIdx < 0 || otherIdx >= pageCount) return
+    function materialize(idx: number): StoryPageTuning {
+      const base = unit.storyPages[idx]
+      const key = storyPageKey(unit.id, idx)
+      const t = pageTunings[key] ?? getStoryTuning(unit.id, idx) ?? buildDefaultPageTuning(findWordMatches(base?.text ?? '', base?.highlight ?? [], unit.words).length)
+      return { ...t, textOverride: t.textOverride ?? base?.text ?? '', highlightOverride: t.highlightOverride ?? base?.highlight ?? [] }
+    }
+    const here = materialize(pageIdx)
+    const there = materialize(otherIdx)
+    setPageTunings(prev => ({
+      ...prev,
+      [storyPageKey(unit.id, pageIdx)]: there,
+      [storyPageKey(unit.id, otherIdx)]: here,
+    }))
+    jumpTo(unitIdx, otherIdx)
+  }
+
   function addStep(kind: EffectKind) {
     updateSelectedObject(o => ({ ...o, steps: [...o.steps, createStep(kind)] }))
   }
@@ -579,7 +606,17 @@ export function StoryLab() {
               </button>
             )}
           </div>
-          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session. Scenes beyond the original story can only be added/removed at the end.</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+            <button onClick={() => moveScene(-1)} disabled={pageIdx === 0}
+              style={{ border: 'none', cursor: pageIdx === 0 ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 12, padding: '6px 10px', borderRadius: '999px', background: '#FFFFFF', color: pageIdx === 0 ? '#CBB9A8' : '#6B4F3F', boxShadow: '0 3px 0 #E7D3C0' }}>
+              ◀ Move earlier
+            </button>
+            <button onClick={() => moveScene(1)} disabled={pageIdx === pageCount - 1}
+              style={{ border: 'none', cursor: pageIdx === pageCount - 1 ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 12, padding: '6px 10px', borderRadius: '999px', background: '#FFFFFF', color: pageIdx === pageCount - 1 ? '#CBB9A8' : '#6B4F3F', boxShadow: '0 3px 0 #E7D3C0' }}>
+              Move later ▶
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session. Scenes beyond the original story can only be added/removed at the end, but any page can be reordered.</div>
         </div>
 
         <div>
