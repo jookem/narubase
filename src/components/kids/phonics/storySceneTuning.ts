@@ -143,15 +143,25 @@ export interface AnimationStep {
   repeat: RepeatMode
 }
 
-// One scene object's own resting position + stacking order + its animation
-// timeline. `id` is stable per page ('mascot', 'prop-0'.., 'sentence') so
-// edits keep applying to the same object across re-renders.
+// One scene object's own resting position + stacking order + orientation +
+// its animation timeline. `id` is stable per page ('mascot', 'prop-0'..,
+// 'sentence') so edits keep applying to the same object across re-renders.
+// rotationDeg/flipX/flipY are a static base orientation — like PowerPoint's
+// Rotate/Flip object properties, not an animation step — rendered as a
+// static CSS `transform` (see StoryReader.tsx) that any animation steps'
+// own transforms compose on TOP of via WAAPI's composite:'add' (which
+// combines against the element's underlying/CSS transform, not just other
+// animations), so a flipped object stays flipped through a Spin/Pop/etc.
+// instead of snapping back to unflipped the moment a step plays.
 export interface SceneObjectTuning {
   id: string
   xPct: number
   yPct: number
   zIndex: number
   fontSize: number
+  rotationDeg: number
+  flipX: boolean
+  flipY: boolean
   steps: AnimationStep[]
 }
 
@@ -169,6 +179,18 @@ export interface ExtraObject {
   id: string
   emoji: string
   hidden: boolean
+}
+
+// The static base `transform` for an object's rotation/flip (see
+// SceneObjectTuning above) — undefined when there's nothing to apply, so
+// callers can skip setting the style property entirely rather than adding
+// a meaningless `transform: none`.
+export function objectTransform(o: Pick<SceneObjectTuning, 'rotationDeg' | 'flipX' | 'flipY'>): string | undefined {
+  const parts: string[] = []
+  if (o.rotationDeg) parts.push(`rotate(${o.rotationDeg}deg)`)
+  if (o.flipX) parts.push('scaleX(-1)')
+  if (o.flipY) parts.push('scaleY(-1)')
+  return parts.length ? parts.join(' ') : undefined
 }
 
 export interface StoryPageTuning {
@@ -231,6 +253,7 @@ function newPropSlot(index: number): SceneObjectTuning {
   return {
     id: `prop-${index}`,
     xPct: 10 + index * 28, yPct: 8, zIndex: 1, fontSize: 40,
+    rotationDeg: 0, flipX: false, flipY: false,
     steps: [
       createStep('pop', { durationSec: 0.4, delaySec: index * 0.06 }),
       createStep('float', { durationSec: 2.6, delaySec: index * 0.25, easing: 'ease-in-out', repeat: 'loop' }),
@@ -258,11 +281,13 @@ export function buildDefaultPageTuning(): StoryPageTuning {
       motionSoundEnabled: true,
       mascot: {
         id: 'mascot', xPct: 40, yPct: 41, zIndex: 2, fontSize: 84,
+        rotationDeg: 0, flipX: false, flipY: false,
         steps: [createStep('float', { durationSec: 2.4, easing: 'ease-in-out', repeat: 'loop' })],
       },
       props: [],
       sentence: {
         id: 'sentence', xPct: 0, yPct: 0, zIndex: 0, fontSize: 24,
+        rotationDeg: 0, flipX: false, flipY: false,
         steps: [createStep('pop', { durationSec: 0.35 })],
       },
       textOverride: null,
@@ -286,30 +311,52 @@ export function resizeProps(tuning: StoryPageTuning, count: number): StoryPageTu
 // Per-page overrides, keyed by storyPageKey(unitId, pageIndex). Populate by
 // pasting the Story Lab's "Copy this page" output in here. A page absent
 // from this map renders via buildDefaultPageTuning() exactly as before.
-export const STORY_PAGE_TUNING: Record<string, StoryPageTuning> = {}
+// The 'deleted' sentinel marks a slot as explicitly gone — needed because
+// deleting any page (see StoryLab's deleteScene) works by shifting every
+// later page's content down one slot and marking the now-vacated LAST slot
+// deleted; that last slot can land within phonicsContent.ts's own page
+// range (deleting one of 5 original pages leaves 4), so "no override
+// recorded" alone can't mean "doesn't exist" — it normally means "use the
+// static content", which 'deleted' overrides.
+export type StoryPageEntry = StoryPageTuning | 'deleted'
+
+export const STORY_PAGE_TUNING: Record<string, StoryPageEntry> = {}
 
 export function storyPageKey(unitId: string, pageIndex: number): string {
   return `${unitId}::${pageIndex}`
 }
 
-export function getStoryTuning(unitId: string, pageIndex: number): StoryPageTuning | undefined {
+export function getStoryEntry(unitId: string, pageIndex: number): StoryPageEntry | undefined {
   return STORY_PAGE_TUNING[storyPageKey(unitId, pageIndex)]
 }
 
+// For resolving what to actually RENDER — a 'deleted' slot is never meant
+// to be rendered (StoryReader only ever visits indices useResolvedPageCount
+// says exist), so it's treated the same as "no override" here.
+export function getStoryTuning(unitId: string, pageIndex: number): StoryPageTuning | undefined {
+  const e = getStoryEntry(unitId, pageIndex)
+  return e === 'deleted' ? undefined : e
+}
+
+export type PageSlotState = 'tuning' | 'deleted' | 'none'
+
 // `resolve` returns a page's effective tuning (falling back to a fresh
-// default when untouched); `hasOverride` reports whether a REAL, saved-or-
-// in-session override exists for that exact index — no default synthesis.
-// That distinction is what page-count resolution and "is this an added
-// scene" checks need, since `resolve` alone can never report "nothing here"
-// (it always returns something to render).
+// default when untouched); `slotState` reports this exact index's raw
+// state — an explicit tuning override, explicitly deleted, or nothing
+// recorded at all. That distinction (not available from `resolve` alone,
+// which always returns something renderable) is what page-count
+// resolution needs.
 export interface StoryTuningLookup {
   resolve(unitId: string, pageIndex: number): StoryPageTuning
-  hasOverride(unitId: string, pageIndex: number): boolean
+  slotState(unitId: string, pageIndex: number): PageSlotState
 }
 
 const defaultStoryTuningLookup: StoryTuningLookup = {
   resolve: (unitId, pageIndex) => getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(),
-  hasOverride: (unitId, pageIndex) => !!getStoryTuning(unitId, pageIndex),
+  slotState: (unitId, pageIndex) => {
+    const e = getStoryEntry(unitId, pageIndex)
+    return e === 'deleted' ? 'deleted' : e !== undefined ? 'tuning' : 'none'
+  },
 }
 
 export const StorySceneTuningContext = createContext<StoryTuningLookup>(defaultStoryTuningLookup)
@@ -320,12 +367,20 @@ export function useStorySceneTuning(unitId: string, pageIndex: number): StoryPag
 }
 
 // A unit's page count isn't just its static phonicsContent.ts length —
-// pages can be appended beyond that via the Lab's "+ Add scene" (see
-// StoryLab.tsx). Counts contiguously from the base length upward while an
-// override actually exists for each next index.
+// pages can be appended beyond that via "+ Add scene", or a page (original
+// or added) can be removed via "Delete this page" (see StoryLab.tsx).
+// Counts contiguously from 0 upward: a slot with an explicit tuning
+// override exists, one marked 'deleted' doesn't (even within the static
+// content's own range), and one with nothing recorded falls back to
+// whether it's within phonicsContent.ts's range.
 export function useResolvedPageCount(unit: PhonicsUnit): number {
   const lookup = useContext(StorySceneTuningContext)
-  let count = unit.storyPages.length
-  while (lookup.hasOverride(unit.id, count)) count++
+  let count = 0
+  for (;;) {
+    const state = lookup.slotState(unit.id, count)
+    const exists = state === 'deleted' ? false : state === 'tuning' ? true : count < unit.storyPages.length
+    if (!exists) break
+    count++
+  }
   return count
 }

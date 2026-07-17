@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxMotionStart, sfxArrive } from '@/lib/sfx'
 import type { PhonicsUnit } from '@/lib/phonicsContent'
-import { useStorySceneTuning, useResolvedPageCount, type SceneObjectTuning } from './storySceneTuning'
+import { useStorySceneTuning, useResolvedPageCount, objectTransform, type SceneObjectTuning } from './storySceneTuning'
 import { useStepTimeline } from './stepAnimation'
 import { mascotSvgUrl } from './mascotAssets'
 
@@ -41,7 +41,7 @@ function PropObject({ tuning, emoji }: { tuning: SceneObjectTuning; emoji: strin
   return (
     <span ref={ref} style={{
       position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex,
-      fontSize: tuning.fontSize, display: 'inline-block',
+      fontSize: tuning.fontSize, display: 'inline-block', transform: objectTransform(tuning),
     }}>
       {content}
     </span>
@@ -60,7 +60,7 @@ function MascotObject({ tuning, unit, motionSoundEnabled }: { tuning: SceneObjec
     onSwap: content => setHappy(content === 'happy'),
   })
   return (
-    <div ref={ref} style={{ position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex, fontSize: tuning.fontSize }}>
+    <div ref={ref} style={{ position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex, fontSize: tuning.fontSize, transform: objectTransform(tuning) }}>
       <img
         src={mascotSvgUrl(unit.mascotName, happy)}
         alt={unit.mascotName}
@@ -76,7 +76,7 @@ function SentenceObject({ tuning, text, highlight }: { tuning: SceneObjectTuning
   const [override, setOverride] = useState<string | null>(null)
   useStepTimeline(ref, tuning.steps, { onSwap: setOverride })
   return (
-    <div ref={ref} style={{ fontSize: tuning.fontSize, fontWeight: 800, color: '#5A4336', lineHeight: 1.4 }}>
+    <div ref={ref} style={{ fontSize: tuning.fontSize, fontWeight: 800, color: '#5A4336', lineHeight: 1.4, transform: objectTransform(tuning) }}>
       {override ?? renderHighlighted(text, highlight)}
     </div>
   )

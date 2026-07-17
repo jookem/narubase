@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader } from './StoryReader'
 import {
-  storyPageKey, getStoryTuning, buildDefaultPageTuning, resizeProps, createStep, defaultPathForType, StorySceneTuningContext,
+  storyPageKey, getStoryTuning, getStoryEntry, buildDefaultPageTuning, resizeProps, createStep, defaultPathForType, StorySceneTuningContext,
   DIRECTION_LABELS, EASING_LABELS, TRAVEL_STYLE_LABELS, EFFECT_LABELS, EFFECT_GROUPS, DIRECTIONAL_KINDS, START_TRIGGER_LABELS, REPEAT_LABELS, PATH_TYPE_LABELS,
-  type StoryPageTuning, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind, type MotionPathShape, type StoryTuningLookup,
+  type StoryPageTuning, type StoryPageEntry, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind, type MotionPathShape, type StoryTuningLookup,
   type Direction, type Easing, type TravelStyle, type StartTrigger, type RepeatMode,
 } from './storySceneTuning'
 
@@ -16,7 +16,7 @@ const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 // codebase, but a browser refresh in between no longer wipes everything.
 const DRAFTS_STORAGE_KEY = 'phonics-story-lab-drafts'
 
-function loadDrafts(): Record<string, StoryPageTuning> {
+function loadDrafts(): Record<string, StoryPageEntry> {
   try {
     const raw = localStorage.getItem(DRAFTS_STORAGE_KEY)
     return raw ? JSON.parse(raw) : {}
@@ -60,8 +60,13 @@ function RangeField({ label, value, min, max, step, onChange }: {
 }) {
   return (
     <label style={{ fontSize: 12, color: '#6B4F3F', display: 'block' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-        <span>{label}</span><span>{value}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, gap: 6 }}>
+        <span>{label}</span>
+        <input
+          type="number" value={value} step={step}
+          onChange={e => { const v = Number(e.target.value); if (!Number.isNaN(v)) onChange(v) }}
+          style={{ width: 60, padding: '2px 4px', borderRadius: 6, border: '1px solid #E7D3C0', fontFamily: FONT, fontWeight: 700, fontSize: 12, textAlign: 'right', boxSizing: 'border-box' }}
+        />
       </div>
       <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%' }} />
     </label>
@@ -331,7 +336,7 @@ export function StoryLab() {
   const [unitIdx, setUnitIdx] = useState(0)
   const [pageIdx, setPageIdx] = useState(0)
   const [jumpNonce, setJumpNonce] = useState(0)
-  const [pageTunings, setPageTunings] = useState<Record<string, StoryPageTuning>>(loadDrafts)
+  const [pageTunings, setPageTunings] = useState<Record<string, StoryPageEntry>>(loadDrafts)
   const [selectedObjectId, setSelectedObjectId] = useState('mascot')
   const [copied, setCopied] = useState(false)
   const [replayNonce, setReplayNonce] = useState(0)
@@ -345,17 +350,36 @@ export function StoryLab() {
   // created it — its content then comes entirely from the tuning override below.
   const basePage = unit.storyPages[pageIdx]
   const currentKey = storyPageKey(unit.id, pageIdx)
-  const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning()
+  const rawTuning = pageTunings[currentKey]
+  const tuning = rawTuning && rawTuning !== 'deleted' ? rawTuning : (getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning())
+
+  // This slot's raw state (in-session edit first, then any already-saved
+  // entry) — 'deleted' beats a static/base page even within
+  // phonicsContent.ts's own range, since deleteScene works by shifting
+  // later content down and marking the vacated LAST slot 'deleted'.
+  function slotState(unitId: string, pageIndex: number): 'tuning' | 'deleted' | 'none' {
+    const raw = pageTunings[storyPageKey(unitId, pageIndex)]
+    if (raw === 'deleted') return 'deleted'
+    if (raw !== undefined) return 'tuning'
+    const saved = getStoryEntry(unitId, pageIndex)
+    return saved === 'deleted' ? 'deleted' : saved !== undefined ? 'tuning' : 'none'
+  }
 
   // A unit's page count isn't just unit.storyPages.length — pages appended
   // via "+ Add scene" only exist as overrides, possibly still only in this
-  // session's pageTunings (not yet saved into STORY_PAGE_TUNING). Can't use
-  // the useResolvedPageCount hook here: it reads context from the nearest
-  // ANCESTOR Provider, and the Provider StoryLab itself renders (below)
-  // wraps only <StoryReader>, not StoryLab's own render — so it would only
-  // ever see already-saved pages, missing in-session additions.
-  let pageCount = unit.storyPages.length
-  while (storyPageKey(unit.id, pageCount) in pageTunings || getStoryTuning(unit.id, pageCount)) pageCount++
+  // session's pageTunings (not yet saved into STORY_PAGE_TUNING), and a
+  // page (original or added) can be removed via "Delete this page". Can't
+  // use the useResolvedPageCount hook here: it reads context from the
+  // nearest ANCESTOR Provider, and the Provider StoryLab itself renders
+  // (below) wraps only <StoryReader>, not StoryLab's own render — so it
+  // would only ever see already-saved pages, missing in-session edits.
+  let pageCount = 0
+  for (;;) {
+    const state = slotState(unit.id, pageCount)
+    const exists = state === 'deleted' ? false : state === 'tuning' ? true : pageCount < unit.storyPages.length
+    if (!exists) break
+    pageCount++
+  }
 
   const text = tuning.textOverride ?? basePage?.text ?? ''
   const highlight = tuning.highlightOverride ?? basePage?.highlight ?? []
@@ -400,7 +424,8 @@ export function StoryLab() {
   // for those, not a live re-derivation.
   function updateTuning(updater: (t: StoryPageTuning) => StoryPageTuning) {
     setPageTunings(prev => {
-      const current = prev[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning()
+      const raw = prev[currentKey]
+      const current = raw && raw !== 'deleted' ? raw : (getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning())
       const updated = updater(current)
       return { ...prev, [currentKey]: resizeProps(updated, updated.extraObjects.length) }
     })
@@ -458,33 +483,43 @@ export function StoryLab() {
     setPageTunings(prev => ({ ...prev, [key]: { ...buildDefaultPageTuning(), textOverride: '', highlightOverride: [] } }))
     jumpTo(unitIdx, newIdx)
   }
-  function removeScene() {
-    const key = storyPageKey(unit.id, pageIdx)
+  // Bakes a page's effective text/highlight into an explicit override so
+  // moving/deleting pages never accidentally lets a page inherit whatever
+  // static content happens to live at its NEW index. Content-wise this is
+  // invisible (same resolved text before and after) — it just now lives in
+  // an override instead of the static array. Shared by moveScene (adjacent
+  // swap) and deleteScene (shift-down).
+  function materialize(idx: number): StoryPageTuning {
+    const base = unit.storyPages[idx]
+    const key = storyPageKey(unit.id, idx)
+    const raw = pageTunings[key]
+    const t = raw && raw !== 'deleted' ? raw : (getStoryTuning(unit.id, idx) ?? buildDefaultPageTuning())
+    return { ...t, textOverride: t.textOverride ?? base?.text ?? '', highlightOverride: t.highlightOverride ?? base?.highlight ?? [] }
+  }
+
+  // Deletes ANY page — an original PowerPoint-sourced one or a Lab-added
+  // one, at any position — by shifting every later page's content down one
+  // slot, then marking the newly-vacated LAST slot 'deleted'. This keeps
+  // storage index always equal to logical page position (no separate
+  // indirection layer needed) instead of only allowing removal at the end.
+  function deleteScene() {
+    if (pageCount <= 1) return
+    const shifted: StoryPageTuning[] = []
+    for (let i = pageIdx + 1; i < pageCount; i++) shifted.push(materialize(i))
     setPageTunings(prev => {
       const next = { ...prev }
-      delete next[key]
+      for (let i = pageIdx; i < pageCount - 1; i++) next[storyPageKey(unit.id, i)] = shifted[i - pageIdx]
+      next[storyPageKey(unit.id, pageCount - 1)] = 'deleted'
       return next
     })
-    jumpTo(unitIdx, Math.max(0, pageIdx - 1))
+    jumpTo(unitIdx, Math.min(pageIdx, pageCount - 2))
   }
 
   // Swaps this page with its neighbor — same adjacent-swap pattern as
-  // reordering animation steps. A page whose content still falls back to
-  // phonicsContent.ts (textOverride: null) has to be "materialized" (its
-  // current effective text/highlight baked into an explicit override)
-  // before the swap: otherwise moving it to another index would silently
-  // pick up THAT index's base sentence instead of the one being moved.
-  // Content-wise this is invisible (same resolved text before and after);
-  // it just now lives in an override instead of the static array.
+  // reordering animation steps.
   function moveScene(dir: -1 | 1) {
     const otherIdx = pageIdx + dir
     if (otherIdx < 0 || otherIdx >= pageCount) return
-    function materialize(idx: number): StoryPageTuning {
-      const base = unit.storyPages[idx]
-      const key = storyPageKey(unit.id, idx)
-      const t = pageTunings[key] ?? getStoryTuning(unit.id, idx) ?? buildDefaultPageTuning()
-      return { ...t, textOverride: t.textOverride ?? base?.text ?? '', highlightOverride: t.highlightOverride ?? base?.highlight ?? [] }
-    }
     const here = materialize(pageIdx)
     const there = materialize(otherIdx)
     setPageTunings(prev => ({
@@ -548,13 +583,13 @@ export function StoryLab() {
   // The Lab's live preview only ever shows the current page, so `resolve`
   // always returns previewTuning — which already carries replayNonce so the
   // Replay button can force a from-scratch replay of already-finished
-  // steps. `hasOverride` checks BOTH this session's edits and any
+  // steps. `slotState` checks BOTH this session's edits and any
   // already-saved STORY_PAGE_TUNING entry, since useResolvedPageCount
   // (used by <StoryReader>'s own page-count logic) needs to see pages
-  // added only in this session too.
+  // added/deleted only in this session too.
   const labLookup: StoryTuningLookup = {
     resolve: () => previewTuning,
-    hasOverride: (unitId, pageIndex) => storyPageKey(unitId, pageIndex) in pageTunings || !!getStoryTuning(unitId, pageIndex),
+    slotState,
   }
 
   // Removes this page's in-session edit, reverting it to its saved/default
@@ -627,14 +662,17 @@ export function StoryLab() {
               style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, width: 30, height: 30, borderRadius: '50%', background: '#F0F8FF', color: '#7FB8E0', boxShadow: '0 3px 0 #DCEEFA' }}>
               +
             </button>
-            {pageIdx === pageCount - 1 && pageIdx >= unit.storyPages.length && (
-              <button
-                onClick={removeScene}
-                title="Remove this scene"
-                style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 12, padding: '6px 10px', borderRadius: '999px', background: '#FFF0F0', color: '#D96C6C', boxShadow: '0 3px 0 #F5D9D9' }}>
-                🗑 Remove
-              </button>
-            )}
+            <button
+              onClick={deleteScene}
+              disabled={pageCount <= 1}
+              title={pageCount <= 1 ? "Can't delete the only page" : 'Delete this page'}
+              style={{
+                border: 'none', cursor: pageCount <= 1 ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 12,
+                padding: '6px 10px', borderRadius: '999px', background: '#FFF0F0', color: '#D96C6C', boxShadow: '0 3px 0 #F5D9D9',
+                opacity: pageCount <= 1 ? 0.5 : 1,
+              }}>
+              🗑 Delete this page
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             <button onClick={() => moveScene(-1)} disabled={pageIdx === 0}
@@ -646,7 +684,7 @@ export function StoryLab() {
               Move later ▶
             </button>
           </div>
-          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session. Scenes beyond the original story can only be added/removed at the end, but any page can be reordered.</div>
+          <div style={{ fontSize: 11, color: '#A98B77', marginTop: 4 }}>Each page's settings are independent — a green dot marks pages you've edited this session. Any page can be deleted, added to, or reordered.</div>
         </div>
 
         <div>
@@ -700,6 +738,18 @@ export function StoryLab() {
                 onChange={v => setObjectField('fontSize', v)} />
               <RangeField label="Layer (z-index)" value={selectedObject.zIndex} min={0} max={5} step={1}
                 onChange={v => setObjectField('zIndex', v)} />
+              <RangeField label="Rotation (°)" value={selectedObject.rotationDeg} min={-180} max={180} step={1}
+                onChange={v => setObjectField('rotationDeg', v)} />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="checkbox" checked={selectedObject.flipX} onChange={e => setObjectField('flipX', e.target.checked)} />
+                  Flip horizontal
+                </label>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#6B4F3F', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="checkbox" checked={selectedObject.flipY} onChange={e => setObjectField('flipY', e.target.checked)} />
+                  Flip vertical
+                </label>
+              </div>
             </Section>
           )}
 
