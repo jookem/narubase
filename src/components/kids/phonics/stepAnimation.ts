@@ -207,21 +207,31 @@ export function buildAnimateCalls(step: AnimationStep): AnimateCall[] {
       }
       return [position, dip, wobble]
     }
+
+    case 'swap':
+      // Handled directly in useStepTimeline via onSwap — there's no WAAPI
+      // animation for an instant content change.
+      return []
   }
 }
 
 interface StepTimelineOptions {
   onMotionActiveChange?: (active: boolean) => void
+  onSwap?: (content: string) => void
 }
 
 // Drives one object's whole animation timeline imperatively. Steps marked
 // 'withPrevious' are simply started in the same tick as the step before
 // them (their `composite: 'add'` keyframes then blend natively); a step
 // marked 'afterPrevious' awaits the prior step's `.finished` promise first
-// — real sequencing, not delay arithmetic.
+// — real sequencing, not delay arithmetic. A 'swap' step has no WAAPI
+// animation to wait on — it fires onSwap and counts as immediately
+// "finished" so a chained step right after it starts without delay.
 export function useStepTimeline(ref: RefObject<HTMLElement | null>, steps: AnimationStep[], options: StepTimelineOptions = {}) {
   const onMotionActiveChangeRef = useRef(options.onMotionActiveChange)
   onMotionActiveChangeRef.current = options.onMotionActiveChange
+  const onSwapRef = useRef(options.onSwap)
+  onSwapRef.current = options.onSwap
 
   useEffect(() => {
     const el = ref.current
@@ -230,12 +240,17 @@ export function useStepTimeline(ref: RefObject<HTMLElement | null>, steps: Anima
     const allAnimations: Animation[] = []
 
     async function run(target: HTMLElement) {
-      let previousFinished: Promise<Animation> | null = null
+      let previousFinished: Promise<unknown> | null = null
       for (const step of steps) {
         if (cancelled) return
         if (step.startTrigger === 'afterPrevious' && previousFinished) {
           try { await previousFinished } catch { /* cancelled mid-flight */ }
           if (cancelled) return
+        }
+        if (step.effect.kind === 'swap') {
+          onSwapRef.current?.(step.effect.content)
+          previousFinished = Promise.resolve()
+          continue
         }
         const calls = buildAnimateCalls(step)
         const stepAnimations = calls.map(c => target.animate(c.keyframes, c.options))

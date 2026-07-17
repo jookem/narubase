@@ -62,8 +62,8 @@ export const REPEAT_LABELS: Record<RepeatMode, string> = {
 
 // Every animation an object can be given, independent of what kind of
 // object it is. 'kind' is the discriminant; only wipe/flyIn carry a
-// direction and only motionPath carries a path.
-export type EffectKind = 'fade' | 'wipe' | 'flyIn' | 'pop' | 'bounceIn' | 'float' | 'wiggle' | 'spin' | 'growShrink' | 'pulse' | 'shake' | 'motionPath'
+// direction, only motionPath carries a path, and only swap carries content.
+export type EffectKind = 'fade' | 'wipe' | 'flyIn' | 'pop' | 'bounceIn' | 'float' | 'wiggle' | 'spin' | 'growShrink' | 'pulse' | 'shake' | 'motionPath' | 'swap'
 
 export const EFFECT_LABELS: Record<EffectKind, string> = {
   fade: 'Fade In',
@@ -78,6 +78,7 @@ export const EFFECT_LABELS: Record<EffectKind, string> = {
   pulse: 'Pulse',
   shake: 'Shake',
   motionPath: 'Motion Path',
+  swap: 'Change Appearance',
 }
 
 // Grouped for the Lab's effect-type dropdown, mirroring PowerPoint's
@@ -86,6 +87,7 @@ export const EFFECT_GROUPS: { label: string; kinds: EffectKind[] }[] = [
   { label: 'Entrance', kinds: ['fade', 'wipe', 'flyIn', 'pop', 'bounceIn'] },
   { label: 'Emphasis', kinds: ['float', 'wiggle', 'spin', 'growShrink', 'pulse', 'shake'] },
   { label: 'Motion', kinds: ['motionPath'] },
+  { label: 'Appearance', kinds: ['swap'] },
 ]
 
 // Which kinds carry a `direction` field — shown/enabled in the Lab only for these.
@@ -96,6 +98,7 @@ export type StepEffect =
   | { kind: 'wipe' | 'flyIn'; direction: Direction }
   | { kind: 'float' | 'wiggle' | 'spin' | 'growShrink' | 'pulse' | 'shake' }
   | { kind: 'motionPath'; startXPct: number; startYPct: number; endXPct: number; endYPct: number; arcHeightPx: number; travelStyle: TravelStyle }
+  | { kind: 'swap'; content: string }   // instantly swaps what the object renders — an emoji for props/sentence, a sprite variant ('default'/'happy') for the mascot
 
 export interface AnimationStep {
   id: string
@@ -139,6 +142,8 @@ export function defaultStepEffect(kind: EffectKind): StepEffect {
       return { kind, direction: 'fromBottom' }
     case 'motionPath':
       return { kind: 'motionPath', startXPct: 10, startYPct: 40, endXPct: 50, endYPct: 40, arcHeightPx: -40, travelStyle: 'bob' }
+    case 'swap':
+      return { kind: 'swap', content: '' }
     default:
       return { kind }
   }
@@ -147,13 +152,15 @@ export function defaultStepEffect(kind: EffectKind): StepEffect {
 const LOOPING_KINDS: EffectKind[] = ['float', 'wiggle', 'spin', 'growShrink', 'pulse', 'shake']
 
 // Builds one new step with sensible defaults for its kind — used by the
-// Lab's "+ Add animation" and by buildDefaultPageTuning() below.
+// Lab's "+ Add animation" and by buildDefaultPageTuning() below. A swap is
+// instant (no WAAPI animation plays for it), so its duration is nominal —
+// just enough for chained "after previous" steps to move on right away.
 export function createStep(kind: EffectKind, overrides: Partial<AnimationStep> = {}): AnimationStep {
   return {
     id: `step-${Math.random().toString(36).slice(2, 9)}`,
     effect: defaultStepEffect(kind),
     startTrigger: 'afterPrevious',
-    durationSec: kind === 'motionPath' ? 0.8 : 0.4,
+    durationSec: kind === 'motionPath' ? 0.8 : kind === 'swap' ? 0 : 0.4,
     delaySec: 0,
     easing: kind === 'motionPath' ? 'ease-in-out' : 'ease-out',
     repeat: LOOPING_KINDS.includes(kind) ? 'loop' : 'once',

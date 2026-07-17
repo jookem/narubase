@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader, findWordMatches } from './StoryReader'
 import {
@@ -84,10 +84,11 @@ const miniBtnStyle: React.CSSProperties = {
 // (grouped Entrance/Emphasis/Motion Path), its type-specific fields, when
 // it starts relative to the step before it, whether it repeats, and
 // duration/delay/easing — independent of what kind of object owns it.
-function StepRow({ step, index, total, onChangeKind, onPatch, onPatchEffect, onMove, onRemove }: {
+function StepRow({ step, index, total, isMascot, onChangeKind, onPatch, onPatchEffect, onMove, onRemove }: {
   step: AnimationStep
   index: number
   total: number
+  isMascot: boolean
   onChangeKind: (kind: EffectKind) => void
   onPatch: (patch: Partial<AnimationStep>) => void
   onPatchEffect: (patch: Partial<StepEffect>) => void
@@ -137,18 +138,37 @@ function StepRow({ step, index, total, onChangeKind, onPatch, onPatchEffect, onM
         </>
       )}
 
+      {step.effect.kind === 'swap' && (
+        isMascot ? (
+          <SelectField label="Appearance" value={step.effect.content === 'happy' ? 'happy' : 'default'}
+            options={['default', 'happy']} labels={{ default: 'Default', happy: 'Happy' }}
+            onChange={content => onPatchEffect({ content })} />
+        ) : (
+          <Field label="New content (emoji or text)">
+            <input type="text" value={step.effect.content} onChange={e => onPatchEffect({ content: e.target.value })}
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, boxSizing: 'border-box' }} />
+          </Field>
+        )
+      )}
+
       {index > 0 && (
         <SelectField label="Start" value={step.startTrigger} options={START_TRIGGER_OPTIONS} labels={START_TRIGGER_LABELS}
           onChange={startTrigger => onPatch({ startTrigger })} />
       )}
-      <SelectField label="Repeat" value={step.repeat} options={REPEAT_OPTIONS} labels={REPEAT_LABELS}
-        onChange={repeat => onPatch({ repeat })} />
-      <RangeField label="Duration (s)" value={step.durationSec} min={0.1} max={3} step={0.05}
-        onChange={v => onPatch({ durationSec: v })} />
+      {step.effect.kind !== 'swap' && (
+        <>
+          <SelectField label="Repeat" value={step.repeat} options={REPEAT_OPTIONS} labels={REPEAT_LABELS}
+            onChange={repeat => onPatch({ repeat })} />
+          <RangeField label="Duration (s)" value={step.durationSec} min={0.1} max={3} step={0.05}
+            onChange={v => onPatch({ durationSec: v })} />
+        </>
+      )}
       <RangeField label="Delay (s)" value={step.delaySec} min={0} max={2} step={0.05}
         onChange={v => onPatch({ delaySec: v })} />
-      <SelectField label="Easing" value={step.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
-        onChange={easing => onPatch({ easing })} />
+      {step.effect.kind !== 'swap' && (
+        <SelectField label="Easing" value={step.easing} options={EASING_OPTIONS} labels={EASING_LABELS}
+          onChange={easing => onPatch({ easing })} />
+      )}
     </div>
   )
 }
@@ -188,12 +208,27 @@ export function StoryLab() {
   const [pageTunings, setPageTunings] = useState<Record<string, StoryPageTuning>>({})
   const [selectedObjectId, setSelectedObjectId] = useState('mascot')
   const [copied, setCopied] = useState(false)
+  const [replayNonce, setReplayNonce] = useState(0)
 
   const unit = PHONICS_UNITS[unitIdx]
   const page = unit.storyPages[pageIdx]
   const propMatches = findWordMatches(page.text, page.highlight, unit.words)
   const currentKey = storyPageKey(unit.id, pageIdx)
   const tuning = pageTunings[currentKey] ?? getStoryTuning(unit.id, pageIdx) ?? buildDefaultPageTuning(propMatches.length)
+
+  // useStepTimeline only restarts an object's animations when its `steps`
+  // array reference changes — which normally only happens on a real edit.
+  // A step that already finished (e.g. a one-shot Pop) has nothing left to
+  // watch again without editing something, so Replay forces fresh step-array
+  // references (same content, new identity) via replayNonce, without
+  // touching the actual saved tuning or losing per-page isolation.
+  const previewTuning = useMemo<StoryPageTuning>(() => ({
+    ...tuning,
+    mascot: { ...tuning.mascot, steps: [...tuning.mascot.steps] },
+    props: tuning.props.map(p => ({ ...p, steps: [...p.steps] })),
+    sentence: { ...tuning.sentence, steps: [...tuning.sentence.steps] },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [tuning, replayNonce])
 
   const objectOptions = [
     { id: 'mascot', label: `🏃 Mascot` },
@@ -275,9 +310,11 @@ export function StoryLab() {
     }))
   }
 
-  function lookupTuning(unitId: string, pageIndex: number, propCount: number): StoryPageTuning {
-    const key = storyPageKey(unitId, pageIndex)
-    return pageTunings[key] ?? getStoryTuning(unitId, pageIndex) ?? buildDefaultPageTuning(propCount)
+  // The Lab's live preview only ever shows the current page, so this always
+  // resolves to previewTuning — which already carries replayNonce so the
+  // Replay button can force a from-scratch replay of already-finished steps.
+  function lookupTuning(): StoryPageTuning {
+    return previewTuning
   }
 
   // Removes this page's in-session edit, reverting it to its saved/default
@@ -387,6 +424,7 @@ export function StoryLab() {
                 step={step}
                 index={i}
                 total={selectedObject.steps.length}
+                isMascot={selectedObjectId === 'mascot'}
                 onChangeKind={kind => changeStepKind(step.id, kind)}
                 onPatch={patch => patchStep(step.id, patch)}
                 onPatchEffect={patch => patchStepEffect(step.id, patch)}
@@ -433,6 +471,13 @@ export function StoryLab() {
 
       {/* Live scene */}
       <div style={{ flex: '1 1 480px', minWidth: 320 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <button
+            onClick={() => setReplayNonce(n => n + 1)}
+            style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: '8px 16px', borderRadius: '999px', background: '#FFFFFF', color: '#6B4F3F', boxShadow: '0 3px 0 #E7D3C0' }}>
+            ▶ Replay
+          </button>
+        </div>
         <StorySceneTuningContext.Provider value={lookupTuning}>
           <StoryReader
             key={`${unit.id}-${jumpNonce}`}

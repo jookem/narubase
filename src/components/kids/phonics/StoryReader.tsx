@@ -51,34 +51,34 @@ export function findWordMatches(text: string, highlight: string[], words: Phonic
   return matches.sort((a, b) => a.index - b.index)
 }
 
+// A 'swap' step (Change Appearance) lets a page explicitly replace what an
+// object renders partway through its timeline — e.g. Zac's default sprite
+// swapping to its happy one right after a Motion Path step finishes. It's
+// an authored step like any other, not automatic behavior tied to motion.
 function PropObject({ tuning, emoji }: { tuning: SceneObjectTuning; emoji: string }) {
   const ref = useRef<HTMLSpanElement>(null)
-  useStepTimeline(ref, tuning.steps)
+  const [content, setContent] = useState(emoji)
+  useStepTimeline(ref, tuning.steps, { onSwap: setContent })
   return (
     <span ref={ref} style={{
       position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex,
       fontSize: tuning.fontSize, display: 'inline-block',
     }}>
-      {emoji}
+      {content}
     </span>
   )
 }
 
-// `happy` mirrors mascotSvgUrl's celebratory sprite variant: it flips true
-// exactly when a motionPath step finishes (see useStepTimeline's
-// onMotionActiveChange) and stays true afterward — it never flips true on
-// its own just from idling, matching the original "only happy right after
-// arriving somewhere" feel.
 function MascotObject({ tuning, unit, motionSoundEnabled }: { tuning: SceneObjectTuning; unit: PhonicsUnit; motionSoundEnabled: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const [happy, setHappy] = useState(false)
   useStepTimeline(ref, tuning.steps, {
     onMotionActiveChange: active => {
-      setHappy(!active)
       if (!motionSoundEnabled) return
       if (active) sfxMotionStart()
       else sfxArrive()
     },
+    onSwap: content => setHappy(content === 'happy'),
   })
   return (
     <div ref={ref} style={{ position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex, fontSize: tuning.fontSize }}>
@@ -94,10 +94,11 @@ function MascotObject({ tuning, unit, motionSoundEnabled }: { tuning: SceneObjec
 
 function SentenceObject({ tuning, text, highlight }: { tuning: SceneObjectTuning; text: string; highlight: string[] }) {
   const ref = useRef<HTMLDivElement>(null)
-  useStepTimeline(ref, tuning.steps)
+  const [override, setOverride] = useState<string | null>(null)
+  useStepTimeline(ref, tuning.steps, { onSwap: setOverride })
   return (
     <div ref={ref} style={{ fontSize: tuning.fontSize, fontWeight: 800, color: '#5A4336', lineHeight: 1.4 }}>
-      {renderHighlighted(text, highlight)}
+      {override ?? renderHighlighted(text, highlight)}
     </div>
   )
 }
