@@ -277,6 +277,28 @@ function AddObjectField({ onAdd }: { onAdd: (emoji: string) => void }) {
   )
 }
 
+// Local text state, not derived from `words.join(', ')` on every render:
+// re-deriving the displayed value from the parsed-and-rejoined array on
+// every keystroke means typing a stray double comma or space mid-edit
+// produces a rejoined string that doesn't match what was actually typed,
+// which snaps the input's value back and throws the cursor to the end.
+// Keying this component by page (see its call site) still resets it to
+// the new page's words when you navigate, without fighting mid-edit typing.
+function HighlightWordsField({ initialValue, onChange }: { initialValue: string; onChange: (words: string[]) => void }) {
+  const [text, setText] = useState(initialValue)
+  return (
+    <input
+      type="text"
+      value={text}
+      onChange={e => {
+        setText(e.target.value)
+        onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))
+      }}
+      style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
+    />
+  )
+}
+
 function AddStepButton({ onAdd }: { onAdd: (kind: EffectKind) => void }) {
   return (
     <select
@@ -635,13 +657,8 @@ export function StoryLab() {
             rows={2}
             style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
           />
-          <div style={{ fontSize: 11, color: '#A98B77', margin: '6px 0 2px' }}>Highlighted words (comma-separated — just colors them in the sentence, doesn't add objects)</div>
-          <input
-            type="text"
-            value={highlight.join(', ')}
-            onChange={e => setHighlight(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-            style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid #E7D3C0', fontFamily: FONT, fontSize: 13, boxSizing: 'border-box' }}
-          />
+          <div style={{ fontSize: 11, color: '#A98B77', margin: '6px 0 2px' }}>Highlighted words</div>
+          <HighlightWordsField key={currentKey} initialValue={highlight.join(', ')} onChange={setHighlight} />
         </div>
 
         <div>
