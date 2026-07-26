@@ -425,7 +425,7 @@ export function StoryLab() {
   // Every object is manually placed (see "+ Add object" below) — nothing
   // spawns automatically from highlighted/phonics words anymore.
   const objectOptions = [
-    { id: 'mascot', label: `🏃 Mascot`, kind: 'mascot' as const },
+    { id: 'mascot', label: `🏃 Mascot`, kind: 'mascot' as const, hidden: tuning.mascotHidden },
     ...tuning.extraObjects.map((o, i) => ({ id: `prop-${i}`, label: `${o.emoji} Prop ${i + 1}`, kind: 'object' as const, extraId: o.id, hidden: o.hidden })),
     { id: 'sentence', label: '💬 Sentence text', kind: 'sentence' as const },
   ]
@@ -491,6 +491,9 @@ export function StoryLab() {
   }
   function toggleObjectVisibility(extraId: string) {
     updateTuning(t => ({ ...t, extraObjects: t.extraObjects.map(o => o.id === extraId ? { ...o, hidden: !o.hidden } : o) }))
+  }
+  function toggleMascotVisibility() {
+    updateTuning(t => ({ ...t, mascotHidden: !t.mascotHidden }))
   }
   function removeExtraObject(extraId: string) {
     updateTuning(t => ({ ...t, extraObjects: t.extraObjects.filter(o => o.id !== extraId) }))
@@ -734,11 +737,14 @@ export function StoryLab() {
                     flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 13, textAlign: 'left',
                     padding: '8px 10px', borderRadius: 10,
                     background: o.id === selectedObjectId ? '#F2879B' : '#FFFFFF',
-                    color: o.id === selectedObjectId ? '#fff' : o.kind === 'object' && o.hidden ? '#CBB9A8' : '#6B4F3F',
+                    color: o.id === selectedObjectId ? '#fff' : o.hidden ? '#CBB9A8' : '#6B4F3F',
                     boxShadow: '0 3px 0 #E7D3C0',
                   }}>
-                  {o.label}{o.kind === 'object' && o.hidden ? ' (hidden)' : ''}
+                  {o.label}{o.hidden ? ' (hidden)' : ''}
                 </button>
+                {o.kind === 'mascot' && (
+                  <button onClick={toggleMascotVisibility} title={o.hidden ? 'Show the mascot' : 'Hide the mascot'} style={miniBtnStyle}>{o.hidden ? '🙈' : '👁'}</button>
+                )}
                 {o.kind === 'object' && (
                   <>
                     <button onClick={() => toggleObjectVisibility(o.extraId)} title={o.hidden ? 'Show this object' : 'Hide this object'} style={miniBtnStyle}>{o.hidden ? '🙈' : '👁'}</button>

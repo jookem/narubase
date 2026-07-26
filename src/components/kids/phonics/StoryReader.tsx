@@ -142,7 +142,9 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
           <PropObject key={`${pageIdx}-${i}`} tuning={t.props[i]} emoji={o.emoji} />
         ))}
 
-        <MascotObject key={`mascot-${pageIdx}`} tuning={t.mascot} unit={unit} motionSoundEnabled={t.motionSoundEnabled} />
+        {!t.mascotHidden && (
+          <MascotObject key={`mascot-${pageIdx}`} tuning={t.mascot} unit={unit} motionSoundEnabled={t.motionSoundEnabled} />
+        )}
       </div>
 
       {/* Sentence card */}

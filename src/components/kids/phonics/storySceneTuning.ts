@@ -201,6 +201,7 @@ export interface StoryPageTuning {
   bgBottom: string
   groundColor: string
   mascot: SceneObjectTuning
+  mascotHidden: boolean        // hides the mascot without losing its tuning/animation, same as an ExtraObject's `hidden`
   props: SceneObjectTuning[]   // sized 1:1 to extraObjects (same index), regardless of hidden state
   sentence: SceneObjectTuning  // position fields unused — laid out by its own card
   motionSoundEnabled: boolean
@@ -284,6 +285,7 @@ export function buildDefaultPageTuning(): StoryPageTuning {
         rotationDeg: 0, flipX: false, flipY: false,
         steps: [createStep('float', { durationSec: 2.4, easing: 'ease-in-out', repeat: 'loop' })],
       },
+      mascotHidden: false,
       props: [],
       sentence: {
         id: 'sentence', xPct: 0, yPct: 0, zIndex: 0, fontSize: 24,
