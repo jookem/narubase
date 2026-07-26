@@ -5,6 +5,7 @@ import type { PhonicsUnit } from '@/lib/phonicsContent'
 import { useStorySceneTuning, useResolvedPageCount, objectTransform, type SceneObjectTuning } from './storySceneTuning'
 import { useStepTimeline } from './stepAnimation'
 import { mascotSvgUrl } from './mascotAssets'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const ACCENT = '#F2879B'
@@ -43,7 +44,7 @@ function PropObject({ tuning, emoji }: { tuning: SceneObjectTuning; emoji: strin
       position: 'absolute', left: `${tuning.xPct}%`, top: `${tuning.yPct}%`, zIndex: tuning.zIndex,
       fontSize: tuning.fontSize, display: 'inline-block', transform: objectTransform(tuning),
     }}>
-      {content}
+      <Emoji>{content}</Emoji>
     </span>
   )
 }
@@ -153,7 +154,7 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
         <button
           onClick={() => speak(text)}
           style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '8px 18px', borderRadius: '999px', background: '#F0F8FF', color: '#7FB8E0' }}>
-          🔊 Listen again
+          <EmojiText>🔊 Listen again</EmojiText>
         </button>
       </div>
 
@@ -165,7 +166,7 @@ export function StoryReader({ unit, onDone, initialPageIndex = 0 }: Props) {
           </button>
         )}
         <button onClick={next} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 15, padding: '10px 24px', borderRadius: '999px', background: '#F2879B', color: '#fff', boxShadow: '0 4px 0 #D96C81' }}>
-          {isLast ? 'Finish! 🎉' : 'Next →'}
+          {isLast ? <EmojiText>Finish! 🎉</EmojiText> : 'Next →'}
         </button>
       </div>
     </div>

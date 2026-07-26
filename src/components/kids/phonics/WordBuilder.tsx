@@ -7,6 +7,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { speak } from '@/lib/tts'
 import { sfxBlend, sfxWrong } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const SLOT_ID = 'onset-slot'
@@ -147,7 +148,7 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
       <div style={{ display: 'flex', gap: 8, minHeight: 36, flexWrap: 'wrap', justifyContent: 'center' }}>
         {collected.map(w => (
           <div key={w.onset} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFFFFF', borderRadius: '999px', padding: '6px 12px', boxShadow: '0 3px 0 #EEDAC6', animation: 'kg-bounceIn .3s ease-out' }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{w.emoji}</span>
+            <span style={{ fontSize: 18, lineHeight: 1 }}><Emoji>{w.emoji}</Emoji></span>
             <span style={{ fontWeight: 800, fontSize: 13, color: '#6B4F3F' }}>{w.word}</span>
           </div>
         ))}
@@ -163,7 +164,7 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
       <div style={{ minHeight: 84, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {!placed && target && (
           <div key={target.onset} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, animation: 'kg-bounceIn .3s ease-out' }}>
-            <div style={{ fontSize: 56, lineHeight: 1 }}>{target.emoji}</div>
+            <div style={{ fontSize: 56, lineHeight: 1 }}><Emoji>{target.emoji}</Emoji></div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>{target.jp}</div>
           </div>
         )}
@@ -171,7 +172,7 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, animation: 'kg-pop .3s ease-out' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>{placed.jp}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 28, lineHeight: 1 }}>{placed.emoji}</span>
+              <span style={{ fontSize: 28, lineHeight: 1 }}><Emoji>{placed.emoji}</Emoji></span>
               <span style={{ fontWeight: 800, fontSize: 26, color: '#F2879B' }}>{placed.word}</span>
             </div>
           </div>
@@ -190,7 +191,7 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
               width: 44, height: 64, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 800, fontSize: 18, color: '#C7A892', background: '#F5EDE6', opacity: 0.6,
             }}>
-              🤫e
+              <EmojiText>🤫e</EmojiText>
             </div>
           )}
         </div>

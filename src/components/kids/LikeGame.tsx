@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useContext, createContext } from 'react'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 // ── Style injection ───────────────────────────────────────────────────────────
 
@@ -178,17 +179,17 @@ const SHADOW = 'rgba(120, 80, 95, 0.18)'
 
 function ItemFace({ it }: { it: TopicItem }) {
   if (it.swatch) return <div style={{ width: 44, height: 44, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -4px 8px rgba(0,0,0,.12)', flexShrink: 0 }} />
-  return <div style={{ fontSize: 34, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.icon}</div>
+  return <div style={{ fontSize: 34, lineHeight: 1, fontFamily: EMOJI_FONT }}><Emoji>{it.icon ?? ''}</Emoji></div>
 }
 
 function InlineItem({ it }: { it: TopicItem }) {
   if (it.swatch) return <span style={{ display: 'inline-block', width: '0.9em', height: '0.9em', borderRadius: '50%', background: it.swatch, verticalAlign: '-0.08em' }} />
-  return <span style={{ fontFamily: EMOJI_FONT }}>{it.icon}</span>
+  return <span style={{ fontFamily: EMOJI_FONT }}><Emoji>{it.icon ?? ''}</Emoji></span>
 }
 
 function MiniItem({ it }: { it: TopicItem }) {
   if (it.swatch) return <span style={{ display: 'inline-block', width: 32, height: 32, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -3px 6px rgba(0,0,0,.1)', verticalAlign: 'middle' }} title={it.en} />
-  return <span title={it.en} style={{ fontSize: 26, fontFamily: EMOJI_FONT }}>{it.icon}</span>
+  return <span title={it.en} style={{ fontSize: 26, fontFamily: EMOJI_FONT }}><Emoji>{it.icon ?? ''}</Emoji></span>
 }
 
 function Particles({ kind }: { kind: 'hearts' | 'confetti' }) {
@@ -198,7 +199,7 @@ function Particles({ kind }: { kind: 'hearts' | 'confetti' }) {
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 20 }}>
       {Array.from({ length: 10 }).map((_, i) => (
         <div key={i} style={{ position: 'absolute', fontSize: 30, left: `${12 + Math.random() * 76}%`, top: `${40 + Math.random() * 20}%`, animation: `lg-floatup 1.3s ease-out ${(Math.random() * 0.25).toFixed(2)}s forwards` }}>
-          {emojis[i % emojis.length]}
+          <Emoji>{emojis[i % emojis.length]}</Emoji>
         </div>
       ))}
     </div>
@@ -216,7 +217,7 @@ function CharPod({ friend, reaction }: { friend: Friend; reaction: string }) {
   const anim = reaction === 'happy' ? 'lg-happy 0.7s ease' : reaction === 'sad' ? 'lg-sad 0.7s ease' : 'lg-bob 2.6s ease-in-out infinite'
   return (
     <div style={{ position: 'relative', width: 90, height: 90, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: friend.color + '33', boxShadow: `0 8px 0 ${friend.color}44, inset 0 -6px 14px rgba(255,255,255,.5)`, flexShrink: 0 }}>
-      <div style={{ fontSize: 58, lineHeight: 1, animation: anim }}>{friend.emoji}</div>
+      <div style={{ fontSize: 58, lineHeight: 1, animation: anim }}><Emoji>{friend.emoji}</Emoji></div>
       <div style={{ position: 'absolute', bottom: '-0.4em', left: '50%', transform: 'translateX(-50%)', background: '#fff', color: INK, fontWeight: 700, fontSize: 12, padding: '2px 10px', borderRadius: 999, boxShadow: `0 3px 0 ${SHADOW}`, whiteSpace: 'nowrap', fontFamily: FONT }}>
         {friend.name}
       </div>
@@ -250,8 +251,8 @@ function CardItem({ it, mode, onReveal, onGuess }: { it: GameItem; mode: 'reveal
       <div style={{ fontWeight: 700, fontSize: 14, textTransform: 'capitalize', color: INK }}>{it.en}</div>
       <div style={{ color: INK_SOFT, fontSize: 11, fontFamily: JP }}>{it.jp}</div>
       <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
-        <button onClick={e => { e.stopPropagation(); onGuess(true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: '3px solid #46C98A', color: '#2FAE75', borderRadius: 12, padding: '5px 2px', fontSize: 20, background: '#fff', cursor: 'pointer', boxShadow: `0 4px 0 ${SHADOW}` }}>💗</button>
-        <button onClick={e => { e.stopPropagation(); onGuess(false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: '3px solid #8FA9C6', color: '#4592cf', borderRadius: 12, padding: '5px 2px', fontSize: 20, background: '#fff', cursor: 'pointer', boxShadow: `0 4px 0 ${SHADOW}` }}>🙅</button>
+        <button onClick={e => { e.stopPropagation(); onGuess(true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: '3px solid #46C98A', color: '#2FAE75', borderRadius: 12, padding: '5px 2px', fontSize: 20, background: '#fff', cursor: 'pointer', boxShadow: `0 4px 0 ${SHADOW}` }}><Emoji>💗</Emoji></button>
+        <button onClick={e => { e.stopPropagation(); onGuess(false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: '3px solid #8FA9C6', color: '#4592cf', borderRadius: 12, padding: '5px 2px', fontSize: 20, background: '#fff', cursor: 'pointer', boxShadow: `0 4px 0 ${SHADOW}` }}><Emoji>🙅</Emoji></button>
       </div>
     </div>
   )
@@ -261,7 +262,7 @@ function CardItem({ it, mode, onReveal, onGuess }: { it: GameItem; mode: 'reveal
       style={{ ...base, cursor: decided ? 'default' : 'pointer', animation: decided && it.liked ? 'lg-jiggle .5s ease' : undefined }}>
       {decided && (
         <div style={{ position: 'absolute', top: -14, right: -10, width: 34, height: 34, borderRadius: '50%', background: it.liked ? '#46C98A' : '#8FA9C6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, boxShadow: `0 4px 0 ${SHADOW}`, animation: 'lg-pop .4s ease' }}>
-          {it.liked ? '💗' : '🙅'}
+          {it.liked ? <Emoji>💗</Emoji> : <Emoji>🙅</Emoji>}
         </div>
       )}
       {decided && it.guess !== null && (
@@ -284,7 +285,7 @@ function PlayerToggle({ value, onChange }: { value: number; onChange: (n: number
       {[1, 2].map(n => (
         <button key={n} onClick={() => { SFX.pop(); onChange(n) }}
           style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, padding: '7px 16px', fontSize: 15, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.2, gap: 1, background: value === n ? '#FF5C8A' : 'transparent', color: value === n ? '#fff' : INK_SOFT }}>
-          <span>{n === 1 ? '👤 1 Player' : '👥 2 Players'}</span>
+          <span>{n === 1 ? <EmojiText>👤 1 Player</EmojiText> : <EmojiText>👥 2 Players</EmojiText>}</span>
           <span style={{ fontSize: 11, fontFamily: JP }}>{n === 1 ? 'ひとり' : 'ふたり'}</span>
         </button>
       ))}
@@ -298,7 +299,7 @@ function Scoreboard({ scores, turn }: { scores: number[]; turn: number }) {
     <div style={{ display: 'flex', gap: 5 }}>
       {pm.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', border: `3px solid ${turn === i ? p.color : p.soft}`, borderRadius: 999, padding: '4px 10px', fontWeight: 700, fontSize: 15, boxShadow: `0 4px 0 ${SHADOW}`, transform: turn === i ? 'translateY(-2px) scale(1.05)' : undefined, transition: 'all .15s', fontFamily: FONT }}>
-          <span>{p.emoji}</span><span style={{ color: p.color }}>{scores[i]}</span>
+          <span><Emoji>{p.emoji}</Emoji></span><span style={{ color: p.color }}>{scores[i]}</span>
         </div>
       ))}
     </div>
@@ -310,7 +311,7 @@ function TurnBanner({ turn }: { turn: number }) {
   const p = pm[turn]
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: p.soft, color: p.color, fontWeight: 700, fontSize: 15, padding: '6px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}`, border: `3px solid ${p.color}`, animation: 'lg-pulse 1.4s ease-in-out infinite', fontFamily: FONT }}>
-      <span style={{ fontSize: 17 }}>{p.emoji}</span> {p.name}'s turn! <span style={{ fontFamily: JP, fontWeight: 500, fontSize: 12, color: INK, opacity: 0.7 }}>{p.jp}のばん</span>
+      <span style={{ fontSize: 17 }}><Emoji>{p.emoji}</Emoji></span> {p.name}'s turn! <span style={{ fontFamily: JP, fontWeight: 500, fontSize: 12, color: INK, opacity: 0.7 }}>{p.jp}のばん</span>
     </div>
   )
 }
@@ -324,7 +325,7 @@ function ScoreStrip({ scores }: { scores: number[] }) {
         const lead = !tie && scores[i] > scores[1 - i]
         return (
           <div key={i} style={{ background: '#fff', border: `4px solid ${lead ? p.color : p.soft}`, borderRadius: 22, padding: '12px 22px', boxShadow: `0 6px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 110, transform: lead ? 'translateY(-5px)' : undefined, transition: 'all .2s', fontFamily: FONT }}>
-            <div style={{ fontSize: 36 }}>{p.emoji}</div>
+            <div style={{ fontSize: 36 }}><Emoji>{p.emoji}</Emoji></div>
             <div style={{ fontWeight: 700, fontSize: 14, color: INK }}>{p.name}</div>
             <div style={{ fontWeight: 700, fontSize: 40, color: p.color, lineHeight: 1 }}>{scores[i]}</div>
           </div>
@@ -345,11 +346,11 @@ function GameBar({ onHome, onRestart, onTopics, topic, dots, roundIdx, right }: 
   const btn: React.CSSProperties = { width: 42, height: 42, borderRadius: '50%', border: 'none', background: '#fff', cursor: 'pointer', fontSize: 18, color: INK, boxShadow: `0 4px 0 ${SHADOW}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT, flexShrink: 0 }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', flexWrap: 'wrap' }}>
-      <button style={btn} onClick={onHome}>🏠</button>
-      <button style={btn} onClick={onTopics}>🎲</button>
+      <button style={btn} onClick={onHome}><Emoji>🏠</Emoji></button>
+      <button style={btn} onClick={onTopics}><Emoji>🎲</Emoji></button>
       <div style={{ flex: 1 }} />
       <div style={{ background: '#fff', borderRadius: 999, padding: '5px 12px', fontWeight: 600, fontSize: 14, boxShadow: `0 4px 0 ${SHADOW}`, display: 'flex', alignItems: 'center', gap: 5, fontFamily: FONT }}>
-        <span style={{ fontFamily: EMOJI_FONT }}>{topic.emoji}</span> {topic.label} <span style={{ color: INK_SOFT, fontFamily: JP, fontWeight: 500, fontSize: 12 }}>{topic.jp}</span>
+        <span style={{ fontFamily: EMOJI_FONT }}><Emoji>{topic.emoji}</Emoji></span> {topic.label} <span style={{ color: INK_SOFT, fontFamily: JP, fontWeight: 500, fontSize: 12 }}>{topic.jp}</span>
       </div>
       <div style={{ background: '#fff', borderRadius: 999, padding: '5px 10px', boxShadow: `0 4px 0 ${SHADOW}`, display: 'flex', alignItems: 'center', gap: 4 }}>
         {Array.from({ length: dots }).map((_, i) => (
@@ -390,23 +391,23 @@ function RoundEnd({ friend, items, onNext, last, players, scores, turn }: { frie
     <Overlay>
       <Particles kind="confetti" />
       <Panel>
-        <div style={{ fontSize: 72, animation: 'lg-happy .8s ease infinite alternate' }}>{friend.emoji}</div>
+        <div style={{ fontSize: 72, animation: 'lg-happy .8s ease infinite alternate' }}><Emoji>{friend.emoji}</Emoji></div>
         <h2 style={{ fontWeight: 700, fontSize: 28, letterSpacing: -1, color: INK, margin: 0 }}>
-          {players === 2 ? `${me.emoji} ${me.name} got ${got}/${items.length}!` : `You read ${friend.name}'s mind! 🎉`}
+          {players === 2 ? <EmojiText>{`${me.emoji} ${me.name} got ${got}/${items.length}!`}</EmojiText> : <EmojiText>{`You read ${friend.name}'s mind! 🎉`}</EmojiText>}
         </h2>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: '10px 18px', boxShadow: `0 5px 0 ${SHADOW}` }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#2FAE75', marginBottom: 6 }}>💗 {friend.name} likes</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#2FAE75', marginBottom: 6 }}><Emoji>💗</Emoji> {friend.name} likes</div>
             <div style={{ display: 'flex', gap: 8 }}>{likes.map((it, i) => <MiniItem key={i} it={it} />)}</div>
           </div>
           <div style={{ background: '#fff', borderRadius: 18, padding: '10px 18px', boxShadow: `0 5px 0 ${SHADOW}` }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#4592cf', marginBottom: 6 }}>🙅 doesn't like</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#4592cf', marginBottom: 6 }}><Emoji>🙅</Emoji> doesn't like</div>
             <div style={{ display: 'flex', gap: 8 }}>{dislikes.map((it, i) => <MiniItem key={i} it={it} />)}</div>
           </div>
         </div>
         {players === 2 && <ScoreStrip scores={scores} />}
         <button onClick={onNext} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 18, padding: '11px 26px', background: '#43C98C', boxShadow: '0 6px 0 #2FAE75' }}>
-          {last ? 'Finish 🏆' : 'Next Friend →'}
+          {last ? <EmojiText>Finish 🏆</EmojiText> : 'Next Friend →'}
         </button>
       </Panel>
     </Overlay>
@@ -418,16 +419,16 @@ function QuizRoundEnd({ friend, correct, total, onNext, last, players, scores }:
     <Overlay>
       <Particles kind="confetti" />
       <Panel>
-        <div style={{ fontSize: 72, animation: 'lg-happy .8s ease infinite alternate' }}>{friend.emoji}</div>
+        <div style={{ fontSize: 72, animation: 'lg-happy .8s ease infinite alternate' }}><Emoji>{friend.emoji}</Emoji></div>
         <h2 style={{ fontWeight: 700, fontSize: 28, letterSpacing: -1, color: INK, margin: 0 }}>
-          {players === 2 ? 'Round done! 🎉' : `You guessed ${correct}/${total}! 🎉`}
+          {players === 2 ? <EmojiText>Round done! 🎉</EmojiText> : <EmojiText>{`You guessed ${correct}/${total}! 🎉`}</EmojiText>}
         </h2>
         {players === 2
           ? <ScoreStrip scores={scores} />
-          : <div style={{ display: 'flex', gap: 3, fontSize: 30 }}>{Array.from({ length: total }).map((_, i) => <span key={i}>{i < correct ? '⭐' : '☆'}</span>)}</div>
+          : <div style={{ display: 'flex', gap: 3, fontSize: 30 }}>{Array.from({ length: total }).map((_, i) => <span key={i}>{i < correct ? <Emoji>⭐</Emoji> : '☆'}</span>)}</div>
         }
         <button onClick={onNext} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 18, padding: '11px 26px', background: '#B07BE8', boxShadow: '0 6px 0 #8E5BC9' }}>
-          {last ? 'Finish 🏆' : 'Next Friend →'}
+          {last ? <EmojiText>Finish 🏆</EmojiText> : 'Next Friend →'}
         </button>
       </Panel>
     </Overlay>
@@ -446,13 +447,13 @@ function WinPanel({ title, jp, onReplay, onHome, onTopics, players, scores }: { 
     <Overlay>
       <Particles kind="confetti" />
       <Panel>
-        <div style={{ fontSize: 72, animation: 'lg-happy .8s ease infinite alternate' }}>{wEmoji}</div>
+        <div style={{ fontSize: 72, animation: 'lg-happy .8s ease infinite alternate' }}><Emoji>{wEmoji}</Emoji></div>
         <h2 style={{ fontWeight: 700, fontSize: 28, letterSpacing: -1, color: INK, margin: 0 }}>{wTitle}</h2>
-        <div style={{ color: INK_SOFT, fontFamily: JP, fontWeight: 700 }}>{wJp}</div>
-        {players === 2 ? <ScoreStrip scores={scores} /> : <div style={{ fontSize: 48, display: 'flex', gap: 6 }}>🐱🐰🐻🐥🐧</div>}
+        <div style={{ color: INK_SOFT, fontFamily: JP, fontWeight: 700 }}><EmojiText>{wJp}</EmojiText></div>
+        {players === 2 ? <ScoreStrip scores={scores} /> : <div style={{ fontSize: 48, display: 'flex', gap: 6 }}><EmojiText>🐱🐰🐻🐥🐧</EmojiText></div>}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button style={ghost} onClick={onHome}>🏠 Home</button>
-          <button style={ghost} onClick={onTopics}>🎲 Topics</button>
+          <button style={ghost} onClick={onHome}><EmojiText>🏠 Home</EmojiText></button>
+          <button style={ghost} onClick={onTopics}><EmojiText>🎲 Topics</EmojiText></button>
           <button style={{ ...ghost, background: '#FF7FA8', color: '#fff', boxShadow: '0 5px 0 #EA5C8C' }} onClick={onReplay}>Play Again ↺</button>
         </div>
       </Panel>
@@ -481,14 +482,14 @@ function GameHub({ onPick, onBack, isDuo }: { onPick: (g: 'mind' | 'quiz' | 'par
         ]).map(g => (
           <button key={g.key} onClick={() => { SFX.pop(); onPick(g.key) }}
             style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 26, padding: '22px 28px', boxShadow: `0 10px 0 ${SHADOW}`, width: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 84, height: 84, borderRadius: '50%', background: g.orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 46 }}>{g.emoji}</div>
+            <div style={{ width: 84, height: 84, borderRadius: '50%', background: g.orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 46 }}><Emoji>{g.emoji}</Emoji></div>
             <div style={{ fontWeight: 700, fontSize: 22, color: g.col }}>{g.title}</div>
             <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13 }}>{g.jp}</div>
             <div style={{ background: '#FFF1E2', borderRadius: 12, padding: '8px 12px', fontWeight: 600, fontSize: 12, color: INK, textAlign: 'center', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{g.phrase}</div>
           </button>
         ))}
       </div>
-      <p style={{ color: INK_SOFT, fontWeight: 600, fontSize: 13, textAlign: 'center', margin: 0 }}>Say every sentence together! 🗣️<br /><span style={{ fontFamily: JP }}>すべての文を一緒に言ってください！</span></p>
+      <p style={{ color: INK_SOFT, fontWeight: 600, fontSize: 13, textAlign: 'center', margin: 0 }}><EmojiText>Say every sentence together! 🗣️</EmojiText><br /><span style={{ fontFamily: JP }}>すべての文を一緒に言ってください！</span></p>
     </div>
   )
 }
@@ -499,7 +500,7 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome, isDuo = fa
   return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 16px' }}>
       <button onClick={onHome} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>
-        🏠 Home
+        <EmojiText>🏠 Home</EmojiText>
       </button>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ fontWeight: 700, fontSize: 28, letterSpacing: -1, background: `linear-gradient(180deg,${col},${col})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Pick a Topic!</h1>
@@ -515,7 +516,7 @@ function TopicPicker({ accent, players, onSetPlayers, onPick, onHome, isDuo = fa
         {Object.entries(TOPICS).map(([key, t]) => (
           <button key={key} onClick={() => { SFX.pop(); onPick(key) }}
             style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 22, padding: '14px 18px', boxShadow: `0 10px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 120 }}>
-            <div style={{ width: 68, height: 68, borderRadius: '50%', background: orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontFamily: EMOJI_FONT }}>{t.emoji}</div>
+            <div style={{ width: 68, height: 68, borderRadius: '50%', background: orbBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontFamily: EMOJI_FONT }}><Emoji>{t.emoji}</Emoji></div>
             <div style={{ fontWeight: 700, fontSize: 18, color: col }}>{t.label}</div>
             <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 12 }}>{t.jp}</div>
           </button>
@@ -627,7 +628,7 @@ function MindReader({ onHome, isDuo = false, onRoundComplete }: { onHome: () => 
       <GameBar onHome={onHome} onRestart={restart} onTopics={() => { SFX.pop(); setTopicKey(null) }} topic={topic} dots={total} roundIdx={roundIdx}
         right={players === 2
           ? <Scoreboard scores={scores} turn={turn} />
-          : <div style={{ ...pill, color: '#2FAE75' }}>💗 {foundLikes}/{totalLikes}</div>}
+          : <div style={{ ...pill, color: '#2FAE75' }}><Emoji>💗</Emoji> {foundLikes}/{totalLikes}</div>}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 12px 12px', minHeight: 0, overflowY: 'auto' }}>
         <CharPod friend={friend} reaction={reaction} />
@@ -635,12 +636,12 @@ function MindReader({ onHome, isDuo = false, onRoundComplete }: { onHome: () => 
           <SpeechBubble variant={speechVariant}>
             <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: -0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap', color: sentColor }}>{sentence}</div>
             <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 15, marginTop: 5 }}>{subJp}</div>
-            {current && players === 2 && <div style={{ fontWeight: 700, fontSize: 15, marginTop: 4, color: current.correct ? '#2FAE75' : '#FF7A59' }}>{current.correct ? '⭐ Correct guess!' : '❌ Not quite!'}</div>}
-            {showCue && <div style={{ marginTop: 5, fontWeight: 600, color: '#EA5C8C', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 5, animation: 'lg-pulse 1.4s ease-in-out infinite' }}>🗣️ Say it together! みんなでいってみよう！</div>}
+            {current && players === 2 && <div style={{ fontWeight: 700, fontSize: 15, marginTop: 4, color: current.correct ? '#2FAE75' : '#FF7A59' }}><EmojiText>{current.correct ? '⭐ Correct guess!' : '❌ Not quite!'}</EmojiText></div>}
+            {showCue && <div style={{ marginTop: 5, fontWeight: 600, color: '#EA5C8C', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 5, animation: 'lg-pulse 1.4s ease-in-out infinite' }}><EmojiText>🗣️ Say it together! みんなでいってみよう！</EmojiText></div>}
           </SpeechBubble>
         </div>
         {players === 2 && <TurnBanner turn={turn} />}
-        {!current && <div style={{ fontWeight: 600, color: INK_SOFT, fontSize: 14, fontFamily: FONT }}>👆 {players === 2 ? 'Tap 💗 or 🙅 to guess　こたえをよそう' : 'Tap a card　カードをタップ'}</div>}
+        {!current && <div style={{ fontWeight: 600, color: INK_SOFT, fontSize: 14, fontFamily: FONT }}><EmojiText>{`👆 ${players === 2 ? 'Tap 💗 or 🙅 to guess　こたえをよそう' : 'Tap a card　カードをタップ'}`}</EmojiText></div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, width: '100%', maxWidth: 680 }}>
           {items.map((it, i) => <CardItem key={i} it={it} mode={players === 2 ? 'guess' : 'reveal'} onReveal={() => reveal(i)} onGuess={g => reveal(i, g)} />)}
         </div>
@@ -743,7 +744,7 @@ function QuizShow({ onHome, isDuo = false, onRoundComplete }: { onHome: () => vo
       <GameBar onHome={onHome} onRestart={restart} onTopics={() => { SFX.pop(); setTopicKey(null) }} topic={topic} dots={total} roundIdx={roundIdx}
         right={<>
           <div style={pill}>Q {qIdx + 1}/{questions.length}</div>
-          {players === 2 ? <Scoreboard scores={scores} turn={turn} /> : <div style={{ ...pill, color: '#FFC93C' }}>⭐ {stars}</div>}
+          {players === 2 ? <Scoreboard scores={scores} turn={turn} /> : <div style={{ ...pill, color: '#FFC93C' }}><Emoji>⭐</Emoji> {stars}</div>}
         </>}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 12px 12px', overflowY: 'auto' }}>
@@ -760,7 +761,7 @@ function QuizShow({ onHome, isDuo = false, onRoundComplete }: { onHome: () => vo
               <>
                 <div style={{ fontWeight: 700, fontSize: 22, color: sentColor }}>{cur.answer ? 'Yes, I do!' : "No, I don't!"}</div>
                 <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 15, marginTop: 5 }}>{cur.answer ? 'うん、すき！' : 'ううん、すきじゃない'}</div>
-                <div style={{ marginTop: 5, fontWeight: 600, color: '#EA5C8C', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 5, animation: 'lg-pulse 1.4s ease-in-out infinite' }}>🗣️ Say it together! みんなでいってみよう！</div>
+                <div style={{ marginTop: 5, fontWeight: 600, color: '#EA5C8C', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 5, animation: 'lg-pulse 1.4s ease-in-out infinite' }}><EmojiText>🗣️ Say it together! みんなでいってみよう！</EmojiText></div>
               </>
             )}
           </SpeechBubble>
@@ -774,16 +775,16 @@ function QuizShow({ onHome, isDuo = false, onRoundComplete }: { onHome: () => vo
                 style={{ ...abBase, borderColor: isCorrectAns ? '#46C98A' : isWrongGuess ? '#FF7A59' : '#fff', background: isCorrectAns ? '#F1FCF6' : isWrongGuess ? '#FFF0EB' : '#fff' }}>
                 {isCorrectAns && <span style={{ position: 'absolute', top: -16, right: -10, width: 36, height: 36, borderRadius: '50%', background: '#46C98A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: '#fff', boxShadow: `0 4px 0 ${SHADOW}`, animation: 'lg-pop .4s ease' }}>✓</span>}
                 {isWrongGuess && <span style={{ position: 'absolute', top: -16, right: -10, width: 36, height: 36, borderRadius: '50%', background: '#FF7A59', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, color: '#fff', boxShadow: `0 4px 0 ${SHADOW}`, animation: 'lg-pop .4s ease' }}>✕</span>}
-                <span style={{ fontWeight: 700, fontSize: 18, color: opt.col }}>{opt.label}</span>
+                <span style={{ fontWeight: 700, fontSize: 18, color: opt.col }}><EmojiText>{opt.label}</EmojiText></span>
                 <span style={{ fontFamily: JP, color: INK_SOFT, fontSize: 13 }}>{opt.jp}</span>
               </button>
             )
           })}
         </div>
-        {!revealed && <div style={{ fontWeight: 600, color: INK_SOFT, fontSize: 14, fontFamily: FONT }}>👆 {players === 2 ? `${pm[turn].name}, guess` : 'Guess'} {friend.name}'s answer　こたえをよそう</div>}
+        {!revealed && <div style={{ fontWeight: 600, color: INK_SOFT, fontSize: 14, fontFamily: FONT }}><Emoji>👆</Emoji> {players === 2 ? `${pm[turn].name}, guess` : 'Guess'} {friend.name}'s answer　こたえをよそう</div>}
         {revealed && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: 17, color: correctGuess ? '#2FAE75' : '#FF7A59' }}>{correctGuess ? '⭐ Great guess!' : 'Good try! 👏'}</div>
+            <div style={{ fontWeight: 700, fontSize: 17, color: correctGuess ? '#2FAE75' : '#FF7A59' }}><EmojiText>{correctGuess ? '⭐ Great guess!' : 'Good try! 👏'}</EmojiText></div>
             <button onClick={nextQ} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 17, padding: '11px 26px', background: '#B07BE8', boxShadow: '0 6px 0 #8E5BC9' }}>{qIdx + 1 >= questions.length ? 'See score →' : 'Next ▶'}</button>
           </div>
         )}
@@ -825,14 +826,14 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
         return (
           <div key={it.en} style={{ background: revealed ? (correct ? '#F2FCF7' : '#FFF0EB') : '#fff', border: `3px solid ${revealed ? (correct ? '#46C98A' : '#FF7A59') : '#eee'}`, borderRadius: 22, padding: '18px 10px', boxShadow: `0 7px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, position: 'relative' }}>
             {revealed && <div style={{ position: 'absolute', top: -14, right: -12, width: 32, height: 32, borderRadius: '50%', background: correct ? '#46C98A' : '#FF7A59', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#fff', fontWeight: 700 }}>{correct ? '✓' : '✕'}</div>}
-            <div style={{ fontSize: 44, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.swatch ? <div style={{ width: 44, height: 44, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -4px 8px rgba(0,0,0,.12)' }} /> : it.icon}</div>
+            <div style={{ fontSize: 44, lineHeight: 1, fontFamily: EMOJI_FONT }}>{it.swatch ? <div style={{ width: 44, height: 44, borderRadius: '50%', background: it.swatch, boxShadow: 'inset 0 -4px 8px rgba(0,0,0,.12)' }} /> : <Emoji>{it.icon ?? ''}</Emoji>}</div>
             <div style={{ fontWeight: 700, fontSize: 15, color: INK, textTransform: 'capitalize', textAlign: 'center' }}>{it.en}</div>
             {revealed
-              ? <div style={{ fontSize: 26 }}>{p1Picks[it.en] ? '❤️' : '🙅'}</div>
+              ? <div style={{ fontSize: 26 }}>{p1Picks[it.en] ? <Emoji>❤️</Emoji> : <Emoji>🙅</Emoji>}</div>
               : (
                 <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-                  <button onClick={() => { SFX.pop(); setPick(it.en, true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === true ? '#46C98A' : '#eee'}`, color: chosen === true ? '#2FAE75' : '#ccc', borderRadius: 12, padding: '10px 0', fontSize: 22, background: chosen === true ? '#F2FCF7' : '#fff', cursor: 'pointer' }}>❤️</button>
-                  <button onClick={() => { SFX.pop(); setPick(it.en, false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === false ? '#8FA9C6' : '#eee'}`, color: chosen === false ? '#4592cf' : '#ccc', borderRadius: 12, padding: '10px 0', fontSize: 22, background: chosen === false ? '#F4F7FB' : '#fff', cursor: 'pointer' }}>🙅</button>
+                  <button onClick={() => { SFX.pop(); setPick(it.en, true) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === true ? '#46C98A' : '#eee'}`, color: chosen === true ? '#2FAE75' : '#ccc', borderRadius: 12, padding: '10px 0', fontSize: 22, background: chosen === true ? '#F2FCF7' : '#fff', cursor: 'pointer' }}><Emoji>❤️</Emoji></button>
+                  <button onClick={() => { SFX.pop(); setPick(it.en, false) }} style={{ flex: 1, fontFamily: FONT, fontWeight: 800, border: `3px solid ${chosen === false ? '#8FA9C6' : '#eee'}`, color: chosen === false ? '#4592cf' : '#ccc', borderRadius: 12, padding: '10px 0', fontSize: 22, background: chosen === false ? '#F4F7FB' : '#fff', cursor: 'pointer' }}><Emoji>🙅</Emoji></button>
                 </div>
               )
             }
@@ -844,16 +845,16 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
 
   if (!topicKey || !topic) return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px 20px' }}>
-      <button onClick={onHome} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}>🏠 Home</button>
+      <button onClick={onHome} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#fff', color: INK, fontFamily: FONT, fontWeight: 700, fontSize: 14, padding: '9px 16px', borderRadius: 999, boxShadow: `0 4px 0 ${SHADOW}` }}><EmojiText>🏠 Home</EmojiText></button>
       <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontWeight: 700, fontSize: 26, letterSpacing: -1, color: '#2FAE75', margin: 0 }}>🤝 Ask Me!</h1>
+        <h1 style={{ fontWeight: 700, fontSize: 26, letterSpacing: -1, color: '#2FAE75', margin: 0 }}><EmojiText>🤝 Ask Me!</EmojiText></h1>
         <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 13, marginTop: 3 }}>ともだちのことわかるかな？</div>
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         {Object.entries(TOPICS).map(([key, t]) => (
           <button key={key} onClick={() => { SFX.pop(); chooseTopic(key) }}
             style={{ fontFamily: FONT, border: 'none', cursor: 'pointer', background: '#fff', borderRadius: 22, padding: '14px 18px', boxShadow: `0 10px 0 ${SHADOW}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 110 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#E3F9EF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>{t.emoji}</div>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#E3F9EF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}><Emoji>{t.emoji}</Emoji></div>
             <div style={{ fontWeight: 700, fontSize: 17, color: '#2FAE75' }}>{t.label}</div>
             <div style={{ fontFamily: JP, fontWeight: 700, color: INK_SOFT, fontSize: 12 }}>{t.jp}</div>
           </button>
@@ -865,7 +866,7 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
   if (phase === 'p1pick') return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', padding: '16px 20px' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: pm[0].color }}>{pm[0].emoji} {pm[0].name}'s turn!</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: pm[0].color }}><Emoji>{pm[0].emoji}</Emoji> {pm[0].name}'s turn!</div>
         <div style={{ fontSize: 13, color: INK_SOFT, fontFamily: JP }}>ひみつで選んでね！（{pm[1].name}は見ないで！）</div>
       </div>
       {itemGrid(p1Picks, (en, val) => setP1Picks(p => ({ ...p, [en]: val })))}
@@ -879,11 +880,11 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
 
   if (phase === 'handoff') return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: 32, textAlign: 'center' }}>
-      <div style={{ fontSize: 72, animation: 'lg-bob 2s ease-in-out infinite' }}>📱</div>
+      <div style={{ fontSize: 72, animation: 'lg-bob 2s ease-in-out infinite' }}><Emoji>📱</Emoji></div>
       <div style={{ fontSize: 22, fontWeight: 800, color: INK }}>Pass to {pm[1].name}!</div>
       <div style={{ fontSize: 14, color: INK_SOFT, fontFamily: JP }}>{pm[1].name}にわたしてね！</div>
       <button onClick={() => { SFX.pop(); setPhase('p2guess') }} style={{ fontFamily: FONT, fontWeight: 800, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 18, padding: '14px 36px', background: pm[1].color, boxShadow: '0 6px 0 #2D8BC9' }}>
-        {pm[1].emoji} I'm ready! →
+        <Emoji>{pm[1].emoji}</Emoji> I'm ready! →
       </button>
     </div>
   )
@@ -891,14 +892,14 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
   if (phase === 'p2guess') return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-evenly', padding: '16px 20px' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: pm[1].color }}>{pm[1].emoji} {pm[1].name}'s guesses!</div>
-        <div style={{ fontSize: 13, color: INK_SOFT }}>Ask: "Do you like…?" then guess! 🗣️</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: pm[1].color }}><Emoji>{pm[1].emoji}</Emoji> {pm[1].name}'s guesses!</div>
+        <div style={{ fontSize: 13, color: INK_SOFT }}><EmojiText>Ask: "Do you like…?" then guess! 🗣️</EmojiText></div>
         <div style={{ fontSize: 12, color: INK_SOFT, fontFamily: JP, marginTop: 1 }}>「{pm[0].name}はすき？」と聞いてみよう！</div>
       </div>
       {itemGrid(p2Guesses, (en, val) => setP2Guesses(p => ({ ...p, [en]: val })))}
       {Object.keys(p2Guesses).length === items.length && (
         <button onClick={() => { SFX.win(); setPhase('reveal') }} style={{ fontFamily: FONT, fontWeight: 800, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 17, padding: '13px 32px', background: '#B07BE8', boxShadow: '0 6px 0 #8E5BC9' }}>
-          Reveal! 🎉
+          <EmojiText>Reveal! 🎉</EmojiText>
         </button>
       )}
     </div>
@@ -909,15 +910,15 @@ function PartnerGame({ onHome }: { onHome: () => void }) {
       <Particles kind="confetti" />
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 26, fontWeight: 800, color: score >= Math.ceil(items.length / 2) ? '#2FAE75' : '#FF7A59' }}>
-          {pm[1].emoji} {pm[1].name} got {score}/{items.length}! {score === items.length ? '🏆' : score >= Math.ceil(items.length / 2) ? '⭐' : '👏'}
+          <Emoji>{pm[1].emoji}</Emoji> {pm[1].name} got {score}/{items.length}! {score === items.length ? <Emoji>🏆</Emoji> : score >= Math.ceil(items.length / 2) ? <Emoji>⭐</Emoji> : <Emoji>👏</Emoji>}
         </div>
         <div style={{ fontSize: 13, color: INK_SOFT, fontFamily: JP, marginTop: 2 }}>ともだちのことわかった？</div>
       </div>
       {itemGrid({}, () => {}, true)}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
         <button onClick={() => chooseTopic(topicKey)} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: '#fff', fontSize: 15, padding: '10px 22px', background: '#FF7FA8', boxShadow: '0 5px 0 #EA5C8C' }}>Play Again ↺</button>
-        <button onClick={() => setTopicKey(null)} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 15, padding: '10px 22px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }}>🎲 New Topic</button>
-        <button onClick={onHome} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 15, padding: '10px 22px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }}>🏠 Home</button>
+        <button onClick={() => setTopicKey(null)} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 15, padding: '10px 22px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }}><EmojiText>🎲 New Topic</EmojiText></button>
+        <button onClick={onHome} style={{ fontFamily: FONT, fontWeight: 700, border: 'none', cursor: 'pointer', borderRadius: 999, color: INK, fontSize: 15, padding: '10px 22px', background: '#fff', boxShadow: `0 5px 0 ${SHADOW}` }}><EmojiText>🏠 Home</EmojiText></button>
       </div>
     </div>
   )

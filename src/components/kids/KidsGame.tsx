@@ -9,6 +9,7 @@ import { SpellTsumGame, type SessionWord } from './SpellTsumGame'
 import { WordCatchGame } from './WordCatchGame'
 import { PhonicsGame } from './phonics/PhonicsGame'
 import { ensureKidsGameAnimStyles } from './kidsGameAnimStyles'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 type StudyCard = SessionWord & Pick<VocabularyBankEntry, 'id' | 'mastery_level' | 'interval_days' | 'ease_factor'>
 
@@ -866,7 +867,7 @@ export function KidsGame() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {screen === 'hub' ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 22, color: '#F2879B' }}>
-              <span>⭐</span><span>Kids English</span>
+              <span><Emoji>⭐</Emoji></span><span>Kids English</span>
             </div>
           ) : (
             <button onClick={() => setScreen('hub')} style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer', background: '#FFFFFF', color: '#6B4F3F', fontFamily: FONT, fontWeight: 700, fontSize: 16, padding: '10px 18px', borderRadius: '999px', boxShadow: '0 4px 0 #E7D3C0' }}>
@@ -875,7 +876,7 @@ export function KidsGame() {
           )}
           {duo && screen !== 'hub' && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, padding: '6px 14px', borderRadius: '999px', background: turn === 1 ? '#FBD9E1' : '#E7DCF5', color: turn === 1 ? '#D96C81' : '#7A5AC0', boxShadow: '0 3px 0 rgba(0,0,0,.06)' }}>
-              {turn === 1 ? '👧' : '👩'} {turn === 1 ? player1Name : player2Name} <span style={{ opacity: .75, fontWeight: 600, fontSize: 12 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>
+              {turn === 1 ? <Emoji>👧</Emoji> : <Emoji>👩</Emoji>} {turn === 1 ? player1Name : player2Name} <span style={{ opacity: .75, fontWeight: 600, fontSize: 12 }}>{turn === 1 ? 'きみのばん' : 'ともだちのばん'}</span>
             </div>
           )}
         </div>
@@ -883,12 +884,12 @@ export function KidsGame() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* SFX */}
           <button onClick={() => setSfxOn(v => !v)} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, width: 44, height: 44, borderRadius: '50%', fontSize: 20, background: sfxOn ? '#FFFFFF' : '#EFE4D8', boxShadow: '0 3px 0 #E7D3C0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {sfxOn ? '🔊' : '🔇'}
+            {sfxOn ? <Emoji>🔊</Emoji> : <Emoji>🔇</Emoji>}
           </button>
 
           {/* Settings */}
           <button onClick={() => setShowSettings(true)} title="Settings" style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, width: 44, height: 44, borderRadius: '50%', fontSize: 20, background: '#FFFFFF', boxShadow: '0 3px 0 #E7D3C0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            ⚙️
+            <Emoji>⚙️</Emoji>
           </button>
 
           {/* Solo/Duo */}
@@ -899,7 +900,7 @@ export function KidsGame() {
                 else setShowPicker(true)
               }}
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 700, fontSize: 15, padding: '7px 13px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: 5, background: player === mode ? '#F2879B' : 'transparent', color: player === mode ? '#fff' : '#B79A86' }}>
-                {mode === 'solo' ? '👧' : '👩‍👧'} <span style={{ fontSize: 12 }}>{mode === 'solo' ? 'ひとり' : 'いっしょ'}</span>
+                {mode === 'solo' ? <Emoji>👧</Emoji> : <Emoji>👩‍👧</Emoji>} <span style={{ fontSize: 12 }}>{mode === 'solo' ? 'ひとり' : 'いっしょ'}</span>
               </button>
             ))}
           </div>
@@ -907,7 +908,7 @@ export function KidsGame() {
           {/* Stars */}
           {!duo ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFF6DD', padding: '8px 14px', borderRadius: '999px', boxShadow: '0 3px 0 #F0DFA8' }}>
-              <span style={{ fontSize: 20, animation: 'kg-twinkle 2.4s ease-in-out infinite' }}>⭐</span>
+              <span style={{ fontSize: 20, animation: 'kg-twinkle 2.4s ease-in-out infinite' }}><Emoji>⭐</Emoji></span>
               <span style={{ fontWeight: 800, fontSize: 20, color: '#E0A52E' }}>{stars}</span>
             </div>
           ) : (
@@ -917,7 +918,7 @@ export function KidsGame() {
                 const s = p === 1 ? stars1 : stars2
                 return (
                   <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: '999px', fontSize: 18, background: active ? (p === 1 ? '#FBD9E1' : '#E7DCF5') : '#FFFFFF', color: active ? (p === 1 ? '#D96C81' : '#7A5AC0') : '#B79A86', boxShadow: active ? `0 0 0 3px ${p === 1 ? '#F2879B' : '#9B7FD4'}` : '0 3px 0 #E7D3C0' }}>
-                    {p === 1 ? '👧' : '👩'} <span style={{ fontWeight: 700, fontSize: 12, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p === 1 ? player1Name : player2Name}</span> <span style={{ fontWeight: 800 }}>{s}</span> <span style={{ fontSize: 15 }}>⭐</span>
+                    {p === 1 ? <Emoji>👧</Emoji> : <Emoji>👩</Emoji>} <span style={{ fontWeight: 700, fontSize: 12, maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p === 1 ? player1Name : player2Name}</span> <span style={{ fontWeight: 800 }}>{s}</span> <span style={{ fontSize: 15 }}><Emoji>⭐</Emoji></span>
                   </div>
                 )
               })}
@@ -932,12 +933,12 @@ export function KidsGame() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Pinned header */}
           <div style={{ textAlign: 'center', padding: '12px 20px 10px', flexShrink: 0 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#6B4F3F' }}>Pick a game! 🎶</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#6B4F3F' }}><EmojiText>Pick a game! 🎶</EmojiText></div>
             <div style={{ fontSize: 16, color: '#A98B77', marginTop: 4 }}>どのあそびにする？</div>
             {duo ? (
               (p1StudyDone || p2StudyDone) && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
-                  📚
+                  <Emoji>📚</Emoji>
                   <span>{player1Name} {p1StudyDone ? `✓ (${sessionWords.length})` : '—'}</span>
                   <span style={{ opacity: .4 }}>·</span>
                   <span>{player2Name} {p2StudyDone ? `✓ (${sessionWords2.length})` : '—'}</span>
@@ -951,7 +952,7 @@ export function KidsGame() {
             ) : (
               sessionWords.length > 0 && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, background: '#D4ECF8', color: '#2E7DA8', fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: '999px' }}>
-                  📚 セッション中 · {sessionWords.length} words ready
+                  <Emoji>📚</Emoji> セッション中 · {sessionWords.length} words ready
                   <button onClick={() => { setSessionWords([]); setStudyPool([]) }}
                     title="Clear session — start a fresh word set next time you Study"
                     style={{ border: 'none', cursor: 'pointer', background: 'none', color: '#2E7DA8', opacity: 0.6, fontSize: 13, fontWeight: 800, padding: 0, lineHeight: 1 }}>
@@ -1000,12 +1001,12 @@ export function KidsGame() {
                 style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, textAlign: 'left', padding: 18, borderRadius: 24, boxShadow: '0 8px 0 rgba(0,0,0,.06)', background: s.bg }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, boxShadow: '0 4px 10px rgba(0,0,0,.10)', flexShrink: 0 }}>
-                    {s.emoji}
+                    <Emoji>{s.emoji}</Emoji>
                   </div>
                   <div>
                     <div style={{ fontSize: 20, fontWeight: 800, color: '#5A4336', lineHeight: 1.2 }}>{s.title}</div>
                     <div style={{ fontSize: 13, color: '#9A7B66', marginTop: 2 }}>{s.jp}</div>
-                    <div style={{ display: 'inline-block', marginTop: 8, fontSize: 12, fontWeight: 700, color: '#7A5C49', background: 'rgba(255,255,255,.7)', padding: '4px 10px', borderRadius: '999px' }}>{s.skill}</div>
+                    <div style={{ display: 'inline-block', marginTop: 8, fontSize: 12, fontWeight: 700, color: '#7A5C49', background: 'rgba(255,255,255,.7)', padding: '4px 10px', borderRadius: '999px' }}><EmojiText>{s.skill}</EmojiText></div>
                   </div>
                 </div>
               </button>
@@ -1022,7 +1023,7 @@ export function KidsGame() {
       {/* ═══════════════ ABC LISTEN ═══════════════ */}
       {screen === 'sing' && singDone && (
         <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 60 }}>🎉</div>
+          <div style={{ fontSize: 60 }}><Emoji>🎉</Emoji></div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶきけた！</div>
           <div style={{ fontSize: 15, color: '#A98B77' }}>All 26 letters done!</div>
           <button onClick={startSing}
@@ -1037,11 +1038,11 @@ export function KidsGame() {
           {/* Header + timer */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>Which letter? 👂</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }}><EmojiText>Which letter? 👂</EmojiText></div>
               <div style={{ fontSize: 13, color: '#A98B77' }}>きこえたもじをえらぼう！ · Say it too!</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '5px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 52 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#A98B77' }}>⏱</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#A98B77' }}><Emoji>⏱</Emoji></div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F', lineHeight: 1 }}>{singElapsed}s</div>
             </div>
           </div>
@@ -1049,14 +1050,14 @@ export function KidsGame() {
           {/* Listen button */}
           <button onClick={() => speak(singTarget)}
             style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 28, padding: '18px 52px', boxShadow: '0 10px 0 #EEDAC6', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <div style={{ fontSize: 56, lineHeight: 1, animation: 'kg-floaty 2.4s ease-in-out infinite' }}>🔊</div>
+            <div style={{ fontSize: 56, lineHeight: 1, animation: 'kg-floaty 2.4s ease-in-out infinite' }}><Emoji>🔊</Emoji></div>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#7FB8E0' }}>もう一度きく · Listen again</div>
           </button>
 
           {/* Wrong-answer nudge */}
           {singWrong && (
             <div style={{ fontSize: 14, fontWeight: 800, color: '#D96C81', animation: 'kg-pop .25s ease-out' }}>
-              ちがう！ Try again 👆
+              <EmojiText>ちがう！ Try again 👆</EmojiText>
             </div>
           )}
 
@@ -1077,7 +1078,7 @@ export function KidsGame() {
         <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '6px 16px 8px' }}>
           {/* Title + case toggle on one row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 17, fontWeight: 800 }}>Trace ✏️ </span>
+            <span style={{ fontSize: 17, fontWeight: 800 }}><EmojiText>Trace ✏️ </EmojiText></span>
             <div style={{ display: 'flex', gap: 6, background: '#FFFFFF', padding: 3, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6' }}>
               {(['upper', 'lower'] as const).map(c => (
                 <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
@@ -1104,8 +1105,8 @@ export function KidsGame() {
             </div>
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>きく</span></button>
-              <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}>🧽 <span style={{ fontSize: 11 }}>けす</span></button>
+              <button onClick={() => speak(curLetter)}  style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}><Emoji>🔊</Emoji> <span style={{ fontSize: 11 }}>きく</span></button>
+              <button onClick={clearDrawCanvas}         style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}><Emoji>🧽</Emoji> <span style={{ fontSize: 11 }}>けす</span></button>
               <button onClick={() => grantStar(true)}   style={{ ...BIG_BTN, background: '#F2879B', boxShadow: '0 4px 0 #D96C81' }}>✓ <span style={{ fontSize: 11 }}>できた！</span></button>
             </div>
           </div>
@@ -1168,19 +1169,19 @@ export function KidsGame() {
         const p2Loaded = !duo ? true : (player2Id ? vocab2Loaded : vocabLoaded)
         if (studyPool.length === 0 && !p1Loaded) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 48 }}>📚</div>
+            <div style={{ fontSize: 48 }}><Emoji>📚</Emoji></div>
             <div style={{ fontSize: 16, color: '#A98B77' }}>よみこみちゅう… Loading…</div>
           </div>
         )
         if (duo && studyPool2.length === 0 && !p2Loaded) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 48 }}>📚</div>
+            <div style={{ fontSize: 48 }}><Emoji>📚</Emoji></div>
             <div style={{ fontSize: 16, color: '#A98B77' }}>よみこみちゅう… Loading…</div>
           </div>
         )
         if (studyPool.length === 0 && (!duo || studyPool2.length === 0)) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 48 }}>📚</div>
+            <div style={{ fontSize: 48 }}><Emoji>📚</Emoji></div>
             <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F' }}>No vocabulary yet!</div>
             <div style={{ fontSize: 14, color: '#A98B77' }}>先生にたんごを追加してもらおう</div>
           </div>
@@ -1206,7 +1207,7 @@ export function KidsGame() {
 
         if (activePlayer === null) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 60 }}>🎉</div>
+            <div style={{ fontSize: 60 }}><Emoji>🎉</Emoji></div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶおわった！</div>
             <div style={{ fontSize: 15, color: '#A98B77' }}>
               {duo ? studyPool.length + studyPool2.length : studyPool.length} words reviewed — ready to play!
@@ -1229,7 +1230,7 @@ export function KidsGame() {
             {/* Progress bar */}
             <div style={{ width: '100%', maxWidth: 400 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#A98B77', marginBottom: 6 }}>
-                <span>{duo ? `${isP1 ? player1Name : player2Name}の` : ''}たんごれんしゅう 📚</span>
+                <span>{duo ? `${isP1 ? player1Name : player2Name}の` : ''}<EmojiText>たんごれんしゅう 📚</EmojiText></span>
                 <span>{activeIdx + 1} / {activePool.length}</span>
               </div>
               <div style={{ height: 8, background: '#EDE0D4', borderRadius: 8, overflow: 'hidden' }}>
@@ -1243,7 +1244,7 @@ export function KidsGame() {
               {/* Japanese hint — always visible */}
               <div style={{ fontSize: 28, fontWeight: 800, color: '#5A4336', lineHeight: 1.3 }}>{card.hint}</div>
               {!studyFlipped && (
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#C7A892', marginTop: 4 }}>タップして英語を見る 👆</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#C7A892', marginTop: 4 }}><EmojiText>タップして英語を見る 👆</EmojiText></div>
               )}
               {studyFlipped && (
                 <>
@@ -1251,7 +1252,7 @@ export function KidsGame() {
                   <div style={{ fontSize: 36, fontWeight: 800, color: '#F2879B', letterSpacing: 3, animation: 'kg-bounceIn .35s ease-out' }}>{card.word}</div>
                   <button onClick={e => { e.stopPropagation(); speak(card.word.toLowerCase()) }}
                     style={{ border: 'none', cursor: 'pointer', background: '#F0F8FF', borderRadius: '999px', padding: '6px 16px', fontSize: 14, fontWeight: 700, color: '#7FB8E0' }}>
-                    🔊 きく
+                    <EmojiText>🔊 きく</EmojiText>
                   </button>
                 </>
               )}
@@ -1343,7 +1344,7 @@ export function KidsGame() {
         }
         if (zooDone) return (
           <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 60 }}>🎉</div>
+            <div style={{ fontSize: 60 }}><Emoji>🎉</Emoji></div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>ぜんぶかけた！</div>
             <div style={{ fontSize: 15, color: '#A98B77' }}>All 26 animals fed!</div>
             <button onClick={startZoo}
@@ -1358,7 +1359,7 @@ export function KidsGame() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
               {zooPhase === 'trace' ? (
                 <>
-                  <span style={{ fontSize: 17, fontWeight: 800 }}>Trace & Feed! 🦁</span>
+                  <span style={{ fontSize: 17, fontWeight: 800 }}><EmojiText>Trace & Feed! 🦁</EmojiText></span>
                   <div style={{ display: 'flex', gap: 6, background: '#FFFFFF', padding: 3, borderRadius: '999px', boxShadow: '0 3px 0 #EEDAC6' }}>
                     {(['upper', 'lower'] as const).map(c => (
                       <button key={c} onClick={() => { setTraceCase(c); traceCaseRef.current = c; setActiveStroke(0); activeStrokeRef.current = 0; clearDrawCanvas(); setTimeout(() => drawGuide(), 40) }}
@@ -1370,9 +1371,9 @@ export function KidsGame() {
                 </>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 17, fontWeight: 800 }}>Feed the {zoo.animal}! 🍽️</span>
+                  <span style={{ fontSize: 17, fontWeight: 800 }}>Feed the {zoo.animal}! <Emoji>🍽️</Emoji></span>
                   <div style={{ background: accColor, color: '#fff', fontWeight: 800, fontSize: 14, padding: '4px 12px', borderRadius: '999px' }}>
-                    ✏️ {zooAccuracy}%
+                    <Emoji>✏️</Emoji> {zooAccuracy}%
                   </div>
                 </div>
               )}
@@ -1395,9 +1396,9 @@ export function KidsGame() {
                     <button onClick={nextLetter} style={ARROW_BTN}>›</button>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}>🔊 <span style={{ fontSize: 11 }}>きく</span></button>
-                    <button onClick={clearDrawCanvas} style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}>🧽 <span style={{ fontSize: 11 }}>けす</span></button>
-                    <button onClick={zooTraceDone} style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 4px 0 #6FA458' }}>🦁 Feed! <span style={{ fontSize: 11 }}>えさをあげよう</span></button>
+                    <button onClick={() => speak(curLetter)} style={{ ...BIG_BTN, background: '#7FB8E0', boxShadow: '0 4px 0 #5E9BC7' }}><Emoji>🔊</Emoji> <span style={{ fontSize: 11 }}>きく</span></button>
+                    <button onClick={clearDrawCanvas} style={{ ...BIG_BTN, background: '#C9BBB0', boxShadow: '0 4px 0 #A89789' }}><Emoji>🧽</Emoji> <span style={{ fontSize: 11 }}>けす</span></button>
+                    <button onClick={zooTraceDone} style={{ ...BIG_BTN, background: '#8BC273', boxShadow: '0 4px 0 #6FA458' }}><EmojiText>🦁 Feed! </EmojiText><span style={{ fontSize: 11 }}>えさをあげよう</span></button>
                   </div>
                 </>
               ) : (
@@ -1422,18 +1423,18 @@ export function KidsGame() {
                         }),
                       }}
                     >
-                      <div style={{ fontSize: 64, lineHeight: 1 }}>{zoo.foodEmoji}</div>
+                      <div style={{ fontSize: 64, lineHeight: 1 }}><Emoji>{zoo.foodEmoji}</Emoji></div>
                       <div style={{ fontSize: 22, fontWeight: 800, color: '#5A4336' }}>{zoo.food}</div>
                     </div>
                   )}
                   {/* Animal + name */}
                   <div ref={zooAnimalRef} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontSize: 90, lineHeight: 1, animation: zooFed ? 'kg-pop .4s ease-out' : 'kg-floaty 2s ease-in-out infinite' }}>
-                      {zoo.animalEmoji}
+                      <Emoji>{zoo.animalEmoji}</Emoji>
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: '#5A4336' }}>{zoo.animal}</div>
-                    {!zooFed && <div style={{ fontSize: 13, color: '#A98B77' }}>Drag {zoo.foodEmoji} to me!</div>}
-                    {zooFed && <div style={{ fontSize: 18, fontWeight: 800, color: '#8BC273', animation: 'kg-pop .3s ease-out' }}>Yummy! 😋</div>}
+                    {!zooFed && <div style={{ fontSize: 13, color: '#A98B77' }}>Drag <Emoji>{zoo.foodEmoji}</Emoji> to me!</div>}
+                    {zooFed && <div style={{ fontSize: 18, fontWeight: 800, color: '#8BC273', animation: 'kg-pop .3s ease-out' }}><EmojiText>Yummy! 😋</EmojiText></div>}
                   </div>
                 </div>
               )}
@@ -1476,7 +1477,7 @@ export function KidsGame() {
                       setPlayer2Id(c.id); setPlayer2Name(firstName)
                       setPlayer('duo'); setTurn(1); setShowPicker(false)
                     }} style={{ border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 13, padding: '10px 6px', borderRadius: 14, background: '#EDE4FF', color: '#5A4336', boxShadow: '0 4px 0 #D0BEFF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: 26 }}>👩</span>
+                      <span style={{ fontSize: 26 }}><Emoji>👩</Emoji></span>
                       <span style={{ lineHeight: 1.2, wordBreak: 'break-word', textAlign: 'center' }}>{firstName}</span>
                     </button>
                   )
@@ -1503,7 +1504,7 @@ export function KidsGame() {
           onClick={() => setShowSettings(false)}>
           <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '24px 28px', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', width: '100%', maxWidth: 360, animation: 'kg-pop .4s ease-out' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}>⚙️ Settings</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#5A4336', textAlign: 'center' }}><EmojiText>⚙️ Settings</EmojiText></div>
             <div style={{ fontSize: 13, color: '#A98B77', textAlign: 'center', marginBottom: 6, marginTop: 3 }}>せってい</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#6B4F3F', marginTop: 16, marginBottom: 4 }}>Words per study session</div>
             <div style={{ fontSize: 12, color: '#A98B77', marginBottom: 10 }}>Flashcard Fiesta · たんごれんしゅう</div>
@@ -1533,10 +1534,10 @@ export function KidsGame() {
       {justRewarded && (
         <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 9999 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.95)', padding: '30px 48px', borderRadius: 36, boxShadow: '0 16px 50px rgba(0,0,0,.18)', animation: 'kg-pop .5s ease-out' }}>
-            <div style={{ fontSize: 80 }}>⭐</div>
+            <div style={{ fontSize: 80 }}><Emoji>⭐</Emoji></div>
             <div style={{ fontSize: 30, fontWeight: 800, color: '#E0A52E' }}>Great! <span style={{ color: '#F2879B' }}>じょうず！</span></div>
             <div style={{ fontSize: 16, color: '#A98B77' }}>
-              {duo ? `${scorer === 1 ? `👧 ${player1Name}` : `👩 ${player2Name}`} +1 ⭐` : '+1 star'}
+              <EmojiText>{duo ? `${scorer === 1 ? `👧 ${player1Name}` : `👩 ${player2Name}`} +1 ⭐` : '+1 star'}</EmojiText>
             </div>
           </div>
         </div>

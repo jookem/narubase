@@ -19,6 +19,7 @@ import { SituationSimulator } from '@/components/situation/SituationSimulator'
 import { KidsGame } from '@/components/kids/KidsGame'
 import { listStudentDuoSituations, type Situation } from '@/lib/api/situations'
 import { Link } from 'react-router-dom'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
         active ? 'bg-brand text-white' : 'text-gray-500 hover:text-gray-800'
       }`}
     >
-      {label}
+      <EmojiText>{label}</EmojiText>
     </button>
   )
 }
@@ -404,7 +405,7 @@ export function GamesPage() {
     <div className="space-y-6">
       {tab !== 'kids' && (
         <div>
-          <h1 className="text-2xl font-semibold">🎮 ゲーム / Games</h1>
+          <h1 className="text-2xl font-semibold"><EmojiText>🎮 ゲーム / Games</EmojiText></h1>
           <p className="text-gray-500 text-sm mt-1">英語を楽しく練習しよう</p>
         </div>
       )}
@@ -429,7 +430,7 @@ export function GamesPage() {
         ) : trainDecks.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-4xl mb-3">🚂</p>
+              <p className="text-4xl mb-3"><Emoji>🚂</Emoji></p>
               <p className="text-gray-500">パズルデッキがまだありません。</p>
               <p className="text-sm text-gray-400 mt-1">Your teacher will assign puzzle decks here.</p>
             </CardContent>
@@ -507,7 +508,7 @@ export function GamesPage() {
                           return (
                             <div key={p.id} className="flex items-center gap-2 text-sm py-1">
                               <span className={`text-base ${prog?.completed ? 'opacity-100' : 'opacity-20'}`}>
-                                {prog?.completed ? '✅' : '⬜'}
+                                <EmojiText>{prog?.completed ? '✅' : '⬜'}</EmojiText>
                               </span>
                               <span className={`flex-1 ${prog?.completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                                 {p.japanese_sentence}
@@ -538,7 +539,7 @@ export function GamesPage() {
         ) : karaokeSentences.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-4xl mb-3">🎤</p>
+              <p className="text-4xl mb-3"><Emoji>🎤</Emoji></p>
               <p className="text-gray-500">例文がまだありません。</p>
               <p className="text-sm text-gray-400 mt-1">Grammar examples will appear here once your teacher adds them.</p>
             </CardContent>
@@ -562,7 +563,7 @@ export function GamesPage() {
                   onClick={() => setActiveKaraoke(true)}
                   className="px-5 py-2.5 bg-brand text-white font-medium rounded-xl hover:bg-brand/90 transition-colors"
                 >
-                  🎤 Start Karaoke
+                  <EmojiText>🎤 Start Karaoke</EmojiText>
                 </button>
               </CardContent>
             </Card>
@@ -595,7 +596,7 @@ export function GamesPage() {
         ) : duoSituations.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-4xl mb-3">🎭</p>
+              <p className="text-4xl mb-3"><Emoji>🎭</Emoji></p>
               <p className="text-gray-500">デュオセッションはまだありません。</p>
               <p className="text-sm text-gray-400 mt-1">Your teacher will assign duo sessions here.</p>
             </CardContent>
@@ -604,7 +605,7 @@ export function GamesPage() {
           <div className="space-y-3">
             {duoSituations.map(sit => (
               <div key={sit.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-xl shrink-0">🎭</div>
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-xl shrink-0"><Emoji>🎭</Emoji></div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-gray-900">{sit.title}</p>
                   <p className="text-xs text-gray-400 mt-0.5">Duo speaking activity</p>
@@ -628,7 +629,7 @@ export function GamesPage() {
         ) : spellingDecks.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-4xl mb-3">🐝</p>
+              <p className="text-4xl mb-3"><Emoji>🐝</Emoji></p>
               <p className="text-gray-500">単語がまだありません。</p>
               <p className="text-sm text-gray-400 mt-1">Your teacher will assign vocabulary decks here.</p>
             </CardContent>

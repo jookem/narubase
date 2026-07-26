@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import type { VocabularyBankEntry } from '@/lib/types/database'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const COLS = 5, ROWS = 6, BALL = 54, GAP = 5
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
@@ -366,7 +367,7 @@ export function SpellTsumGame({
 
         {/* Elapsed timer */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '6px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 56 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#A98B77' }}>⏱</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#A98B77' }}><Emoji>⏱</Emoji></div>
           <div style={{ fontSize: 17, fontWeight: 800, color: '#6B4F3F' }}>{mm}:{ss}</div>
         </div>
 
@@ -409,14 +410,14 @@ export function SpellTsumGame({
         {target.hint}
         <button onClick={() => speak(target.word.toLowerCase())}
           style={{ border: 'none', cursor: 'pointer', background: 'none', fontSize: 16, padding: 0, lineHeight: 1 }}>
-          🔊
+          <Emoji>🔊</Emoji>
         </button>
       </div>
 
       {/* ── Wrong reveal banner ── */}
       {wrongReveal && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FFF8DC', border: '2px solid #F0D060', borderRadius: 14, padding: '6px 16px', fontSize: 14, fontWeight: 700, color: '#8B6000' }}>
-          <span>💡 こたえ：</span>
+          <span><EmojiText>💡 こたえ：</EmojiText></span>
           <span style={{ fontSize: 18, letterSpacing: 3, color: '#C07000' }}>{target.word}</span>
         </div>
       )}
@@ -448,7 +449,7 @@ export function SpellTsumGame({
               opacity: b.popping ? 0 : 1,
               userSelect: 'none',
             }}>
-              <div style={{ fontSize: 15, lineHeight: 1 }}>{b.emoji}</div>
+              <div style={{ fontSize: 15, lineHeight: 1 }}><Emoji>{b.emoji}</Emoji></div>
               <div style={{ fontSize: 19, fontWeight: 800, color: isReveal ? '#8B6000' : '#5A4336', lineHeight: 1, fontFamily: FONT }}>
                 {b.char}
               </div>
@@ -478,7 +479,7 @@ export function SpellTsumGame({
       {/* ── Hot streak banner ── */}
       {showStreak && (
         <div style={{ position: 'fixed', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 9999, pointerEvents: 'none', animation: 'kg-pop .4s ease-out', background: 'rgba(255,255,255,.96)', padding: '16px 32px', borderRadius: 28, boxShadow: '0 12px 40px rgba(0,0,0,.15)', textAlign: 'center', fontFamily: FONT }}>
-          <div style={{ fontSize: 40 }}>🔥</div>
+          <div style={{ fontSize: 40 }}><Emoji>🔥</Emoji></div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#F2879B' }}>れんぞく！すごい！</div>
         </div>
       )}
@@ -487,7 +488,7 @@ export function SpellTsumGame({
       {phase === 'end' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
           <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '32px 44px', textAlign: 'center', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', animation: 'kg-pop .5s ease-out' }}>
-            <div style={{ fontSize: 52 }}>{stars > 0 ? '⭐'.repeat(stars) : '💪'}</div>
+            <div style={{ fontSize: 52 }}><EmojiText>{stars > 0 ? '⭐'.repeat(stars) : '💪'}</EmojiText></div>
             <div style={{ fontSize: 26, fontWeight: 800, color: '#5A4336', marginTop: 8 }}>おわり！</div>
             <div style={{ display: 'flex', gap: 20, marginTop: 10, justifyContent: 'center' }}>
               <div style={{ textAlign: 'center' }}>

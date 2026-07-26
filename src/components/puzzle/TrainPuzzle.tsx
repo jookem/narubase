@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { recordPuzzleAttempt, type Puzzle, type PuzzlePart } from '@/lib/api/puzzles'
 import { launchConfetti } from '@/lib/confetti'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const LABEL_COLORS: Record<string, { car: string; badge: string }> = {
   Noun:          { car: 'bg-blue-50 border-blue-300',     badge: 'bg-blue-200 text-blue-800' },
@@ -346,7 +347,7 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
               <div className="flex items-end shrink-0">
                 <div className="flex flex-col items-center">
                   <div className="bg-gray-700 rounded-l-xl px-3 py-4 flex flex-col items-center justify-center border-2 border-gray-600 min-w-[52px]">
-                    <span className="text-2xl">🚂</span>
+                    <span className="text-2xl"><Emoji>🚂</Emoji></span>
                   </div>
                   <div className="flex justify-around w-full px-1 -mt-1">
                     <div className="w-5 h-5 rounded-full bg-gray-500 border-2 border-gray-400 shadow-inner" />
@@ -387,19 +388,19 @@ export function TrainPuzzle({ puzzle, onNext, onClose, isLast, puzzleNumber, tot
           <div className="text-center space-y-4 animate-[fadeIn_0.4s_ease]">
             {gaveUp ? (
               <div className="bg-orange-900/30 border border-orange-700/50 rounded-xl px-4 py-3">
-                <p className="text-orange-400 font-semibold">💡 Here's the answer</p>
+                <p className="text-orange-400 font-semibold"><EmojiText>💡 Here's the answer</EmojiText></p>
                 {puzzle.hint && <p className="text-sm text-orange-300/70 mt-1">{puzzle.hint}</p>}
               </div>
             ) : (
               <div className="bg-green-900/30 border border-green-700/50 rounded-xl px-4 py-3">
                 <p className="text-green-400 font-semibold">
-                  {attempts === 1 ? '🎉 Perfect first try!' : `✓ Correct! (${attempts} attempt${attempts !== 1 ? 's' : ''})`}
+                  <EmojiText>{attempts === 1 ? '🎉 Perfect first try!' : `✓ Correct! (${attempts} attempt${attempts !== 1 ? 's' : ''})`}</EmojiText>
                 </p>
-                {puzzle.hint && <p className="text-sm text-green-300/70 mt-1">💡 {puzzle.hint}</p>}
+                {puzzle.hint && <p className="text-sm text-green-300/70 mt-1"><Emoji>💡</Emoji> {puzzle.hint}</p>}
               </div>
             )}
             <button onClick={onNext} className="px-8 py-3 bg-brand text-white rounded-xl font-medium hover:bg-brand/90 transition-colors">
-              {isLast ? 'Finish 🚉' : 'Next Puzzle →'}
+              <EmojiText>{isLast ? 'Finish 🚉' : 'Next Puzzle →'}</EmojiText>
             </button>
           </div>
         )}

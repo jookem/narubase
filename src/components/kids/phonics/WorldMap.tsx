@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PHONICS_WORLDS, PHONICS_UNITS, type PhonicsUnit } from '@/lib/phonicsContent'
 import type { PhonicsProgressRow } from '@/lib/api/phonics'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -263,7 +264,7 @@ export function WorldMap({ progress, onSelectUnit }: Props) {
                 boxShadow: active ? '0 4px 0 rgba(0,0,0,.15)' : '0 3px 0 #EEDAC6',
                 opacity: unlocked ? 1 : 0.7,
               }}>
-              {unlocked ? '' : '🔒 '}{w.name}
+              {unlocked ? '' : <><Emoji>🔒</Emoji> </>}{w.name}
               <div style={{ fontSize: 10, fontWeight: 600, opacity: .85, marginTop: 2 }}>{w.nameJa}</div>
             </button>
           )
@@ -284,7 +285,7 @@ export function WorldMap({ progress, onSelectUnit }: Props) {
 
         {units.length === 0 ? (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 40 }}>🚧</div>
+            <div style={{ fontSize: 40 }}><Emoji>🚧</Emoji></div>
             <div style={{ fontWeight: 800, color: '#6B4F3F' }}>More levels coming soon!</div>
           </div>
         ) : units.map((u, i) => {
@@ -308,11 +309,11 @@ export function WorldMap({ progress, onSelectUnit }: Props) {
                   boxShadow: locked ? '0 4px 0 #C7B7A3' : '0 4px 0 rgba(0,0,0,.15)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                {locked ? '🔒' : isLast ? '🏰' : i + 1}
+                {locked ? <Emoji>🔒</Emoji> : isLast ? <Emoji>🏰</Emoji> : i + 1}
               </button>
               {!locked && stars > 0 && (
                 <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 2, fontSize: 11, fontWeight: 800, color: '#E0A52E', whiteSpace: 'nowrap' }}>
-                  {'⭐'.repeat(stars)}
+                  <EmojiText>{'⭐'.repeat(stars)}</EmojiText>
                 </div>
               )}
             </div>
@@ -329,7 +330,7 @@ export function WorldMap({ progress, onSelectUnit }: Props) {
               position: 'absolute', left: `${(charPos.x / width) * 100}%`, top: `${(charPos.y / height) * 100}%`,
               transform: 'translate(-50%, -140%)', transition: 'left .5s ease, top .5s ease', pointerEvents: 'none',
             }}>
-            <div style={{ fontSize: 22, animation: 'kg-floaty 2s ease-in-out infinite' }}>🧒</div>
+            <div style={{ fontSize: 22, animation: 'kg-floaty 2s ease-in-out infinite' }}><Emoji>🧒</Emoji></div>
           </div>
         )}
       </div>

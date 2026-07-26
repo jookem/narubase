@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { sfxCorrect, sfxWrong } from '@/lib/sfx'
 import type { PhonicsWord } from '@/lib/phonicsContent'
+import { Emoji } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -110,7 +111,7 @@ export function FamilyMatch({ words, onComplete }: Props) {
                 animation: isFaceUp ? 'kg-pop .25s ease-out' : undefined,
                 padding: 4,
               }}>
-              {isFaceUp ? (card.kind === 'picture' ? card.word.emoji : card.word.word) : '?'}
+              {isFaceUp ? (card.kind === 'picture' ? <Emoji>{card.word.emoji}</Emoji> : card.word.word) : '?'}
             </button>
           )
         })}

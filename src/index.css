@@ -161,6 +161,16 @@ input[type='range'].skill-slider::-moz-range-thumb {
   display: none;
 }
 
+/* Self-hosted emoji (see src/components/shared/Emoji.tsx) — sized to match
+   the surrounding text via em units, same convention as the OS glyph it
+   replaces, so existing fontSize-driven layouts don't need to change. */
+img.nb-emoji {
+  height: 1em;
+  width: 1em;
+  vertical-align: -0.15em;
+  display: inline-block;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

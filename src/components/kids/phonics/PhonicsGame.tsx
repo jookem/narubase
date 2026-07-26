@@ -12,6 +12,7 @@ import { StoryReader } from './StoryReader'
 import { SrsCheckpoint } from './SrsCheckpoint'
 import { LevelComplete } from './LevelComplete'
 import { Mascot } from './Mascot'
+import { EmojiText } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -148,7 +149,7 @@ export function PhonicsGame() {
   return (
     <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 16px 20px', fontFamily: FONT }}>
       <div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F' }}>Phonics Quest 🦆</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F' }}><EmojiText>Phonics Quest 🦆</EmojiText></div>
         <div style={{ fontSize: 12, color: '#A98B77' }}>フォニックス・クエスト</div>
       </div>
       <WorldMap progress={progress} onSelectUnit={startUnit} />

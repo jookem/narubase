@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { type VRM } from '@pixiv/three-vrm'
 import { VRMViewer, type VRMExpression, type VRMViewerHandle } from './VRMViewer'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const EXPRESSIONS: { id: VRMExpression; label: string; emoji: string }[] = [
   { id: 'neutral',   label: 'Neutral',   emoji: '😐' },
@@ -115,7 +116,7 @@ export function VRMStage() {
             }`}
             onClick={() => fileRef.current?.click()}
           >
-            <div className="text-6xl">🧍</div>
+            <div className="text-6xl"><Emoji>🧍</Emoji></div>
             <p className="text-white/60 text-sm text-center px-8">
               Drop a <code className="text-brand">.vrm</code> file here, or click to browse
             </p>
@@ -138,7 +139,7 @@ export function VRMStage() {
             onClick={() => fileRef.current?.click()}
             className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-brand hover:text-brand transition-colors"
           >
-            📂 Choose .vrm file
+            <EmojiText>📂 Choose .vrm file</EmojiText>
           </button>
           <input ref={fileRef} type="file" accept=".vrm" className="hidden" onChange={handleFileInput} />
 
@@ -175,7 +176,7 @@ export function VRMStage() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <span className="text-lg leading-none">{ex.emoji}</span>
+                <span className="text-lg leading-none"><Emoji>{ex.emoji}</Emoji></span>
                 <span className="text-[10px]">{ex.label}</span>
               </button>
             ))}
@@ -211,9 +212,9 @@ export function VRMStage() {
 
         {/* Tips */}
         <div className="text-xs text-gray-400 space-y-1 px-1">
-          <p>🖱 Orbit — left drag</p>
-          <p>🔍 Zoom — scroll</p>
-          <p>✋ Pan — right drag</p>
+          <p><EmojiText>🖱 Orbit — left drag</EmojiText></p>
+          <p><EmojiText>🔍 Zoom — scroll</EmojiText></p>
+          <p><EmojiText>✋ Pan — right drag</EmojiText></p>
         </div>
       </div>
     </div>

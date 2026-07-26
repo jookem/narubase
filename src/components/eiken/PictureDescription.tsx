@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 // ── Speech detection ───────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ export function PictureDescription() {
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">🖼️ Picture Description</h2>
+          <h2 className="text-lg font-semibold"><EmojiText>🖼️ Picture Description</EmojiText></h2>
           <p className="text-sm text-gray-500 mt-0.5">英検レベルを選んでください</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -244,7 +245,7 @@ export function PictureDescription() {
       <div className="space-y-4">
         <button onClick={() => setLevel(null)} className="text-sm text-gray-400">← Change Level</button>
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-          <p className="text-2xl mb-1">✅</p>
+          <p className="text-2xl mb-1"><Emoji>✅</Emoji></p>
           <p className="text-sm font-semibold text-green-800">All questions complete!</p>
         </div>
         {questionResults.map((r, i) => (
@@ -361,11 +362,11 @@ export function PictureDescription() {
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button onClick={() => setInputMode('speech')}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${inputMode === 'speech' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
-            🎤 Speak
+            <EmojiText>🎤 Speak</EmojiText>
           </button>
           <button onClick={() => { stopRecording(); setInputMode('text') }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${inputMode === 'text' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
-            ✏️ Type
+            <EmojiText>✏️ Type</EmojiText>
           </button>
         </div>
       )}
@@ -376,7 +377,7 @@ export function PictureDescription() {
               className={`w-20 h-20 rounded-full text-3xl transition-all active:scale-95 disabled:opacity-30 ${
                 isRecording ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200' : 'bg-gray-100 hover:bg-gray-200'
               }`}>
-              {isRecording ? '⏹' : '🎤'}
+              <EmojiText>{isRecording ? '⏹' : '🎤'}</EmojiText>
             </button>
           </div>
           <p className="text-center text-xs text-gray-400">
@@ -407,7 +408,7 @@ export function PictureDescription() {
         <span className="text-xs px-2.5 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-gray-700">{level.label}</span>
         {noPicture ? (
           <div className="aspect-video rounded-xl bg-gray-100 border border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-300">
-            <span className="text-4xl">🖼️</span>
+            <span className="text-4xl"><Emoji>🖼️</Emoji></span>
             <span className="text-xs">No picture uploaded for this level yet</span>
           </div>
         ) : (
@@ -472,7 +473,7 @@ export function PictureDescription() {
 
       {noPicture ? (
         <div className="aspect-video rounded-xl bg-gray-100 border border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-300">
-          <span className="text-4xl">🖼️</span>
+          <span className="text-4xl"><Emoji>🖼️</Emoji></span>
           <span className="text-xs">No picture uploaded for this level yet</span>
         </div>
       ) : (

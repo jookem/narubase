@@ -17,6 +17,7 @@
     "@pixiv/three-vrm-animation": "^3.5.2",
     "@react-pdf/renderer": "^4.3.3",
     "@supabase/supabase-js": "^2.101.1",
+    "@twemoji/api": "^17.0.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4",
+    "@twemoji/svg": "^15.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

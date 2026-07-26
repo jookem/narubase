@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { launchConfetti } from '@/lib/confetti'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const MASCOT_REACTIONS = [
   { emoji: '🤖', message: 'システム確認完了！すごいぞ！', sub: 'Systems confirmed — you crushed it!' },
@@ -29,7 +30,7 @@ export function CelebrationScreen({ title, subtitle, stats, onClose, closeLabel 
     <div className="w-full max-w-lg text-center space-y-6 animate-[fadeIn_0.4s_ease]">
       {/* Mascot */}
       <div className="flex flex-col items-center gap-2">
-        <div className="text-7xl animate-[bounce_1s_ease_2]">{mascot.emoji}</div>
+        <div className="text-7xl animate-[bounce_1s_ease_2]"><Emoji>{mascot.emoji}</Emoji></div>
         <div className="bg-white/10 rounded-2xl px-5 py-3 max-w-xs">
           <p className="text-white font-bold text-lg">{mascot.message}</p>
           <p className="text-gray-300 text-sm mt-0.5">{mascot.sub}</p>
@@ -38,8 +39,8 @@ export function CelebrationScreen({ title, subtitle, stats, onClose, closeLabel 
 
       {/* Result */}
       <div>
-        <h2 className="text-2xl font-bold text-white">{title}</h2>
-        {subtitle && <p className="text-gray-400 mt-1">{subtitle}</p>}
+        <h2 className="text-2xl font-bold text-white"><EmojiText>{title}</EmojiText></h2>
+        {subtitle && <p className="text-gray-400 mt-1"><EmojiText>{subtitle}</EmojiText></p>}
       </div>
 
       {/* Stats */}

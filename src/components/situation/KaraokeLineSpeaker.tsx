@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSpeechKaraoke, PASS_THRESHOLD } from '@/hooks/useSpeechKaraoke'
+import { EmojiText } from '@/components/shared/Emoji'
 
 interface Props {
   text: string
@@ -99,7 +100,7 @@ export function KaraokeLineSpeaker({ text, speakerName, onPassed, onListeningCha
                   : 'bg-indigo-600 hover:bg-indigo-700 hover:scale-105'
               } disabled:opacity-40 disabled:cursor-not-allowed`}
             >
-              {listening ? '⏹' : '🎤'}
+              <EmojiText>{listening ? '⏹' : '🎤'}</EmojiText>
             </button>
 
             {failed && (

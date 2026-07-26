@@ -11,11 +11,14 @@ import {
 } from '@/lib/api/situations'
 import { RPGDialogueBox } from './RPGDialogueBox'
 import { toast } from 'sonner'
+import { Emoji } from '@/components/shared/Emoji'
 
 interface PartnerPresence {
   role: string
   vrmUrl: string | null
   animationMap: Record<string, string>
+  currentNodeId?: string
+  ack?: boolean
 }
 
 interface Props {
@@ -49,10 +52,20 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
 
   const currentNode = nodes.find(n => n.id === currentNodeId) ?? null
 
+  // Broadcast handlers below are set up once (inside setupChannel) and would
+  // otherwise close over the currentNodeId from that render forever — a ref
+  // keeps them reading the live value.
+  const currentNodeIdRef = useRef(currentNodeId)
+  useEffect(() => { currentNodeIdRef.current = currentNodeId }, [currentNodeId])
+
   useEffect(() => {
     if (!user) return
     loadMyAvatar()
-  }, [user])
+    // Depend on the stable id, not the `user` object — AuthContext hands
+    // back a new object on every SIGNED_IN/USER_UPDATED event, which would
+    // otherwise open a second channel subscription on top of the first
+    // (the cleanup effect below only unsubscribes on unmount).
+  }, [user?.id])
 
   async function loadMyAvatar() {
     const { data } = await supabase
@@ -69,6 +82,20 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
     setupChannel(url, map)
   }
 
+  // Realtime broadcasts aren't replayed for late subscribers — if one
+  // student's page connects and races through the opening line(s) before
+  // the other's channel finishes subscribing, that "advance" broadcast is
+  // simply lost. Both sides then sit on different nodes forever, each
+  // showing "waiting for the other to speak". `join` (sent on connect and
+  // whenever a partner is (re)discovered) now carries the sender's current
+  // node, so whichever side is behind catches up to the other automatically.
+  function syncToFurthestNode(theirNodeId: string | undefined) {
+    if (!theirNodeId || theirNodeId === currentNodeIdRef.current) return
+    const myIdx = nodes.findIndex(n => n.id === currentNodeIdRef.current)
+    const theirIdx = nodes.findIndex(n => n.id === theirNodeId)
+    if (theirIdx > myIdx) setCurrentNodeId(theirNodeId)
+  }
+
   function setupChannel(myVrm: string | null, myMap: Record<string, string>) {
     const channelName = `duo-${situation.id}`
     const ch = supabase.channel(channelName, { config: { broadcast: { self: false } } })
@@ -76,9 +103,16 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
     ch.on('broadcast', { event: 'join' }, ({ payload }: { payload: PartnerPresence }) => {
       setPartner(payload)
       setPartnerJoined(true)
-      if (phase === 'waiting') setPhase('playing')
-      // Respond with our own presence so the partner knows us
-      ch.send({ type: 'broadcast', event: 'join', payload: { role: myRole, vrmUrl: myVrm, animationMap: myMap } })
+      setPhase('playing')
+      syncToFurthestNode(payload.currentNodeId)
+      // Reply once so the partner learns about us too — guarded by `ack` so
+      // the two sides don't bounce `join` back and forth forever.
+      if (!payload.ack) {
+        ch.send({
+          type: 'broadcast', event: 'join',
+          payload: { role: myRole, vrmUrl: myVrm, animationMap: myMap, currentNodeId: currentNodeIdRef.current, ack: true },
+        })
+      }
     })
 
     ch.on('broadcast', { event: 'advance' }, ({ payload }: { payload: { nextNodeId: string | null; speakerText: string; speakerRole: string } }) => {
@@ -92,7 +126,10 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
 
     ch.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        ch.send({ type: 'broadcast', event: 'join', payload: { role: myRole, vrmUrl: myVrm, animationMap: myMap } })
+        ch.send({
+          type: 'broadcast', event: 'join',
+          payload: { role: myRole, vrmUrl: myVrm, animationMap: myMap, currentNodeId: currentNodeIdRef.current },
+        })
         setPhase('playing')
       }
     })
@@ -144,7 +181,7 @@ export function DuoSituationSimulator({ situation, duoRoles, nodes, onExit }: Pr
         >
           ← Exit
         </button>
-        <div className="text-4xl">🎭</div>
+        <div className="text-4xl"><Emoji>🎭</Emoji></div>
         <div className="text-center space-y-1">
           <p className="font-semibold text-lg">{situation.title}</p>
           <p className="text-gray-400 text-sm">You are: <span className="text-white font-medium">{myRole}</span></p>

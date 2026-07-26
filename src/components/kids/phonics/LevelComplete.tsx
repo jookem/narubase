@@ -5,6 +5,7 @@ import { recordPhonicsLevelComplete } from '@/lib/api/phonics'
 import { saveKidSession } from '@/lib/api/kids'
 import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
 import { Mascot } from './Mascot'
+import { Emoji } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -60,13 +61,13 @@ export function LevelComplete({ unit, matchStars, srsScore, wordsLearned, hasNex
       <div style={{ fontSize: 24, fontWeight: 800, color: '#5A4336' }}>Level Complete!</div>
       <div style={{ fontSize: 36, display: 'flex', gap: 4 }}>
         {[1, 2, 3].map(i => (
-          <span key={i} style={{ animation: `kg-pop .3s ease-out ${i * 0.15}s both`, opacity: i <= stars ? 1 : 0.25 }}>⭐</span>
+          <span key={i} style={{ animation: `kg-pop .3s ease-out ${i * 0.15}s both`, opacity: i <= stars ? 1 : 0.25 }}><Emoji>⭐</Emoji></span>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         {wordsLearned.map(w => (
           <div key={w.onset} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFFFFF', borderRadius: '999px', padding: '6px 12px', boxShadow: '0 3px 0 #EEDAC6' }}>
-            <span style={{ fontSize: 18 }}>{w.emoji}</span>
+            <span style={{ fontSize: 18 }}><Emoji>{w.emoji}</Emoji></span>
             <span style={{ fontWeight: 800, fontSize: 13, color: '#6B4F3F' }}>{w.word}</span>
           </div>
         ))}

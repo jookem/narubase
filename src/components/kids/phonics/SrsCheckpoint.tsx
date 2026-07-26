@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { speak } from '@/lib/tts'
 import { rateVocabCard } from '@/lib/api/lessons'
 import type { PhonicsBankRow } from '@/lib/api/phonics'
+import { EmojiText } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
@@ -72,7 +73,7 @@ export function SrsCheckpoint({ words, onDone }: Props) {
         style={{ width: '100%', background: '#FFFFFF', borderRadius: 28, padding: '32px 28px', boxShadow: '0 10px 0 #EEDAC6', textAlign: 'center', cursor: flipped ? 'default' : 'pointer', userSelect: 'none', minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#5A4336', lineHeight: 1.3 }}>{card.jp}</div>
         {!flipped && (
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#C7A892', marginTop: 4 }}>タップして英語を見る 👆</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#C7A892', marginTop: 4 }}><EmojiText>タップして英語を見る 👆</EmojiText></div>
         )}
         {flipped && (
           <>
@@ -80,7 +81,7 @@ export function SrsCheckpoint({ words, onDone }: Props) {
             <div style={{ fontSize: 36, fontWeight: 800, color: '#F2879B', letterSpacing: 3, animation: 'kg-bounceIn .35s ease-out' }}>{card.word}</div>
             <button onClick={e => { e.stopPropagation(); speak(card.word.toLowerCase()) }}
               style={{ border: 'none', cursor: 'pointer', background: '#F0F8FF', borderRadius: '999px', padding: '6px 16px', fontSize: 14, fontWeight: 700, color: '#7FB8E0' }}>
-              🔊 きく
+              <EmojiText>🔊 きく</EmojiText>
             </button>
           </>
         )}

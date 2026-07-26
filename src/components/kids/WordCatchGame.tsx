@@ -3,6 +3,7 @@ import type { VocabularyBankEntry } from '@/lib/types/database'
 import type { SessionWord } from './SpellTsumGame'
 import { sfxWhistle, sfxCheer } from '@/lib/sfx'
 import { launchGoalConfetti } from '@/lib/confetti'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 const LANES = 3
@@ -322,11 +323,11 @@ export function WordCatchGame({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>Catch and Match 🥅</div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}><EmojiText>Catch and Match 🥅</EmojiText></div>
           <div style={{ fontSize: 13, color: '#A98B77' }}>ただしいことばをあみでキャッチ！</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#FFFFFF', borderRadius: 14, padding: '5px 12px', boxShadow: '0 3px 0 #E7D3C0', minWidth: 52 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#A98B77' }}>⏱</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#A98B77' }}><Emoji>⏱</Emoji></div>
           <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F', lineHeight: 1 }}>{mm}:{ss}</div>
         </div>
       </div>
@@ -335,10 +336,10 @@ export function WordCatchGame({
       <button onClick={() => speak(lanes.find(l => l.isTarget)?.word ?? '')}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', fontFamily: FONT, background: '#FFFFFF', borderRadius: 24, padding: '12px 32px', boxShadow: '0 8px 0 #EEDAC6' }}>
         {isEmojiClue
-          ? <div style={{ fontSize: 60, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}>{clue}</div>
+          ? <div style={{ fontSize: 60, lineHeight: 1, animation: 'kg-bounceIn .4s ease-out' }}><Emoji>{clue}</Emoji></div>
           : <div style={{ fontSize: 20, fontWeight: 800, color: '#6B4F3F', textAlign: 'center', lineHeight: 1.3 }}>{clue}</div>
         }
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#7FB8E0' }}>🔊 きく</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#7FB8E0' }}><EmojiText>🔊 きく</EmojiText></div>
       </button>
 
       {/* Score */}
@@ -346,7 +347,7 @@ export function WordCatchGame({
         <div style={{ fontWeight: 800, fontSize: 18, color: '#6B4F3F' }}>{score.toLocaleString()} pts</div>
         {streak >= 2 && (
           <div key={streak} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 800, fontSize: 15, color: '#E0762E', animation: 'kg-pop .3s ease-out' }}>
-            🔥 x{streak}
+            <Emoji>🔥</Emoji> x{streak}
           </div>
         )}
         {isDuo && (
@@ -383,7 +384,7 @@ export function WordCatchGame({
             transform: 'scaleX(-1)',
             transition: 'top .16s ease-out', pointerEvents: 'none', userSelect: 'none',
           }}>
-            🥅
+            <Emoji>🥅</Emoji>
           </div>
 
           {/* Flying word bubbles */}
@@ -411,10 +412,10 @@ export function WordCatchGame({
               alignItems: 'center', justifyContent: 'center', gap: 2, zIndex: 3,
               pointerEvents: 'none', animation: 'kg-pop .4s ease-out',
             }}>
-              <div style={{ fontSize: 56, lineHeight: 1 }}>🙌</div>
+              <div style={{ fontSize: 56, lineHeight: 1 }}><Emoji>🙌</Emoji></div>
               <div style={{ fontWeight: 900, fontSize: 20, color: '#5AB468', textShadow: '0 2px 0 #fff' }}>GOAL!</div>
               {streak >= 2 && (
-                <div style={{ fontWeight: 800, fontSize: 15, color: '#E0762E', textShadow: '0 2px 0 #fff' }}>🔥 {streak} in a row!</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#E0762E', textShadow: '0 2px 0 #fff' }}><Emoji>🔥</Emoji> {streak} in a row!</div>
               )}
             </div>
           )}
@@ -439,7 +440,7 @@ export function WordCatchGame({
       {phase === 'end' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
           <div style={{ background: '#FFFBF4', borderRadius: 32, padding: '32px 44px', textAlign: 'center', fontFamily: FONT, boxShadow: '0 20px 60px rgba(0,0,0,.2)', animation: 'kg-pop .5s ease-out' }}>
-            <div style={{ fontSize: 52 }}>{stars > 0 ? '⭐'.repeat(stars) : '💪'}</div>
+            <div style={{ fontSize: 52 }}><EmojiText>{stars > 0 ? '⭐'.repeat(stars) : '💪'}</EmojiText></div>
             <div style={{ fontSize: 26, fontWeight: 800, color: '#5A4336', marginTop: 8 }}>おわり！</div>
             <div style={{ fontSize: 15, color: '#A98B77', marginTop: 6 }}>{wordsCorrect} words caught</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: '#E0A52E', marginTop: 10 }}>{score.toLocaleString()} pts</div>

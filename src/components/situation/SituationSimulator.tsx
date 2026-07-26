@@ -18,6 +18,7 @@ import { SituationList } from './SituationList'
 import { RPGDialogueBox } from './RPGDialogueBox'
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
 import { VRMViewer, type VRMExpression } from '@/components/vrm/VRMViewer'
+import { Emoji } from '@/components/shared/Emoji'
 
 function deriveAgeGroup(age: number | null): 'children' | 'teens' | 'adults' | undefined {
   if (!age) return undefined
@@ -408,7 +409,7 @@ export function SituationSimulator() {
                   title={ex.label}
                   className={`text-xl px-2 py-1 rounded-lg transition-colors ${previewExpr === ex.id ? 'bg-brand/20 ring-2 ring-brand/40' : 'hover:bg-gray-200'}`}
                 >
-                  {ex.emoji}
+                  <Emoji>{ex.emoji}</Emoji>
                 </button>
               ))}
             </div>
@@ -418,7 +419,7 @@ export function SituationSimulator() {
             className="w-full h-40 flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors"
             onClick={() => vrmFileRef.current?.click()}
           >
-            <span className="text-4xl">🧍</span>
+            <span className="text-4xl"><Emoji>🧍</Emoji></span>
             <p className="text-sm text-gray-400">Click to upload a .vrm file</p>
             <p className="text-xs text-gray-300">or start without one — an NPC character will still appear</p>
           </div>

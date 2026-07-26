@@ -16,6 +16,7 @@ import { X, Volume2 } from 'lucide-react'
 import { speak } from '@/lib/tts'
 import { launchConfetti } from '@/lib/confetti'
 import { CelebrationScreen } from '@/components/shared/CelebrationScreen'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 import type { VocabularyBankEntry } from '@/lib/types/database'
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -372,7 +373,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
   if (showTransition) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-center gap-6">
-        <div className="text-6xl">⌨️</div>
+        <div className="text-6xl"><Emoji>⌨️</Emoji></div>
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Now type it!</h2>
           <p className="text-gray-400 text-sm">Great work arranging the letters — now spell the same words from memory.</p>
@@ -412,7 +413,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
         <div className={`px-3 py-1 rounded-full text-xs font-medium ${
           currentPhase === 'drag' ? 'bg-brand/30 text-blue-200' : 'bg-teal-900/50 text-teal-300'
         }`}>
-          {currentPhase === 'drag' ? '🧩 Arrange the letters' : '⌨️ Type the word'}
+          <EmojiText>{currentPhase === 'drag' ? '🧩 Arrange the letters' : '⌨️ Type the word'}</EmojiText>
         </div>
 
         {/* Japanese translation */}
@@ -499,7 +500,7 @@ export function SpellingGame({ words, onClose, onComplete }: SpellingGameProps) 
         {wordDone ? (
           <div className="flex flex-col items-center gap-3">
             {gaveUp ? (
-              <p className="text-orange-400 font-bold text-xl">💡 {currentWord.word}</p>
+              <p className="text-orange-400 font-bold text-xl"><Emoji>💡</Emoji> {currentWord.word}</p>
             ) : (
               <p className="text-green-400 font-bold text-xl">✓ Correct!</p>
             )}

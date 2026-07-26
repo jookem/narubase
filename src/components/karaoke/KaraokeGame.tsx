@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Emoji, EmojiText } from '@/components/shared/Emoji'
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -162,7 +163,7 @@ export function KaraokeGame({ sentences, onClose, onComplete }: Props) {
 
     return (
       <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col items-center justify-center p-6 text-white">
-        <div className="text-6xl mb-4">🎤</div>
+        <div className="text-6xl mb-4"><Emoji>🎤</Emoji></div>
         <h2 className="text-2xl font-bold mb-1">お疲れ様！</h2>
         <p className="text-gray-400 text-sm mb-6">Karaoke Practice Complete</p>
 
@@ -202,7 +203,7 @@ export function KaraokeGame({ sentences, onClose, onComplete }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <span className="text-xl">🎤</span>
+          <span className="text-xl"><Emoji>🎤</Emoji></span>
           <span className="font-semibold text-white">カラオケ Karaoke</span>
         </div>
         <div className="flex items-center gap-4">
@@ -280,7 +281,7 @@ export function KaraokeGame({ sentences, onClose, onComplete }: Props) {
                   : 'bg-brand hover:bg-brand/90 hover:scale-105'
               } disabled:opacity-40 disabled:cursor-not-allowed`}
             >
-              {listening ? '⏹' : '🎤'}
+              <EmojiText>{listening ? '⏹' : '🎤'}</EmojiText>
             </button>
           ) : (
             <button
