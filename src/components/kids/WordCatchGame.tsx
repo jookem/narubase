@@ -18,12 +18,18 @@ const TRAVEL_MS = 6000
 const TRAVEL_DIST = FIELD_W + BUBBLE_W + 30
 const SPEED = TRAVEL_DIST / TRAVEL_MS // px per ms
 
-// Speed ramps up with the current clean-catch streak, capped so it never
-// gets unplayable.
-const MIN_TRAVEL_MS = 3200
+// Speed has two layers. A base ramp rises with total words caught so far
+// (permanent — it never resets on a miss, so the whole game gets harder
+// over time). On top of that, the current clean-catch streak adds a
+// temporary boost that falls back to the base the moment a catch is
+// missed. Both are capped so the game never gets unplayable.
+const BASE_MIN_TRAVEL_MS = 3800
+const ABS_MIN_TRAVEL_MS = 2200
+const PROGRESS_SPEEDUP_MS = 120
 const STREAK_SPEEDUP_MS = 300
-function speedForStreak(streak: number): number {
-  const travelMs = Math.max(MIN_TRAVEL_MS, TRAVEL_MS - streak * STREAK_SPEEDUP_MS)
+function speedForState(wordsCorrect: number, streak: number): number {
+  const baseTravelMs = Math.max(BASE_MIN_TRAVEL_MS, TRAVEL_MS - wordsCorrect * PROGRESS_SPEEDUP_MS)
+  const travelMs = Math.max(ABS_MIN_TRAVEL_MS, baseTravelMs - streak * STREAK_SPEEDUP_MS)
   return TRAVEL_DIST / travelMs
 }
 
@@ -164,6 +170,7 @@ export function WordCatchGame({
   // and the RAF tick loop need the current value synchronously — state
   // updates aren't visible until the next render.
   const streakRef          = useRef(0)
+  const wordsCorrectRef    = useRef(0)
   const missedThisRoundRef = useRef(false)
   const currentSpeedRef    = useRef(SPEED)
 
@@ -172,7 +179,7 @@ export function WordCatchGame({
     checkedRef.current = [false, false, false]
     roundWonRef.current = false
     missedThisRoundRef.current = false
-    currentSpeedRef.current = speedForStreak(streakRef.current)
+    currentSpeedRef.current = speedForState(wordsCorrectRef.current, streakRef.current)
   }
 
   // Seed positions once, same guarded style as the queue above.
@@ -235,7 +242,8 @@ export function WordCatchGame({
       launchGoalConfetti()
       if (newStreak > 0 && newStreak % 3 === 0) sfxCheer()
       setScore(s => s + 100)
-      setWordsCorrect(c => c + 1)
+      wordsCorrectRef.current += 1
+      setWordsCorrect(wordsCorrectRef.current)
       onWordComplete?.()
       setPhase('caught')
       setTimeout(() => advanceRound(), 1300)
