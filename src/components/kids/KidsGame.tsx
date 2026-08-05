@@ -216,23 +216,51 @@ export function KidsGame() {
   // session" or a brand-new player 2. `studyPool2` remembers player 2's own
   // stable set separately (keyed by player2Id) since `studyPool` itself is
   // shared/overwritten at the P1→P2 handoff to whichever player is up.
+  //
+  // `studyPoolVocabIds` records the full assigned-vocab id set the pool was
+  // built from (not just the sliced-down pool itself). This lets the
+  // vocab-arrival effect below tell "same assignment, just reopening the
+  // tile" (skip rebuild) apart from "teacher assigned new/different words
+  // since this pool was built" (rebuild) — without it, a newly assigned word
+  // silently never showed up until the student hit "clear session".
   const [studyPool, setStudyPoolState] = useState<StudyCard[]>([])
-  function setStudyPool(pool: StudyCard[]) {
+  const [studyPoolVocabIds, setStudyPoolVocabIdsState] = useState<string[]>([])
+  function setStudyPool(pool: StudyCard[], vocabIds?: string[]) {
     setStudyPoolState(pool)
+    if (vocabIds) setStudyPoolVocabIdsState(vocabIds)
     if (!user) return
     try {
-      if (pool.length > 0) sessionStorage.setItem(`narubase:kids:studyPool:${user.id}`, JSON.stringify(pool))
-      else sessionStorage.removeItem(`narubase:kids:studyPool:${user.id}`)
+      if (pool.length > 0) {
+        sessionStorage.setItem(`narubase:kids:studyPool:${user.id}`, JSON.stringify(pool))
+        if (vocabIds) sessionStorage.setItem(`narubase:kids:studyPoolVocabIds:${user.id}`, JSON.stringify(vocabIds))
+      } else {
+        sessionStorage.removeItem(`narubase:kids:studyPool:${user.id}`)
+        sessionStorage.removeItem(`narubase:kids:studyPoolVocabIds:${user.id}`)
+      }
     } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
   }
   const [studyPool2, setStudyPool2State] = useState<StudyCard[]>([])
-  function setStudyPool2(pool: StudyCard[]) {
+  const [studyPoolVocabIds2, setStudyPoolVocabIds2State] = useState<string[]>([])
+  function setStudyPool2(pool: StudyCard[], vocabIds?: string[]) {
     setStudyPool2State(pool)
+    if (vocabIds) setStudyPoolVocabIds2State(vocabIds)
     if (!user || !player2Id) return
     try {
-      if (pool.length > 0) sessionStorage.setItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`, JSON.stringify(pool))
-      else sessionStorage.removeItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
+      if (pool.length > 0) {
+        sessionStorage.setItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`, JSON.stringify(pool))
+        if (vocabIds) sessionStorage.setItem(`narubase:kids:studyPoolVocabIds2:${user.id}:${player2Id}`, JSON.stringify(vocabIds))
+      } else {
+        sessionStorage.removeItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
+        sessionStorage.removeItem(`narubase:kids:studyPoolVocabIds2:${user.id}:${player2Id}`)
+      }
     } catch { /* storage unavailable (private mode etc.) — session just won't persist */ }
+  }
+  // Set-equality on vocab ids — order-independent so a re-fetch that returns
+  // the same assignment in a different row order doesn't look like a change.
+  function sameVocabIds(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false
+    const sa = [...a].sort(); const sb = [...b].sort()
+    return sa.every((v, i) => v === sb[i])
   }
   // studyIdx/studyIdx2 are independent per-player progress cursors so duo
   // mode can alternate card-by-card (turn state reuses the same top-level
@@ -338,15 +366,23 @@ export function KidsGame() {
     try {
       const raw = sessionStorage.getItem(`narubase:kids:studyPool:${user.id}`)
       if (raw) setStudyPoolState(JSON.parse(raw))
+      const rawIds = sessionStorage.getItem(`narubase:kids:studyPoolVocabIds:${user.id}`)
+      // No stored signature (pool saved before this field existed, or none at
+      // all) leaves this []  — the vocab-arrival effect below then treats it
+      // as "unknown source" and rebuilds once, self-healing old sessions.
+      setStudyPoolVocabIdsState(rawIds ? JSON.parse(rawIds) : [])
     } catch { /* ignore corrupt/unavailable storage */ }
   }, [user?.id])
 
   useEffect(() => {
     setStudyPool2State([])
+    setStudyPoolVocabIds2State([])
     if (!user || !player2Id) return
     try {
       const raw = sessionStorage.getItem(`narubase:kids:studyPool2:${user.id}:${player2Id}`)
       if (raw) setStudyPool2State(JSON.parse(raw))
+      const rawIds = sessionStorage.getItem(`narubase:kids:studyPoolVocabIds2:${user.id}:${player2Id}`)
+      setStudyPoolVocabIds2State(rawIds ? JSON.parse(rawIds) : [])
     } catch { /* ignore corrupt/unavailable storage */ }
   }, [user?.id, player2Id])
 
@@ -413,12 +449,24 @@ export function KidsGame() {
   // student doesn't have to back out and retry. Builds BOTH players' pools
   // independently (not turn-gated) since duo mode now alternates card-by-card
   // and needs both decks ready up front, not just whichever player is up.
+  //
+  // Also rebuilds whenever the teacher's assignment itself has changed since
+  // this pool was built (studyPoolVocabIds mismatch) — otherwise a newly
+  // assigned word never surfaced because the sticky-pool restore above
+  // (added to stop rerolling on every revisit) kept serving the old cached
+  // deck forever.
   useEffect(() => {
     if (screen !== 'study') return
-    if (studyPool.length === 0 && assignedVocab.length > 0) setStudyPool(buildStudyPool())
-    if (player === 'duo' && studyPool2.length === 0) {
-      if (player2Id) { if (assignedVocab2.length > 0) setStudyPool2(buildStudyPool(assignedVocab2)) }
-      else setStudyPool2(buildStudyPool())
+    const ids = assignedVocab.map(e => e.id)
+    if (assignedVocab.length > 0 && (studyPool.length === 0 || !sameVocabIds(studyPoolVocabIds, ids))) {
+      setStudyPool(buildStudyPool(), ids)
+    }
+    if (player === 'duo') {
+      const ids2 = (player2Id ? assignedVocab2 : assignedVocab).map(e => e.id)
+      const vocab2 = player2Id ? assignedVocab2 : assignedVocab
+      if (vocab2.length > 0 && (studyPool2.length === 0 || !sameVocabIds(studyPoolVocabIds2, ids2))) {
+        setStudyPool2(buildStudyPool(vocab2), ids2)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignedVocab, assignedVocab2, screen])
@@ -983,14 +1031,21 @@ export function KidsGame() {
                   else if (s.key === 'study') {
                     // Reuse the existing session's words if there is one —
                     // a fresh random set only ever comes from an explicit
-                    // "✕ clear session", not from merely reopening this tile.
-                    if (studyPool.length === 0) setStudyPool(buildStudyPool())
+                    // "✕ clear session" or the teacher having actually
+                    // changed the assignment since this pool was built
+                    // (studyPoolVocabIds mismatch), not from merely
+                    // reopening this tile.
+                    const ids = assignedVocab.map(e => e.id)
+                    if (studyPool.length === 0 || !sameVocabIds(studyPoolVocabIds, ids)) setStudyPool(buildStudyPool(), ids)
                     // Player 2's own pool: if their vocab hasn't loaded yet,
                     // leave studyPool2 empty — the vocab-arrival effect below
                     // fills it in once assignedVocab2 resolves.
-                    if (player === 'duo' && studyPool2.length === 0) {
-                      if (player2Id) { if (assignedVocab2.length > 0) setStudyPool2(buildStudyPool(assignedVocab2)) }
-                      else setStudyPool2(buildStudyPool())
+                    if (player === 'duo') {
+                      const vocab2 = player2Id ? assignedVocab2 : assignedVocab
+                      const ids2 = vocab2.map(e => e.id)
+                      if (vocab2.length > 0 && (studyPool2.length === 0 || !sameVocabIds(studyPoolVocabIds2, ids2))) {
+                        setStudyPool2(buildStudyPool(vocab2), ids2)
+                      }
                     }
                     setTurn(1)
                     setP1StudyDone(false); setP2StudyDone(false)
