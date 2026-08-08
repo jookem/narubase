@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PHONICS_UNITS } from '@/lib/phonicsContent'
 import { StoryReader } from './StoryReader'
 import {
-  storyPageKey, getStoryTuning, getStoryEntry, buildDefaultPageTuning, resizeProps, createStep, defaultPathForType, StorySceneTuningContext,
+  storyPageKey, getStoryTuning, getStoryEntry, buildDefaultPageTuning, resizeProps, createStep, defaultPathForType, StorySceneTuningContext, useStoryTuningTable, saveStoryTuning,
   DIRECTION_LABELS, EASING_LABELS, TRAVEL_STYLE_LABELS, EFFECT_LABELS, EFFECT_GROUPS, DIRECTIONAL_KINDS, START_TRIGGER_LABELS, REPEAT_LABELS, PATH_TYPE_LABELS,
   type StoryPageTuning, type StoryPageEntry, type SceneObjectTuning, type AnimationStep, type StepEffect, type EffectKind, type MotionPathShape, type StoryTuningLookup,
   type Direction, type Easing, type TravelStyle, type StartTrigger, type RepeatMode,
@@ -11,10 +11,10 @@ import { searchEmoji, looksLikeEmoji } from './emojiSearch'
 
 const FONT = "'M PLUS Rounded 1c', system-ui, sans-serif"
 
-// Drafts (this Lab's in-progress, not-yet-copied-into-code edits) are
+// Drafts (this Lab's in-progress, not-yet-Saved-to-Supabase edits) are
 // auto-saved to localStorage so a reload/closed tab doesn't lose work —
-// "Copy this page" is still what makes something permanent in the
-// codebase, but a browser refresh in between no longer wipes everything.
+// "Save this page" is still what makes something go live for students, but
+// a browser refresh in between no longer wipes everything.
 const DRAFTS_STORAGE_KEY = 'phonics-story-lab-drafts'
 
 function loadDrafts(): Record<string, StoryPageEntry> {
@@ -348,8 +348,9 @@ function AddStepButton({ onAdd }: { onAdd: (kind: EffectKind) => void }) {
 // Teacher-facing scene tuning lab (Materials page, "Phonics Story Lab" tab):
 // PowerPoint Animation-Pane style — pick any object on the current page
 // (the mascot, any ambient prop, the sentence text) and give it its own
-// ordered list of animation steps, live-previewed instantly, then copy the
-// result into storySceneTuning.ts's STORY_PAGE_TUNING.
+// ordered list of animation steps, live-previewed instantly, then Save it
+// to the phonics_story_tuning table (see storySceneTuning.ts) so it's live
+// for students right away.
 //
 // Every page gets its own fully independent StoryPageTuning — edits on
 // page 3 never touch page 1. `pageTunings` holds this session's
@@ -362,8 +363,14 @@ export function StoryLab() {
   const [jumpNonce, setJumpNonce] = useState(0)
   const [pageTunings, setPageTunings] = useState<Record<string, StoryPageEntry>>(loadDrafts)
   const [selectedObjectId, setSelectedObjectId] = useState('mascot')
-  const [copied, setCopied] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [replayNonce, setReplayNonce] = useState(0)
+
+  // Subscribes to the shared Supabase-backed tuning cache (also fetches it,
+  // once per page load) — `getStoryTuning`/`getStoryEntry` below read that
+  // same cache, this just makes reads of it reactive so already-saved pages
+  // show up here once the fetch resolves.
+  useStoryTuningTable()
 
   useEffect(() => {
     try { localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(pageTunings)) } catch { /* storage unavailable/full — edits still work this session */ }
@@ -391,7 +398,7 @@ export function StoryLab() {
 
   // A unit's page count isn't just unit.storyPages.length — pages appended
   // via "+ Add scene" only exist as overrides, possibly still only in this
-  // session's pageTunings (not yet saved into STORY_PAGE_TUNING), and a
+  // session's pageTunings (not yet Saved to phonics_story_tuning), and a
   // page (original or added) can be removed via "Delete this page". Can't
   // use the useResolvedPageCount hook here: it reads context from the
   // nearest ANCESTOR Provider, and the Provider StoryLab itself renders
@@ -501,7 +508,7 @@ export function StoryLab() {
   }
 
   // Scenes are append/remove-from-the-end only, to avoid re-keying every
-  // subsequent page's STORY_PAGE_TUNING entry (keyed by unitId::pageIndex).
+  // subsequent page's phonics_story_tuning row (keyed by unitId::pageIndex).
   // Original PPT-sourced pages (index < unit.storyPages.length) can be
   // edited but never removed, only pages this Lab added.
   function addScene() {
@@ -611,7 +618,7 @@ export function StoryLab() {
   // always returns previewTuning — which already carries replayNonce so the
   // Replay button can force a from-scratch replay of already-finished
   // steps. `slotState` checks BOTH this session's edits and any
-  // already-saved STORY_PAGE_TUNING entry, since useResolvedPageCount
+  // already-saved phonics_story_tuning row, since useResolvedPageCount
   // (used by <StoryReader>'s own page-count logic) needs to see pages
   // added/deleted only in this session too.
   const labLookup: StoryTuningLookup = {
@@ -629,12 +636,18 @@ export function StoryLab() {
     })
   }
 
-  // Copies a ready-to-paste `'unitId::pageIndex': { ... },` entry for
-  // STORY_PAGE_TUNING — just this page, not the whole session's edits.
-  async function copyTuning() {
-    await navigator.clipboard.writeText(`'${currentKey}': ${JSON.stringify(tuning, null, 2)},`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+  // Persists just this page's tuning to Supabase — not the whole session's
+  // edits — so it goes live for students immediately. RLS restricts this to
+  // teachers; a non-teacher session gets `error` back from saveStoryTuning.
+  async function saveTuning() {
+    setSaveState('saving')
+    const { error } = await saveStoryTuning(unit.id, pageIdx, tuning)
+    if (error) {
+      setSaveState('error')
+      return
+    }
+    setSaveState('saved')
+    setTimeout(() => setSaveState('idle'), 1500)
   }
 
   return (
@@ -644,7 +657,7 @@ export function StoryLab() {
           this panel grows (position/animations/content/object sections). */}
       <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', paddingRight: 4 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#6B4F3F' }}>🧪 Phonics Story Lab</div>
-        <div style={{ fontSize: 12, color: '#A98B77' }}>Click an object, give it any animation(s), then copy the values into code.</div>
+        <div style={{ fontSize: 12, color: '#A98B77' }}>Click an object, give it any animation(s), then Save to publish it to students.</div>
 
         <label style={{ fontSize: 12, fontWeight: 700, color: '#A98B77' }}>
           Unit
@@ -829,9 +842,15 @@ export function StoryLab() {
             Reset this page
           </button>
           <button
-            onClick={copyTuning}
-            style={{ flex: 1, border: 'none', cursor: 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 13, padding: '8px 0', borderRadius: 12, background: '#8BC273', color: '#fff', boxShadow: '0 3px 0 #6FA05A' }}>
-            {copied ? 'Copied ✓' : 'Copy this page'}
+            onClick={saveTuning}
+            disabled={saveState === 'saving'}
+            style={{
+              flex: 1, border: 'none', cursor: saveState === 'saving' ? 'default' : 'pointer', fontFamily: FONT, fontWeight: 800, fontSize: 13, padding: '8px 0', borderRadius: 12, color: '#fff',
+              background: saveState === 'error' ? '#D96C6C' : '#8BC273',
+              boxShadow: saveState === 'error' ? '0 3px 0 #B85454' : '0 3px 0 #6FA05A',
+              opacity: saveState === 'saving' ? 0.7 : 1,
+            }}>
+            {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : saveState === 'error' ? 'Save failed — retry' : 'Save this page'}
           </button>
         </div>
       </div>

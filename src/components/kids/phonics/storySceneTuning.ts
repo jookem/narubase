@@ -1,4 +1,5 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect, useSyncExternalStore } from 'react'
+import { supabase } from '@/lib/supabase'
 import type { PhonicsUnit } from '@/lib/phonicsContent'
 
 // Knobs for StoryReader's scene visuals/animation, PowerPoint-Animation-Pane
@@ -12,16 +13,17 @@ import type { PhonicsUnit } from '@/lib/phonicsContent'
 // special hard-coded behavior.
 //
 // Every page of every unit gets its OWN independent StoryPageTuning —
-// editing page 3 never touches page 1. A page only takes up space in
-// STORY_PAGE_TUNING once it's been specifically customized; anything not in
-// there renders via buildDefaultPageTuning() (mascot idles, props pop in
-// and float, nothing auto-walks — there's no more sentence-verb detection
-// deciding the mascot's behavior for it).
+// editing page 3 never touches page 1. A page only takes up space in the
+// `phonics_story_tuning` table once it's been specifically customized and
+// saved; anything not in there renders via buildDefaultPageTuning() (mascot
+// idles, props pop in and float, nothing auto-walks — there's no more
+// sentence-verb detection deciding the mascot's behavior for it).
 //
 // Production reads through the context's default lookup (no Provider
-// needed) — only StoryLab.tsx (Materials page, "Phonics Story Lab" tab)
-// mounts a Provider backed by its own in-session edits so every scene can
-// be tweaked and previewed live without touching code.
+// needed), which is backed by a Supabase-fetched cache (see
+// useStoryTuningTable below) — only StoryLab.tsx (Materials page, "Phonics
+// Story Lab" tab) mounts a Provider backed by its own in-session edits so
+// every scene can be tweaked and previewed live before Saving.
 
 export type Direction = 'fromTop' | 'fromBottom' | 'fromLeft' | 'fromRight'
 export type Easing = 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'linear'
@@ -310,26 +312,65 @@ export function resizeProps(tuning: StoryPageTuning, count: number): StoryPageTu
   return { ...tuning, props }
 }
 
-// Per-page overrides, keyed by storyPageKey(unitId, pageIndex). Populate by
-// pasting the Story Lab's "Copy this page" output in here. A page absent
-// from this map renders via buildDefaultPageTuning() exactly as before.
-// The 'deleted' sentinel marks a slot as explicitly gone — needed because
-// deleting any page (see StoryLab's deleteScene) works by shifting every
-// later page's content down one slot and marking the now-vacated LAST slot
-// deleted; that last slot can land within phonicsContent.ts's own page
-// range (deleting one of 5 original pages leaves 4), so "no override
-// recorded" alone can't mean "doesn't exist" — it normally means "use the
-// static content", which 'deleted' overrides.
+// Per-page overrides, keyed by storyPageKey(unitId, pageIndex). Saved via
+// the Story Lab's "Save" button into the `phonics_story_tuning` table, so
+// they go live for students immediately — no code change/deploy needed.
+// A page absent from this map renders via buildDefaultPageTuning() exactly
+// as before. The 'deleted' sentinel marks a slot as explicitly gone —
+// needed because deleting any page (see StoryLab's deleteScene) works by
+// shifting every later page's content down one slot and marking the
+// now-vacated LAST slot deleted; that last slot can land within
+// phonicsContent.ts's own page range (deleting one of 5 original pages
+// leaves 4), so "no override recorded" alone can't mean "doesn't exist" —
+// it normally means "use the static content", which 'deleted' overrides.
 export type StoryPageEntry = StoryPageTuning | 'deleted'
-
-export const STORY_PAGE_TUNING: Record<string, StoryPageEntry> = {}
 
 export function storyPageKey(unitId: string, pageIndex: number): string {
   return `${unitId}::${pageIndex}`
 }
 
+// Module-level cache of every saved StoryPageEntry, mirroring the
+// phonics_story_tuning table. Kept outside React state so the default
+// (no-Provider) lookup used by production's <StoryReader> can read it
+// synchronously; useStoryTuningTable() is what makes reads of it reactive.
+let tuningCache: Record<string, StoryPageEntry> = {}
+let fetchStarted = false
+const tuningListeners = new Set<() => void>()
+
+function notifyTuningListeners() {
+  for (const listener of tuningListeners) listener()
+}
+
+async function fetchTuningCache(): Promise<void> {
+  const { data, error } = await supabase
+    .from('phonics_story_tuning')
+    .select('unit_id, page_index, tuning, deleted')
+  if (error || !data) return
+  const next: Record<string, StoryPageEntry> = {}
+  for (const row of data) {
+    next[storyPageKey(row.unit_id, row.page_index)] = row.deleted ? 'deleted' : (row.tuning as StoryPageTuning)
+  }
+  tuningCache = next
+  notifyTuningListeners()
+}
+
+// Subscribes the calling component to the shared tuning cache and kicks off
+// its initial Supabase fetch exactly once per page load (both <StoryReader>
+// via useStorySceneTuning/useResolvedPageCount, and <StoryLab> directly,
+// call this — the first caller wins the fetch, everyone re-renders off the
+// same cache via useSyncExternalStore).
+export function useStoryTuningTable(): Record<string, StoryPageEntry> {
+  useEffect(() => {
+    if (!fetchStarted) { fetchStarted = true; fetchTuningCache() }
+  }, [])
+  return useSyncExternalStore(
+    listener => { tuningListeners.add(listener); return () => tuningListeners.delete(listener) },
+    () => tuningCache,
+  )
+}
+
 export function getStoryEntry(unitId: string, pageIndex: number): StoryPageEntry | undefined {
-  return STORY_PAGE_TUNING[storyPageKey(unitId, pageIndex)]
+  return tuningCache[storyPageKey(unitId, pageIndex)]
 }
 
 // For resolving what to actually RENDER — a 'deleted' slot is never meant
@@ -338,6 +379,23 @@ export function getStoryEntry(unitId: string, pageIndex: number): StoryPageEntry
 export function getStoryTuning(unitId: string, pageIndex: number): StoryPageTuning | undefined {
   const e = getStoryEntry(unitId, pageIndex)
   return e === 'deleted' ? undefined : e
+}
+
+// Persists one page's tuning (or its deletion) to Supabase and refreshes the
+// shared cache so every open tab — Lab or student game — picks it up. RLS
+// restricts writes to teachers.
+export async function saveStoryTuning(unitId: string, pageIndex: number, entry: StoryPageEntry): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('phonics_story_tuning')
+    .upsert({
+      unit_id: unitId,
+      page_index: pageIndex,
+      tuning: entry === 'deleted' ? null : entry,
+      deleted: entry === 'deleted',
+    }, { onConflict: 'unit_id,page_index' })
+  if (error) return { error: error.message }
+  await fetchTuningCache()
+  return {}
 }
 
 export type PageSlotState = 'tuning' | 'deleted' | 'none'
@@ -364,6 +422,10 @@ const defaultStoryTuningLookup: StoryTuningLookup = {
 export const StorySceneTuningContext = createContext<StoryTuningLookup>(defaultStoryTuningLookup)
 
 export function useStorySceneTuning(unitId: string, pageIndex: number): StoryPageTuning {
+  // Subscribes to the shared cache so a fetch completing (or a Lab Save
+  // elsewhere) re-renders this component — the default lookup below reads
+  // the cache synchronously, this hook is what makes that reactive.
+  useStoryTuningTable()
   const lookup = useContext(StorySceneTuningContext)
   return lookup.resolve(unitId, pageIndex)
 }
@@ -376,6 +438,7 @@ export function useStorySceneTuning(unitId: string, pageIndex: number): StoryPag
 // content's own range), and one with nothing recorded falls back to
 // whether it's within phonicsContent.ts's range.
 export function useResolvedPageCount(unit: PhonicsUnit): number {
+  useStoryTuningTable()
   const lookup = useContext(StorySceneTuningContext)
   let count = 0
   for (;;) {
