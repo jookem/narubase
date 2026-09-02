@@ -106,6 +106,14 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
 
   const target = order[orderIdx] ?? null
 
+  // Speak the rime on every fresh reveal so the sound that's already
+  // written on the page ("an") gets introduced out loud too, not just shown.
+  useEffect(() => {
+    if (!target) return
+    const t = setTimeout(() => speak(unit.rime), 300)
+    return () => clearTimeout(t)
+  }, [target, unit.rime])
+
   function tryOnset(word: PhonicsWord) {
     if (placed || !target) return
     if (word.onset !== target.onset) {
@@ -116,8 +124,10 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
     }
     sfxBlend()
     setPlaced(word)
-    setTray(t => t.filter(w => w.onset !== word.onset))
-    setTimeout(() => speak(word.word), 150)
+    // Keep every onset in the tray — don't shrink the choices round to round,
+    // or the last word or two of the unit become a one-tile gimme.
+    setTimeout(() => speak(word.onset), 150)
+    setTimeout(() => speak(word.word), 900)
 
     setTimeout(() => {
       setCollected(c => {
@@ -196,8 +206,8 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
           )}
         </div>
 
-        {/* Onset tray — every remaining onset in the family, only one of
-            which matches the current target picture */}
+        {/* Onset tray — every onset in the family stays available round to
+            round; only one of them matches the current target picture */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
           {tray.map(w => (
             <DraggableOnsetTile key={w.onset} word={w} disabled={!!placed} shake={shakeOnset === w.onset} onTap={() => tryOnset(w)} />
