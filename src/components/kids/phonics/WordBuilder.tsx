@@ -5,7 +5,6 @@ import {
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { speak } from '@/lib/tts'
-import { phonemeSpeechText } from '@/lib/phonemes'
 import { sfxBlend, sfxWrong } from '@/lib/sfx'
 import type { PhonicsUnit, PhonicsWord } from '@/lib/phonicsContent'
 import { Emoji, EmojiText } from '@/components/shared/Emoji'
@@ -127,8 +126,6 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
     setPlaced(word)
     // Keep every onset in the tray — don't shrink the choices round to round,
     // or the last word or two of the unit become a one-tile gimme.
-    setTimeout(() => speak(word.word), 900)
-
     setTimeout(() => {
       setCollected(c => {
         const next = [...c, word]
@@ -144,7 +141,7 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
     const word = tray.find(w => w.onset === active.id)
     if (word) {
       setActiveDrag(word)
-      speak(phonemeSpeechText(word.onset))
+      speak(word.word)
     }
   }
 
@@ -213,7 +210,7 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
             round; only one of them matches the current target picture */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
           {tray.map(w => (
-            <DraggableOnsetTile key={w.onset} word={w} disabled={!!placed} shake={shakeOnset === w.onset} onTap={() => { speak(phonemeSpeechText(w.onset)); tryOnset(w) }} />
+            <DraggableOnsetTile key={w.onset} word={w} disabled={!!placed} shake={shakeOnset === w.onset} onTap={() => { speak(w.word); tryOnset(w) }} />
           ))}
         </div>
 
