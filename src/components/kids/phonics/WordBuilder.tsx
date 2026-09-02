@@ -106,13 +106,14 @@ export function WordBuilder({ unit, onAllOnsetsUsed }: Props) {
 
   const target = order[orderIdx] ?? null
 
-  // Speak the rime on every fresh reveal so the sound that's already
-  // written on the page ("an") gets introduced out loud too, not just shown.
+  // Announce the full target word on every fresh reveal (e.g. "can", not
+  // just "an") so the student has the whole word in mind before hunting for
+  // the onset that fills the gap.
   useEffect(() => {
     if (!target) return
-    const t = setTimeout(() => speak(unit.rime), 300)
+    const t = setTimeout(() => speak(target.word), 300)
     return () => clearTimeout(t)
-  }, [target, unit.rime])
+  }, [target])
 
   function tryOnset(word: PhonicsWord) {
     if (placed || !target) return
